@@ -2,11 +2,19 @@ package io.github.barqallayl.burkan.feature.apply.model
 
 import io.github.barqallayl.burkan.core.model.AppError
 
-/** The renderer a running process reports. */
-enum class Renderer {
-    Vulkan,
-    OpenGL,
-    Unknown,
+/** The two applies. */
+enum class ApplyKind {
+    /** Set the property and restart the three system surfaces. */
+    Light,
+
+    /** Restart every app, then put back what that disturbs. */
+    Full,
+}
+
+/** What started a run. */
+enum class RunTrigger {
+    Manual,
+    Boot,
 }
 
 /** The device settings a full apply disturbs, and puts back. */

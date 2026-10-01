@@ -8,9 +8,12 @@ import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
@@ -65,6 +68,7 @@ class SetupViewModel(
     private val pairing: PairingRepository,
     private val pairingLauncher: PairingLauncher,
     private val shellAccess: ShellAccess,
+    @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) : OrbitContainerHost<SetupState, SetupState, SetupSideEffect>, ViewModel() {
 
     /** A shell command came back in this session. */
@@ -137,7 +141,7 @@ class SetupViewModel(
                 val echo = shell.run(ShellCommands.echoOk()).bind()
                 ensure(echo.exitCode == 0) { ConnectionError.ConnectFailed }
                 connected = true
-                val grant = shell.run(ShellCommands.grantWriteSecureSettings(checks.ownPackage)).bind()
+                val grant = shell.run(ShellCommands.grantWriteSecureSettings(ownPackage)).bind()
                 ensure(grant.exitCode == 0 && wirelessDebugging.canSwitch()) { SetupError.GrantFailed }
             }
         }.flatten()

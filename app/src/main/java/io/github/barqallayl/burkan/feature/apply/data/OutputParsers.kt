@@ -1,7 +1,7 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.feature.apply.model.Renderer
+import io.github.barqallayl.burkan.core.shell.parseComponentPackage
 
 /*
  * Parsers for the shell output formats in docs/device-notes.md. Each takes the raw stdout and returns domain
@@ -65,22 +65,6 @@ fun parseWidgetPackages(stdout: String): WidgetPackages {
     return WidgetPackages(providers = providers, hosts = hosts)
 }
 
-/** `dumpsys gfxinfo <package>`: the first `Pipeline=` line says what the running process renders with. */
-fun parseRenderer(stdout: String): Renderer =
-    when (stdout.lineSequence().firstOrNull { PIPELINE_MARKER in it }?.substringAfter(PIPELINE_MARKER)?.trim()) {
-        "Skia (Vulkan)" -> Renderer.Vulkan
-        "Skia (OpenGL)" -> Renderer.OpenGL
-        else -> Renderer.Unknown
-    }
-
-/** `settings get`: the value, or null when the key is unset. `settings get` prints `null` for an unset key. */
-fun parseSettingValue(stdout: String): String? =
-    stdout.removeSuffix("\n").removeSuffix("\r").takeUnless { it.isEmpty() || it == "null" }
-
-/** The package of a `package/class` component, as `ime list -s` and `default_input_method` give it. */
-fun parseComponentPackage(component: String): PackageName? =
-    component.trim().takeIf { '/' in it }?.substringBefore('/')?.let(PackageName::parse)
-
 private fun between(text: String, start: String, end: String): String? {
     val from = text.indexOf(start).takeIf { it >= 0 }?.plus(start.length) ?: return null
     val to = text.indexOf(end, startIndex = from).takeIf { it >= 0 } ?: return null
@@ -90,5 +74,4 @@ private fun between(text: String, start: String, end: String): String? {
 private const val PACKAGE_PREFIX = "package:"
 private const val WALLPAPER_MARKER = "mWallpaperComponent="
 private const val COMPONENT_START = "ComponentInfo{"
-private const val PIPELINE_MARKER = "Pipeline="
 private val NOT_IN_PACKAGE_NAME = Regex("[^A-Za-z0-9_.]+")

@@ -1,0 +1,73 @@
+package io.github.barqallayl.burkan.feature.status.data
+
+import arrow.core.left
+import arrow.core.right
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.SettingKey
+import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.ShellError
+import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
+import io.github.barqallayl.burkan.feature.status.model.RendererStatus
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+import kotlin.test.assertEquals
+
+class StatusRepositoryTest {
+
+    private val keyboard = PackageName.known("com.samsung.android.honeyboard")
+    private val shell = FakeShellExecutor().apply {
+        reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
+        reply(
+            ShellCommands.getSetting(SettingKey.DefaultInputMethod),
+            stdout = "com.samsung.android.honeyboard/.service.HoneyBoardService\n",
+        )
+        reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+        reply(ShellCommands.gfxInfo(ShellCommands.Launcher), stdout = fixture("gfxinfo-vulkan.txt"))
+        reply(ShellCommands.gfxInfo(keyboard), stdout = fixture("gfxinfo-opengl.txt"))
+    }
+    private val access = FakeShellAccess(shell)
+    private val repository = StatusRepository(access)
+
+    @Test
+    fun `each surface is read from its own gfxinfo`() = runTest {
+        assertEquals(
+            RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.OpenGL).right(),
+            repository.read(),
+        )
+        assertEquals(
+            listOf(
+                "getprop debug.hwui.renderer",
+                "settings get secure default_input_method",
+                "dumpsys gfxinfo com.android.systemui",
+                "dumpsys gfxinfo com.sec.android.app.launcher",
+                "dumpsys gfxinfo com.samsung.android.honeyboard",
+            ),
+            shell.lines,
+        )
+    }
+
+    @Test
+    fun `no keyboard set, or a dump that fails, reads as unknown`() = runTest {
+        shell.reply(ShellCommands.getSetting(SettingKey.DefaultInputMethod), stdout = "null\n")
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.Launcher), stderr = "Can't find service\n", exitCode = 1)
+
+        val status = repository.read().getOrNull()
+
+        assertEquals(Renderer.Unknown, status?.launcher)
+        assertEquals(Renderer.Unknown, status?.keyboard)
+    }
+
+    @Test
+    fun `no connection, or a connection lost while reading, is an error`() = runTest {
+        access.failure = ConnectionError.NoWifi
+        assertEquals(ConnectionError.NoWifi.left(), repository.read())
+
+        access.failure = null
+        shell.fail(ShellCommands.gfxInfo(ShellCommands.SystemUi), ShellError.ConnectionLost)
+        assertEquals(ShellError.ConnectionLost.left(), repository.read())
+    }
+}

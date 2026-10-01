@@ -1,0 +1,159 @@
+package io.github.barqallayl.burkan.feature.log.data
+
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
+import co.touchlab.kermit.Logger
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
+import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
+import io.github.barqallayl.burkan.feature.apply.model.StepKind
+import io.github.barqallayl.burkan.feature.log.model.LoggedStep
+import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
+import io.github.barqallayl.burkan.feature.log.model.RunResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
+
+/** The last [RunLogStorage.CAPACITY] runs, newest first. */
+interface RunLogStorage {
+    val runs: Flow<List<RunLogEntry>>
+
+    suspend fun add(entry: RunLogEntry)
+
+    companion object {
+        const val CAPACITY = 50
+    }
+}
+
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+class DataStoreRunLogStorage(private val dataStore: DataStore<Preferences>) : RunLogStorage {
+
+    override val runs: Flow<List<RunLogEntry>> = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .map { decode(it[KEY]) }
+        .distinctUntilChanged()
+
+    override suspend fun add(entry: RunLogEntry) {
+        dataStore.edit { preferences ->
+            val runs = listOf(entry.toStored()) + storedRuns(preferences[KEY])
+            preferences[KEY] = json.encodeToString(runs.take(RunLogStorage.CAPACITY))
+        }
+    }
+
+    private fun decode(text: String?): List<RunLogEntry> = storedRuns(text).mapNotNull { it.toEntry() }
+
+    private fun storedRuns(text: String?): List<StoredRun> {
+        if (text == null) return emptyList()
+        return try {
+            json.decodeFromString<List<StoredRun>>(text)
+        } catch (e: SerializationException) {
+            // A log this version cannot read is started afresh rather than taking the screen down.
+            Logger.w(e) { "Run log unreadable" }
+            emptyList()
+        }
+    }
+
+    private companion object {
+        val KEY = stringPreferencesKey("run_log")
+        val json = Json { ignoreUnknownKeys = true }
+    }
+}
+
+/** The stored shape. Enums are stored by name; a run naming something this version lacks is skipped. */
+@Serializable
+private data class StoredRun(
+    val startedAtMillis: Long,
+    val trigger: String,
+    val kind: String,
+    val result: String,
+    val durationMillis: Long,
+    val steps: List<StoredStep>,
+    val error: String? = null,
+)
+
+@Serializable
+private data class StoredStep(
+    val kind: String,
+    val count: Int? = null,
+    val setting: String? = null,
+    val error: String? = null,
+)
+
+private fun RunLogEntry.toStored() = StoredRun(
+    startedAtMillis = startedAt.toEpochMilliseconds(),
+    trigger = trigger.name,
+    kind = kind.name,
+    result = result.name,
+    durationMillis = duration.inWholeMilliseconds,
+    steps = steps.map { step ->
+        val kind = step.kind
+        StoredStep(
+            kind = kind.storedName,
+            count = (kind as? StepKind.StopApps)?.count ?: (kind as? StepKind.RelaunchApps)?.count,
+            setting = (kind as? StepKind.RestoreSetting)?.setting?.name,
+            error = step.error?.name,
+        )
+    },
+    error = error?.name,
+)
+
+private fun StoredRun.toEntry(): RunLogEntry? {
+    return RunLogEntry(
+        startedAt = Instant.fromEpochMilliseconds(startedAtMillis),
+        trigger = enumOrNull<RunTrigger>(trigger) ?: return null,
+        kind = enumOrNull<ApplyKind>(kind) ?: return null,
+        result = enumOrNull<RunResult>(result) ?: return null,
+        duration = durationMillis.milliseconds,
+        steps = steps.map { step ->
+            LoggedStep(
+                kind = step.toKind() ?: return null,
+                error = step.error?.let(::errorType),
+            )
+        },
+        error = error?.let(::errorType),
+    )
+}
+
+private val StepKind.storedName: String
+    get() = when (this) {
+        StepKind.SetRenderer -> "SetRenderer"
+        is StepKind.StopApps -> "StopApps"
+        StepKind.RestartSystemUi -> "RestartSystemUi"
+        StepKind.RestartLauncher -> "RestartLauncher"
+        is StepKind.RelaunchApps -> "RelaunchApps"
+        StepKind.RestartKeyboard -> "RestartKeyboard"
+        is StepKind.RestoreSetting -> "RestoreSetting"
+    }
+
+private fun StoredStep.toKind(): StepKind? = when (kind) {
+    "SetRenderer" -> StepKind.SetRenderer
+    "StopApps" -> count?.let(StepKind::StopApps)
+    "RestartSystemUi" -> StepKind.RestartSystemUi
+    "RestartLauncher" -> StepKind.RestartLauncher
+    "RelaunchApps" -> count?.let(StepKind::RelaunchApps)
+    "RestartKeyboard" -> StepKind.RestartKeyboard
+    "RestoreSetting" -> setting?.let { enumOrNull<RestoredSetting>(it) }?.let(StepKind::RestoreSetting)
+    else -> null
+}
+
+/** An error this version no longer has a message for still reads as a failure. */
+private fun errorType(name: String): AppErrorType = enumOrNull<AppErrorType>(name) ?: AppErrorType.Unexpected
+
+private inline fun <reified E : Enum<E>> enumOrNull(name: String): E? = enumValues<E>().firstOrNull { it.name == name }

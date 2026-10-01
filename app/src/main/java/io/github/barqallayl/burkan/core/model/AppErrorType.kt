@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.core.model
 import androidx.annotation.StringRes
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.shell.ShellError
+import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
@@ -23,6 +24,9 @@ enum class AppErrorType(@StringRes val resource: Int) {
     PairingTimedOut(R.string.error_pairing_timed_out),
     PairingFailed(R.string.error_pairing_failed),
     GrantFailed(R.string.error_grant_failed),
+    CommandFailed(R.string.error_command_failed),
+    NoPackagesListed(R.string.error_no_packages_listed),
+    SettingNotRestored(R.string.error_setting_not_restored),
     Unexpected(R.string.error_unexpected),
 }
 
@@ -41,6 +45,9 @@ fun AppError.type(): AppErrorType = when (this) {
     PairingError.TimedOut -> AppErrorType.PairingTimedOut
     PairingError.Failed -> AppErrorType.PairingFailed
     SetupError.GrantFailed -> AppErrorType.GrantFailed
+    is ApplyError.CommandFailed -> AppErrorType.CommandFailed
+    ApplyError.NoPackagesListed -> AppErrorType.NoPackagesListed
+    is ApplyError.SettingNotRestored -> AppErrorType.SettingNotRestored
     else -> AppErrorType.Unexpected
 }
 

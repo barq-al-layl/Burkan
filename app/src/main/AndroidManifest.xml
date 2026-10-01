@@ -41,6 +41,15 @@
         </activity>
 
         <service
+            android:name=".feature.apply.ApplyService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps Burkan running while it restarts the phone's apps over its own adb connection, so the settings it changed are always put back." />
+        </service>
+
+        <service
             android:name=".feature.connection.PairingService"
             android:exported="false"
             android:foregroundServiceType="specialUse">

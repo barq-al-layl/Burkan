@@ -5,7 +5,9 @@ import dev.zacsweers.metro.Inject
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
+import io.github.barqallayl.burkan.core.shell.parseSettingValue
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
+import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -17,20 +19,24 @@ import kotlin.time.Duration.Companion.seconds
 class ApplyRunner(private val shell: ShellExecutor) {
 
     /**
-     * Runs [plan], reporting each finished step to [onStep]. Stops at the first failed step. The restore steps run
-     * afterwards in every case: after success, after a failure, and after cancellation, which is rethrown once the
-     * settings are back.
+     * Runs [plan], reporting each step to [onStepStarted] as it begins and to [onStep] once it has finished. Stops at
+     * the first failed step. The restore steps run afterwards in every case: after success, after a failure, and
+     * after cancellation, which is rethrown once the settings are back.
      */
-    suspend fun run(plan: ApplyPlan, onStep: (StepRecord) -> Unit) {
+    suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit) {
         try {
             for (step in plan.steps) {
+                onStepStarted(step.kind)
                 val failure = execute(step)
                 onStep(StepRecord(step.kind, failure))
                 if (failure != null) break
             }
         } finally {
             withContext(NonCancellable) {
-                plan.restore.forEach { step -> onStep(StepRecord(step.kind, restore(step))) }
+                plan.restore.forEach { step ->
+                    onStepStarted(step.kind)
+                    onStep(StepRecord(step.kind, restore(step)))
+                }
             }
         }
     }

@@ -9,7 +9,6 @@ import android.provider.Settings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
-import io.github.barqallayl.burkan.core.shell.PackageName
 
 /** The parts of setup only the system can answer. */
 interface SetupChecks {
@@ -20,8 +19,6 @@ interface SetupChecks {
     fun batteryExempt(): Boolean
 
     val deviceModel: String
-
-    val ownPackage: PackageName
 }
 
 @Inject
@@ -38,6 +35,4 @@ class SystemSetupChecks(private val application: Application) : SetupChecks {
         application.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(application.packageName)
 
     override val deviceModel: String = Build.MODEL
-
-    override val ownPackage: PackageName = PackageName.known(application.packageName)
 }

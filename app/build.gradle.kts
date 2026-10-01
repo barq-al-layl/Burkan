@@ -97,6 +97,7 @@ roborazzi {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -111,6 +112,7 @@ dependencies {
     implementation(libs.bouncycastle.pkix)
     implementation(libs.conscrypt.android)
     implementation(libs.kermit)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.ksafe)
     implementation(libs.libadb.android)
     implementation(libs.material.kolor)
@@ -126,7 +128,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.orbit.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)

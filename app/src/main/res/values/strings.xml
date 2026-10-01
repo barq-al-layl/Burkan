@@ -48,6 +48,9 @@
     <string name="error_pairing_timed_out">Pairing timed out. Start it again.</string>
     <string name="error_pairing_failed">Pairing failed. Try again.</string>
     <string name="error_grant_failed">Burkan could not give itself the permission it needs. Try again.</string>
+    <string name="error_command_failed">A command on the phone reported a failure.</string>
+    <string name="error_no_packages_listed">The phone did not list its apps, so nothing was restarted.</string>
+    <string name="error_setting_not_restored">The setting did not read back as it was. Check it in Settings.</string>
     <string name="error_unexpected">Something went wrong.</string>
 
     <string name="pairing_channel_name">Pairing</string>
@@ -60,4 +63,76 @@
     <string name="pairing_failed_title">Pairing did not work</string>
     <string name="pairing_done_title">Paired</string>
     <string name="pairing_done_text">Return to Burkan to finish setup.</string>
+
+    <string name="step_set_renderer">Set new apps to Vulkan</string>
+    <plurals name="step_stop_apps">
+        <item quantity="one">Stop %d app</item>
+        <item quantity="other">Stop %d apps</item>
+    </plurals>
+    <string name="step_restart_system_ui">Restart System UI</string>
+    <string name="step_restart_launcher">Restart the launcher</string>
+    <plurals name="step_relaunch_apps">
+        <item quantity="one">Reopen %d app</item>
+        <item quantity="other">Reopen %d apps</item>
+    </plurals>
+    <string name="step_restart_keyboard">Restart the keyboard</string>
+    <string name="step_restore_auto_rotation">Put back auto-rotation</string>
+    <string name="step_restore_accessibility">Put back accessibility services</string>
+    <string name="step_restore_edge_enabled">Put back Edge panels</string>
+    <string name="step_restore_edge_panels">Put back the Edge panel list</string>
+    <string name="phase_connecting">Connecting to wireless debugging</string>
+    <string name="phase_reading">Reading the phone’s state</string>
+
+    <string name="apply_channel_name">Applying Vulkan</string>
+    <string name="apply_channel_description">Shows a run while it is in progress, and a run that failed.</string>
+    <string name="apply_running_light_title">Applying Vulkan</string>
+    <string name="apply_running_full_title">Restarting all apps</string>
+    <string name="apply_cancel_action">Cancel</string>
+    <string name="apply_failed_title">Vulkan was not applied</string>
+    <string name="apply_failed_text">Open Burkan to see what went wrong.</string>
+
+    <string name="duration_seconds">%1$d s</string>
+    <string name="duration_minutes_seconds">%1$d min %2$d s</string>
+    <string name="navigate_back">Back</string>
+    <string name="renderer_vulkan">Vulkan</string>
+    <string name="renderer_opengl">OpenGL</string>
+    <string name="renderer_unknown">Unknown</string>
+    <string name="trigger_manual">Manual</string>
+    <string name="trigger_boot">After restart</string>
+    <string name="kind_light">Apply</string>
+    <string name="kind_full">Restart all apps</string>
+    <string name="result_succeeded">Succeeded</string>
+    <string name="result_failed">Failed</string>
+    <string name="result_cancelled">Cancelled</string>
+
+    <string name="home_open_log">Log</string>
+    <string name="home_open_settings">Settings</string>
+    <string name="home_headline_active">Vulkan is active</string>
+    <string name="home_headline_not_applied">OpenGL — not applied since the last restart</string>
+    <string name="home_headline_partly">Partly applied</string>
+    <string name="home_headline_unknown">Unknown — cannot connect</string>
+    <string name="home_checking">Checking…</string>
+    <string name="home_open_apps_note">Apps that were already open stay on OpenGL until they restart. Restart all apps to switch them too.</string>
+    <string name="home_row_new_apps">New apps</string>
+    <string name="home_row_system_ui">System UI</string>
+    <string name="home_row_launcher">Launcher</string>
+    <string name="home_row_keyboard">Keyboard</string>
+    <string name="home_last_run">Last run</string>
+    <string name="home_last_run_value">%1$s · %2$s · %3$s</string>
+    <string name="home_no_runs">No runs yet.</string>
+    <string name="home_apply_now">Apply now</string>
+    <string name="home_restart_all">Restart all apps</string>
+    <string name="home_retry">Try again</string>
+    <string name="home_cancel_run">Cancel</string>
+    <string name="home_confirm_title">Restart all apps?</string>
+    <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
+    <string name="home_confirm_action">Restart all apps</string>
+    <string name="home_confirm_dismiss">Not now</string>
+
+    <string name="log_share">Share</string>
+    <string name="log_empty">No runs yet.</string>
+    <string name="log_run_title">%1$s · %2$s</string>
+    <string name="log_run_detail">%1$s · %2$s · %3$s</string>
+    <string name="log_share_chooser">Share the log</string>
+    <string name="log_share_subject">Burkan log</string>
 </resources>

@@ -1,7 +1,10 @@
 package io.github.barqallayl.burkan.feature.connection.data
 
 import arrow.core.Either
+import arrow.core.left
 import arrow.core.right
+import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellStream
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
@@ -62,4 +65,15 @@ class FakeWirelessDebugging(
     override fun canSwitch(): Boolean = permitted
 
     override fun isWifiConnected(): Boolean = wifi
+}
+
+/** Runs each block on [shell], or fails before connecting with [failure]. */
+class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
+    var failure: AppError? = null
+    var runs = 0
+
+    override suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T> {
+        runs++
+        return failure?.left() ?: block(shell).right()
+    }
 }

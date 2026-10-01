@@ -1,21 +1,16 @@
 package io.github.barqallayl.burkan.feature.setup.ui
 
-import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
-import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
-import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbDiscovery
+import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.data.PairingRepository
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
-import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.setup.data.SetupChecks
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
@@ -42,9 +37,11 @@ class SetupViewModelTest {
     private val launcher = FakePairingLauncher()
     private val shell = FakeShellExecutor()
     private val shellAccess = FakeShellAccess(shell)
-    private val grant = ShellCommands.grantWriteSecureSettings(checks.ownPackage)
+    private val ownPackage = PackageName.known("io.github.barqallayl.burkan")
+    private val grant = ShellCommands.grantWriteSecureSettings(ownPackage)
 
-    private fun viewModel() = SetupViewModel(checks, wirelessDebugging, deviceState, pairing, launcher, shellAccess)
+    private fun viewModel() =
+        SetupViewModel(checks, wirelessDebugging, deviceState, pairing, launcher, shellAccess, ownPackage)
 
     /** Everything up to pairing done, so the next step is Connect. */
     private fun readyToConnect() {
@@ -234,7 +231,6 @@ class SetupViewModelTest {
         var developerOptions = false
         var battery = false
         override var deviceModel = "SM-S911B"
-        override val ownPackage = PackageName.known("io.github.barqallayl.burkan")
 
         override fun notificationsAllowed() = notifications
         override fun developerOptionsEnabled() = developerOptions
@@ -245,17 +241,6 @@ class SetupViewModelTest {
         var starts = 0
         override fun start() {
             starts++
-        }
-    }
-
-    /** Runs the block on [shell], or fails before connecting with [failure]. */
-    private class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
-        var failure: AppError? = null
-        var runs = 0
-
-        override suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T> {
-            runs++
-            return failure?.left() ?: block(shell).right()
         }
     }
 }

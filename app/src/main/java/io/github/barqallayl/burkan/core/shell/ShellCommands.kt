@@ -69,6 +69,12 @@ object ShellCommands {
     fun launchAll(packages: List<PackageName>): ShellCommand =
         ShellCommand(packages.joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
 
+    /** What new processes will render with: `skiavk` when Vulkan is set, an empty line when nothing is. */
+    fun getRenderer(): ShellCommand = ShellCommand("getprop debug.hwui.renderer", ShortTimeout)
+
+    /** What a running process renders with, in its `Pipeline=` line. */
+    fun gfxInfo(packageName: PackageName): ShellCommand = ShellCommand("dumpsys gfxinfo $packageName", DumpTimeout)
+
     fun listPackages(): ShellCommand = ShellCommand("pm list packages", ShortTimeout)
 
     fun listInputMethods(): ShellCommand = ShellCommand("ime list -s", ShortTimeout)

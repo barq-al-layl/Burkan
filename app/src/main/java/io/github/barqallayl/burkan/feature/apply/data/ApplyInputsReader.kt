@@ -10,6 +10,8 @@ import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommand
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
+import io.github.barqallayl.burkan.core.shell.parseComponentPackage
+import io.github.barqallayl.burkan.core.shell.parseSettingValue
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 
