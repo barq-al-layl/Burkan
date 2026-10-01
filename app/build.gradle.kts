@@ -1,5 +1,6 @@
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -62,6 +63,13 @@ kotlin {
     }
 }
 
+// Virtual time in coroutine tests is experimental API; it stays out of the app's own code.
+tasks.withType<KotlinCompile>().configureEach {
+    if (name.contains("UnitTest")) {
+        compilerOptions.optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+    }
+}
+
 roborazzi {
     @OptIn(ExperimentalRoborazziApi::class)
     generateComposePreviewRobolectricTests {
@@ -90,6 +98,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+    implementation(libs.arrow.core)
     implementation(libs.kermit)
     implementation(libs.ksafe)
     implementation(libs.material.kolor)

@@ -1,6 +1,7 @@
 [versions]
 activityCompose = "1.13.0"
 agp = "9.4.1"
+arrow = "2.2.3"
 composablePreviewScanner = "0.9.3"
 composeBom = "2026.09.00"
 coreKtx = "1.19.1"
@@ -37,6 +38,7 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 composable-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composablePreviewScanner" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }

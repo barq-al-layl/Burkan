@@ -1,0 +1,12 @@
+ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)
+  All known processes:
+  *PERS* UID 10091 ProcessRecord{1a2b3c4 1987:com.android.systemui/u0a91}
+      - ConnectionRecord{99df603 u0 CR com.android.systemui/.keyguard.KeyguardService:@ac976b2 flags=0x1}
+  *APP* UID 10137 ProcessRecord{5420e3c 6845:com.sec.android.app.launcher/u0a137}
+  *APP* UID 10140 ProcessRecord{7f0e1d2 4410:com.samsung.android.honeyboard/u0a140}
+  *APP* UID 1000 ProcessRecord{2c3d4e5 3120:com.android.settings/1000}
+  *APP* UID 10301 ProcessRecord{3d4e5f6 7001:com.example.notes/u0a301}
+  *APP* UID 10302 ProcessRecord{4e5f607 7002:org.example.weather:remote/u0a302}
+      - ConnectionRecord{5f60718 u0 CR org.example.weather/.sync.SyncService:@6071829 flags=0x1}
+  *APP* UID 10303 ProcessRecord{60718293 7003:org.example.chat/u0a303}
+  *APP* UID 10088 ProcessRecord{7182930 2210:com.sec.imsservice/u0a88}

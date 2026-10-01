@@ -1,0 +1,11 @@
+Applications Graphics Acceleration Info:
+Uptime: 5208815 Realtime: 5208815
+
+** Graphics info for pid 1987 [com.android.systemui] **
+
+Stats since: 41287713291ns
+Total frames rendered: 2187
+Janky frames: 41 (1.87%)
+Pipeline=Skia (OpenGL)
+CPU Caches:
+GPU Caches:

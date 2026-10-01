@@ -1,0 +1,8 @@
+mDefaultWallpaperComponent=ComponentInfo{com.android.systemui/com.android.systemui.wallpapers.ImageWallpaper}
+mImageWallpaper=ComponentInfo{com.android.systemui/com.android.systemui.wallpapers.ImageWallpaper}
+mLastWallpaper state:
+ User 0: id=485
+    mInfo.component=ComponentInfo{com.samsung.android.wallpaper.live/com.samsung.android.wallpaper.live.layered.LayeredWallpaperService}
+    mWhich=1
+  mWallpaperComponent=ComponentInfo{com.samsung.android.wallpaper.live/com.samsung.android.wallpaper.live.layered.LayeredWallpaperService}
+  mImageWallpaper=ComponentInfo{com.android.systemui/com.android.systemui.wallpapers.ImageWallpaper}

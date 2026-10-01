@@ -1,0 +1,24 @@
+Providers:
+  [0] provider ProviderId{user:0, app:10231, cmp:ComponentInfo{com.google.android.googlequicksearchbox/com.google.android.googlequicksearchbox.SearchWidgetProvider}}
+    min=(338x48)   minResize=(338x48) updatePeriodMillis=0 resizeMode=1 autoAdvanceViewId=-1 initialLayout=#7f0e0011 zombie=false
+  [1] provider ProviderId{user:0, app:10304, cmp:ComponentInfo{net.example.reader/net.example.reader.HeadlinesWidget}}
+    min=(250x110)   minResize=(250x110) updatePeriodMillis=0 resizeMode=3 autoAdvanceViewId=-1 initialLayout=#7f0b0042 zombie=false
+
+Widgets:
+  [0] id=190
+    host=HostId{user:0, app:10137, hostId:1024, pkg:com.sec.android.app.launcher}
+    provider=ProviderId{user:0, app:10231, cmp:ComponentInfo{com.google.android.googlequicksearchbox/com.google.android.googlequicksearchbox.SearchWidgetProvider}}
+    host.callbacks=android.os.BinderProxy@b2c3d4e
+  [1] id=191
+    host=HostId{user:0, app:10137, hostId:1024, pkg:com.sec.android.app.launcher}
+    provider=ProviderId{user:0, app:10305, cmp:ComponentInfo{com.example.notes.widget/com.example.notes.widget.NoteWidgetProvider}}
+    host.callbacks=android.os.BinderProxy@b2c3d4e
+
+Hosts:
+  [0] hostId=HostId{user:0, app:1000, hostId:2167, pkg:com.samsung.android.app.dressroom}
+    callbacks=null
+  [1] hostId=HostId{user:0, app:10137, hostId:1024, pkg:com.sec.android.app.launcher}
+    callbacks=android.os.BinderProxy@b2c3d4e
+
+Grants:
+  [0] user=0 package=com.example.notes.widget
