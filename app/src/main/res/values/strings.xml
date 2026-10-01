@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Burkan</string>
+
+    <string name="setup_title">Set up Burkan</string>
+    <string name="settings_title">Settings</string>
+    <string name="log_title">Log</string>
+    <string name="placeholder_not_built">This screen is not built yet.</string>
+
+    <string name="error_unexpected">Something went wrong.</string>
 </resources>
