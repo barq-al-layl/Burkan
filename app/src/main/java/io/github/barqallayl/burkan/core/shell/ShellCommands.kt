@@ -40,6 +40,13 @@ object ShellCommands {
     private val DumpTimeout = 20.seconds
     private val BulkTimeout = 3.minutes
 
+    /** The smallest command that proves the connection works. */
+    fun echoOk(): ShellCommand = ShellCommand("echo ok", ShortTimeout)
+
+    /** Lets the app switch wireless debugging itself, so nothing after setup needs the user. */
+    fun grantWriteSecureSettings(packageName: PackageName): ShellCommand =
+        ShellCommand("pm grant $packageName android.permission.WRITE_SECURE_SETTINGS", ShortTimeout)
+
     fun setVulkanRenderer(): ShellCommand = ShellCommand("setprop debug.hwui.renderer skiavk", ShortTimeout)
 
     /** Restarts a process the system brings back by itself, without clearing it as a default (keyboard). */

@@ -70,6 +70,14 @@ tasks.withType<KotlinCompile>().configureEach {
     }
 }
 
+// Conscrypt's Android build carries native code for Android only. On the JVM it shadows the Conscrypt Robolectric
+// installs for itself, and every Robolectric test fails to load it.
+configurations.configureEach {
+    if (name.endsWith("UnitTestRuntimeClasspath")) {
+        exclude(group = "org.conscrypt", module = "conscrypt-android")
+    }
+}
+
 roborazzi {
     @OptIn(ExperimentalRoborazziApi::class)
     generateComposePreviewRobolectricTests {
@@ -95,17 +103,22 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.arrow.core)
+    implementation(libs.bouncycastle.pkix)
+    implementation(libs.conscrypt.android)
     implementation(libs.kermit)
     implementation(libs.ksafe)
+    implementation(libs.libadb.android)
     implementation(libs.material.kolor)
     implementation(libs.metrox.android)
     implementation(libs.metrox.viewmodel.compose)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
+    implementation(libs.tabler.icons.outline)
 
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)

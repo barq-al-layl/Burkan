@@ -7,6 +7,7 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.ColorSpecs
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
@@ -16,9 +17,12 @@ import kotlinx.coroutines.flow.combine
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
-/** [appearance] is null until the preferences have been read, so the first frame is never in the wrong theme. */
+/**
+ * Both are null until read, so the first frame is never in the wrong theme or on the wrong screen.
+ * [isSetupComplete] chooses the start destination.
+ */
 @Immutable
-data class AppState(val appearance: Appearance? = null)
+data class AppState(val appearance: Appearance? = null, val isSetupComplete: Boolean? = null)
 
 @Immutable
 data class Appearance(
@@ -34,18 +38,20 @@ data class Appearance(
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class AppViewModel(
     private val settings: SettingsStorage,
+    private val deviceState: DeviceStateStorage,
 ) : OrbitContainerHost<AppState, AppState, Nothing>, ViewModel() {
 
     override val container = orbitContainer<AppState, Nothing>(AppState()) {
-        combine(
+        val appearance = combine(
             settings.themeMode,
             settings.seedColor,
             settings.paletteStyle,
             settings.colorSpec,
             settings.textScalePercent,
             ::Appearance,
-        ).collect { appearance ->
-            reduce { state.copy(appearance = appearance) }
+        )
+        combine(appearance, deviceState.isSetupComplete, ::AppState).collect { appState ->
+            reduce { appState }
         }
     }
 }

@@ -9,6 +9,7 @@ import androidx.navigation3.ui.NavDisplay
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
+import io.github.barqallayl.burkan.core.navigation.HomeRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.SetupRoute
 import io.github.barqallayl.burkan.core.navigation.appEntryProvider
@@ -25,6 +26,7 @@ fun App(viewModelFactory: MetroViewModelFactory) {
         val viewModel = metroViewModel<AppViewModel>()
         val state by viewModel.collectAsState()
         val appearance = state.appearance ?: return@CompositionLocalProvider
+        val isSetupComplete = state.isSetupComplete ?: return@CompositionLocalProvider
 
         ProvideTextScale(appearance.textScalePercent) {
             BurkanTheme(
@@ -33,16 +35,16 @@ fun App(viewModelFactory: MetroViewModelFactory) {
                 paletteStyle = appearance.paletteStyle.style,
                 specVersion = appearance.colorSpec.version,
             ) {
-                AppNavigation()
+                AppNavigation(isSetupComplete)
             }
         }
     }
 }
 
+/** The one place that decides between setup and home. No screen navigates on finishing or losing setup. */
 @Composable
-private fun AppNavigation() {
-    // Setup is never complete until M2 builds it; then this chooses between SetupRoute and HomeRoute.
-    val navigator = rememberNavigator(start = SetupRoute)
+private fun AppNavigation(isSetupComplete: Boolean) {
+    val navigator = rememberNavigator(start = if (isSetupComplete) HomeRoute else SetupRoute)
     CompositionLocalProvider(LocalNavigator provides navigator) {
         NavDisplay(
             backStack = navigator.entries,

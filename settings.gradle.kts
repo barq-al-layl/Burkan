@@ -19,6 +19,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // libadb-android and its SPAKE2 dependency are published only there.
+        maven("https://jitpack.io") {
+            content {
+                includeGroupByRegex("com\\.github\\.MuntashirAkon.*")
+            }
+        }
     }
 }
 

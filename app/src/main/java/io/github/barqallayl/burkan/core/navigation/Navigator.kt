@@ -34,10 +34,13 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No Navigator provided") }
 
-/** A [Navigator] whose back stack survives configuration changes and process death. */
+/**
+ * A [Navigator] whose back stack survives configuration changes and process death. A different [start] replaces the
+ * whole back stack.
+ */
 @Composable
 fun rememberNavigator(start: Route): Navigator {
-    val backStack = rememberSerializable(serializer = NavBackStackSerializer(Route.serializer())) {
+    val backStack = rememberSerializable(start, serializer = NavBackStackSerializer(Route.serializer())) {
         NavBackStack(start)
     }
     return remember(backStack) { Navigator(backStack) }
