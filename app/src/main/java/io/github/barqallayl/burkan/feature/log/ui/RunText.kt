@@ -27,4 +27,5 @@ val RunResult.label: Int
         RunResult.Succeeded -> R.string.result_succeeded
         RunResult.Failed -> R.string.result_failed
         RunResult.Cancelled -> R.string.result_cancelled
+        RunResult.AlreadyApplied -> R.string.result_already_applied
     }

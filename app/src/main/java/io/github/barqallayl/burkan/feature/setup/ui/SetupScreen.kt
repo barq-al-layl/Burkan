@@ -2,7 +2,6 @@ package io.github.barqallayl.burkan.feature.setup.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -48,6 +47,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.messageRes
+import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
@@ -91,15 +91,6 @@ fun SetupScreen() {
 @SuppressLint("BatteryLife")
 private fun batteryExemptionIntent(context: Context): Intent =
     Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, "package:${context.packageName}".toUri())
-
-/** Opens a Settings screen, or Settings itself if this phone does not have that one. */
-private fun Context.openSettings(intent: Intent) {
-    try {
-        startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        startActivity(Intent(Settings.ACTION_SETTINGS))
-    }
-}
 
 @Composable
 private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSkipBattery: () -> Unit) {

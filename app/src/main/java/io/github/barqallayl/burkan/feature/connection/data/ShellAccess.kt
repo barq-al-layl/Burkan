@@ -12,9 +12,11 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.AdbShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -32,7 +34,7 @@ interface ShellAccess {
 /**
  * Gets a shell through the phone's own wireless debugging: switches it on if the app may and must, finds the port,
  * connects on loopback with the Wi-Fi address as fallback, and switches wireless debugging off again afterwards if
- * it was the one that switched it on.
+ * it was the one that switched it on and the user has not asked to keep it on.
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -42,6 +44,7 @@ class AdbShellAccess(
     private val discovery: AdbDiscovery,
     private val wirelessDebugging: WirelessDebugging,
     private val deviceState: DeviceStateStorage,
+    private val settings: SettingsStorage,
 ) : ShellAccess {
 
     private val mutex = Mutex()
@@ -59,7 +62,11 @@ class AdbShellAccess(
                     withContext(NonCancellable) { client.disconnect() }
                 }
             } finally {
-                if (switchedOn) withContext(NonCancellable) { wirelessDebugging.set(false) }
+                if (switchedOn) {
+                    withContext(NonCancellable) {
+                        if (settings.turnOffWirelessDebugging.first()) wirelessDebugging.set(false)
+                    }
+                }
             }
         }
     }

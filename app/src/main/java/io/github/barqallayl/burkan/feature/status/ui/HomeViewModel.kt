@@ -11,7 +11,9 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
+import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
@@ -35,11 +37,14 @@ data class HomeState(
     val lastRun: RunLogEntry? = null,
     val run: ApplyRunState = ApplyRunState.Idle,
     val isConfirmingFullApply: Boolean = false,
+    /** What the automatic apply after a restart is waiting for, if anything. */
+    val waitingFor: WaitReason? = null,
 )
 
 sealed interface HomeSideEffect {
     data object OpenLog : HomeSideEffect
     data object OpenSettings : HomeSideEffect
+    data object OpenDeveloperOptions : HomeSideEffect
 }
 
 @Inject
@@ -50,19 +55,21 @@ class HomeViewModel(
     private val controller: ApplyController,
     private val launcher: ApplyLauncher,
     private val runLog: RunLogStorage,
+    private val autoApply: AutoApplyStorage,
 ) : OrbitContainerHost<HomeState, HomeState, HomeSideEffect>, ViewModel() {
 
     override val container = orbitContainer<HomeState, HomeSideEffect>(HomeState()) {
         var logRead = false
-        combine(runLog.runs, controller.state) { runs, run -> runs.firstOrNull() to run }
-            .collect { (lastRun, run) ->
-                // Every run that ends adds to the log, so a new entry means a run has finished. What it changed is
-                // only known by asking again.
-                val runFinished = logRead && lastRun != state.lastRun
-                logRead = true
-                reduce { state.copy(lastRun = lastRun, run = run) }
-                if (runFinished) refresh()
-            }
+        combine(runLog.runs, controller.state, autoApply.state) { runs, run, auto ->
+            Triple(runs.firstOrNull(), run, auto.waitingFor)
+        }.collect { (lastRun, run, waitingFor) ->
+            // Every run that ends adds to the log, so a new entry means a run has finished. What it changed is only
+            // known by asking again.
+            val runFinished = logRead && lastRun != state.lastRun
+            logRead = true
+            reduce { state.copy(lastRun = lastRun, run = run, waitingFor = waitingFor) }
+            if (runFinished) refresh()
+        }
     }
 
     /** Reads the status again. Skipped while a run holds the connection; the run's end refreshes it. */
@@ -89,4 +96,6 @@ class HomeViewModel(
     fun openLog() = intent { postSideEffect(HomeSideEffect.OpenLog) }
 
     fun openSettings() = intent { postSideEffect(HomeSideEffect.OpenSettings) }
+
+    fun openDeveloperOptions() = intent { postSideEffect(HomeSideEffect.OpenDeveloperOptions) }
 }

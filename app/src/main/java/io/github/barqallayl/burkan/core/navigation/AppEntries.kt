@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.core.navigation
 
 import androidx.navigation3.runtime.NavEntry
 import io.github.barqallayl.burkan.feature.log.ui.LogScreen
+import io.github.barqallayl.burkan.feature.settings.ui.ExclusionsScreen
 import io.github.barqallayl.burkan.feature.settings.ui.SettingsScreen
 import io.github.barqallayl.burkan.feature.setup.ui.SetupScreen
 import io.github.barqallayl.burkan.feature.status.ui.HomeScreen
@@ -13,5 +14,6 @@ fun appEntryProvider(route: Route): NavEntry<Route> = NavEntry(route) { key ->
         HomeRoute -> HomeScreen()
         SettingsRoute -> SettingsScreen()
         LogRoute -> LogScreen()
+        ExclusionsRoute -> ExclusionsScreen()
     }
 }

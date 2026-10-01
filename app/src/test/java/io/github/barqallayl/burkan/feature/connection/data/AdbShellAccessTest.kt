@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.connection.data
 import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -25,7 +26,8 @@ class AdbShellAccessTest {
     }
     private val wirelessDebugging = FakeWirelessDebugging()
     private val deviceState = FakeDeviceStateStorage(paired = true)
-    private val access = AdbShellAccess(client, discovery, wirelessDebugging, deviceState)
+    private val settings = FakeSettingsStorage()
+    private val access = AdbShellAccess(client, discovery, wirelessDebugging, deviceState, settings)
 
     @Test
     fun `with wireless debugging already on, it is left on`() = runTest {
@@ -46,6 +48,16 @@ class AdbShellAccessTest {
         assertEquals(2_000L.right(), result, "connects only after the switch has settled")
         assertEquals(listOf(true, false), wirelessDebugging.writes)
         assertFalse(wirelessDebugging.on)
+    }
+
+    @Test
+    fun `a user who keeps wireless debugging on finds it on after the run`() = runTest {
+        settings.turnOffWirelessDebugging.value = false
+
+        assertEquals(Unit.right(), access.withShell { })
+
+        assertEquals(listOf(true), wirelessDebugging.writes)
+        assertTrue(wirelessDebugging.on)
     }
 
     @Test

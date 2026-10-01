@@ -18,3 +18,6 @@ data object SettingsRoute : Route
 
 @Serializable
 data object LogRoute : Route
+
+@Serializable
+data object ExclusionsRoute : Route

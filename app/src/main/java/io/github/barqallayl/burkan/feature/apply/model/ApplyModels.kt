@@ -49,3 +49,18 @@ sealed interface ApplyError : AppError {
     /** The value was written but did not read back the same after every retry. */
     data class SettingNotRestored(val setting: RestoredSetting) : ApplyError
 }
+
+/** What the automatic apply after a restart is waiting for before it can connect. */
+enum class WaitReason {
+    /** The phone is not on Wi-Fi. */
+    Wifi,
+
+    /** Android refused wireless debugging on this network until the user allows it. */
+    TrustedNetwork,
+}
+
+/**
+ * Where the automatic apply after a restart stands. [triedNetwork] is the handle of the network the last attempt was
+ * made on, so that network coming up again does not start the same failing attempt.
+ */
+data class AutoApplyState(val waitingFor: WaitReason? = null, val triedNetwork: Long? = null)

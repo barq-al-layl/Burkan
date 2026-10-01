@@ -22,5 +22,12 @@ object AppBindings {
     @Provides
     fun provideClock(): Clock = Clock.System
 
+    /** The version name shown in Settings. */
+    @Provides
+    @Named(APP_VERSION)
+    fun provideAppVersion(application: Application): String =
+        application.packageManager.getPackageInfo(application.packageName, 0).versionName.orEmpty()
+
     const val OWN_PACKAGE = "own_package"
+    const val APP_VERSION = "app_version"
 }

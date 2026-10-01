@@ -1,0 +1,207 @@
+package io.github.barqallayl.burkan.feature.apply.data
+
+import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.ShellError
+import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
+import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
+import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
+import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
+import io.github.barqallayl.burkan.feature.apply.model.WaitReason
+import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
+import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
+import io.github.barqallayl.burkan.feature.log.model.RunResult
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class AutoApplyTest {
+
+    private val settings = FakeSettingsStorage()
+    private val deviceState = FakeDeviceStateStorage(paired = true, setupComplete = true)
+    private val storage = FakeAutoApplyStorage()
+    private val wirelessDebugging = FakeWirelessDebugging()
+    private val wifiWatch = FakeWifiWatch(active = HOME_NETWORK)
+    private val launcher = FakeApplyLauncher()
+    private val alerts = FakeRunAlerts()
+    private val autoApply = AutoApply(settings, deviceState, storage, wirelessDebugging, wifiWatch, launcher, alerts)
+
+    @Test
+    fun `a restart on Wi-Fi starts the run`() = runTest {
+        autoApply.onBoot()
+
+        assertEquals(1, launcher.automaticStarts)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a restart with the automatic apply off does nothing`() = runTest {
+        settings.applyOnBoot.value = false
+
+        autoApply.onBoot()
+
+        assertEquals(0, launcher.automaticStarts)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a restart before setup is complete does nothing`() = runTest {
+        deviceState.isSetupComplete.value = false
+
+        autoApply.onBoot()
+
+        assertEquals(0, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `a restart without Wi-Fi waits for it instead of starting`() = runTest {
+        wirelessDebugging.wifi = false
+
+        autoApply.onBoot()
+
+        assertEquals(0, launcher.automaticStarts)
+        assertEquals(AutoApplyState(WaitReason.Wifi), storage.state.value)
+        assertTrue(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a restart forgets what the previous boot waited for`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = OTHER_NETWORK)
+
+        autoApply.onBoot()
+
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertEquals(1, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `Wi-Fi coming up while waiting starts the run on that network`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi)
+
+        autoApply.onWifiAvailable(HOME_NETWORK)
+
+        assertEquals(1, launcher.automaticStarts)
+        assertEquals(AutoApplyState(WaitReason.Wifi, triedNetwork = HOME_NETWORK), storage.state.value)
+    }
+
+    @Test
+    fun `the network an attempt already failed on is not tried again`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = HOME_NETWORK)
+
+        autoApply.onWifiAvailable(HOME_NETWORK)
+        assertEquals(0, launcher.automaticStarts)
+
+        autoApply.onWifiAvailable(OTHER_NETWORK)
+        assertEquals(1, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `Wi-Fi coming up with nothing to wait for stops the watch`() = runTest {
+        wifiWatch.watching = true
+
+        autoApply.onWifiAvailable(HOME_NETWORK)
+
+        assertEquals(0, launcher.automaticStarts)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `Wi-Fi coming up after the automatic apply was turned off stops waiting`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi)
+        wifiWatch.watching = true
+        settings.applyOnBoot.value = false
+
+        autoApply.onWifiAvailable(HOME_NETWORK)
+
+        assertEquals(0, launcher.automaticStarts)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a run the system will not start from the background becomes a notification`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi)
+        launcher.backgroundStartAllowed = false
+
+        autoApply.onWifiAvailable(HOME_NETWORK)
+
+        assertEquals(1, alerts.readyToApply)
+    }
+
+    @Test
+    fun `a run that succeeds or finds Vulkan in place ends the wait`() = runTest {
+        listOf(RunResult.Succeeded, RunResult.AlreadyApplied).forEach { result ->
+            storage.state.value = AutoApplyState(WaitReason.Wifi, triedNetwork = HOME_NETWORK)
+            wifiWatch.watching = true
+
+            autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(result))
+
+            assertEquals(AutoApplyState(), storage.state.value, "$result")
+            assertFalse(wifiWatch.watching)
+        }
+        assertEquals(emptyList(), alerts.failures)
+    }
+
+    @Test
+    fun `a manual run that succeeds also ends the wait`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = HOME_NETWORK)
+
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        assertEquals(AutoApplyState(), storage.state.value)
+    }
+
+    @Test
+    fun `a manual run that fails is reported and leaves the wait alone`() = runTest {
+        val waiting = AutoApplyState(WaitReason.Wifi)
+        storage.state.value = waiting
+
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Failed, ConnectionError.NoWifi))
+
+        assertEquals(listOf<AppError?>(ConnectionError.NoWifi), alerts.failures)
+        assertEquals(waiting, storage.state.value)
+    }
+
+    @Test
+    fun `losing Wi-Fi before connecting waits for it, quietly`() = runTest {
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Failed, ConnectionError.NoWifi))
+
+        assertEquals(AutoApplyState(WaitReason.Wifi), storage.state.value)
+        assertTrue(wifiWatch.watching)
+        assertEquals(emptyList(), alerts.failures)
+    }
+
+    @Test
+    fun `a network Android will not allow is explained, and remembered so it is not retried`() = runTest {
+        autoApply.onRunFinished(
+            RunTrigger.Boot,
+            RunOutcome(RunResult.Failed, ConnectionError.WirelessDebuggingRefused),
+        )
+
+        assertEquals(AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = HOME_NETWORK), storage.state.value)
+        assertTrue(wifiWatch.watching)
+        assertEquals(listOf<AppError?>(ConnectionError.WirelessDebuggingRefused), alerts.failures)
+    }
+
+    @Test
+    fun `any other failure is reported once and nothing waits`() = runTest {
+        wifiWatch.watching = true
+
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Failed, ShellError.ConnectionLost))
+
+        assertEquals(listOf<AppError?>(ShellError.ConnectionLost), alerts.failures)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertFalse(wifiWatch.watching)
+    }
+
+    private companion object {
+        const val HOME_NETWORK = 100L
+        const val OTHER_NETWORK = 200L
+    }
+}

@@ -8,10 +8,15 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- mDNS, to find the ports wireless debugging advertises. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- The exclusions picker lists the installed apps; without it most are hidden from the app. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
     <!-- Granted to the app over its own adb connection during setup, to switch wireless debugging. -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
@@ -48,6 +53,19 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps Burkan running while it restarts the phone's apps over its own adb connection, so the settings it changed are always put back." />
         </service>
+
+        <receiver
+            android:name=".feature.apply.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Only the system's network callback reaches it, through the app's own PendingIntent. -->
+        <receiver
+            android:name=".feature.apply.NetworkReceiver"
+            android:exported="false" />
 
         <service
             android:name=".feature.connection.PairingService"

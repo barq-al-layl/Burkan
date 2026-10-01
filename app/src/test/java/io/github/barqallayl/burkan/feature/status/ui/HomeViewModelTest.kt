@@ -2,13 +2,17 @@ package io.github.barqallayl.burkan.feature.status.ui
 
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.fixture
-import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
+import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
@@ -39,10 +43,12 @@ class HomeViewModelTest {
     }
     private val access = FakeShellAccess(shell)
     private val log = FakeRunLogStorage()
-    private val controller = ApplyController(access, log, Clock.System, FixtureDevice.Self)
+    private val settings = FakeSettingsStorage()
+    private val controller = ApplyController(access, log, settings, Clock.System, FixtureDevice.Self)
     private val launcher = FakeApplyLauncher()
+    private val autoApply = FakeAutoApplyStorage()
 
-    private fun viewModel() = HomeViewModel(StatusRepository(access), controller, launcher, log)
+    private fun viewModel() = HomeViewModel(StatusRepository(access), controller, launcher, log, autoApply)
 
     private val notApplied = StatusState.Loaded(
         RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
@@ -114,6 +120,21 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `the waiting card follows the automatic apply`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            autoApply.state.value = AutoApplyState(WaitReason.Wifi)
+            assertEquals(WaitReason.Wifi, awaitState { it.waitingFor != null }.waitingFor)
+
+            autoApply.state.value = AutoApplyState()
+            assertEquals(null, awaitState { it.waitingFor == null }.waitingFor)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `apply now starts the light apply`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
@@ -150,19 +171,6 @@ class HomeViewModelTest {
         while (true) {
             val item = awaitItem()
             if (item is Item.StateItem && matches(item.value)) return item.value
-        }
-    }
-
-    private class FakeApplyLauncher : ApplyLauncher {
-        val started = mutableListOf<ApplyKind>()
-        var cancels = 0
-
-        override fun start(kind: ApplyKind) {
-            started += kind
-        }
-
-        override fun cancel() {
-            cancels++
         }
     }
 }

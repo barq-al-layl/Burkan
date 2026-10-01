@@ -1,12 +1,12 @@
 package io.github.barqallayl.burkan
 
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.ColorSpecs
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.orbitmvi.orbit.test.testWithInternalState
@@ -76,13 +76,5 @@ class AppViewModelTest {
             expectInternalState(AppState(expected, isSetupComplete = false))
             reading.cancel()
         }
-    }
-
-    private class FakeSettingsStorage : SettingsStorage {
-        override val themeMode = MutableStateFlow(SettingsStorage.Defaults.themeMode)
-        override val seedColor = MutableStateFlow(SettingsStorage.Defaults.seedColor)
-        override val paletteStyle = MutableStateFlow(SettingsStorage.Defaults.paletteStyle)
-        override val colorSpec = MutableStateFlow(SettingsStorage.Defaults.colorSpec)
-        override val textScalePercent = MutableStateFlow(SettingsStorage.Defaults.TEXT_SCALE_PERCENT)
     }
 }

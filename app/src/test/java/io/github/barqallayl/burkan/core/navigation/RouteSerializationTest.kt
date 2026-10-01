@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 class RouteSerializationTest {
 
-    private val routes: List<Route> = listOf(SetupRoute, HomeRoute, SettingsRoute, LogRoute)
+    private val routes: List<Route> = listOf(SetupRoute, HomeRoute, SettingsRoute, LogRoute, ExclusionsRoute)
 
     @Test
     fun `every route is listed here`() {

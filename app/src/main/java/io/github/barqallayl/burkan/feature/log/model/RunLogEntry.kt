@@ -11,6 +11,9 @@ enum class RunResult {
     Succeeded,
     Failed,
     Cancelled,
+
+    /** An automatic run found Vulkan already in place and changed nothing. */
+    AlreadyApplied,
 }
 
 /**

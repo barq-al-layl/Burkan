@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.apply
 
 import android.app.Application
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -18,13 +19,16 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.android.ServiceKey
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
+import io.github.barqallayl.burkan.feature.apply.data.AutoApply
+import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
-import io.github.barqallayl.burkan.feature.log.model.RunResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,6 +47,7 @@ import kotlinx.coroutines.withContext
 @ContributesIntoMap(AppScope::class, binding = binding<Service>())
 class ApplyService(
     private val controller: ApplyController,
+    private val autoApply: AutoApply,
     private val notifications: ApplyNotifications,
 ) : Service() {
 
@@ -53,26 +58,33 @@ class ApplyService(
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         notifications.createChannel()
-        val kind = intent?.getStringExtra(EXTRA_KIND)?.let { name -> ApplyKind.entries.firstOrNull { it.name == name } }
+        val automatic = intent?.action == ACTION_AUTOMATIC
+        val kind = if (automatic) {
+            ApplyKind.Light
+        } else {
+            intent?.getStringExtra(EXTRA_KIND)?.let { name -> ApplyKind.entries.firstOrNull { it.name == name } }
+        }
         startInForeground(notifications.progress(kind ?: ApplyKind.Light, controller.state.value))
         when {
             intent?.action == ACTION_CANCEL -> run?.cancel()
             run?.isActive == true || kind == null -> Unit
-            else -> run = scope.launch { execute(kind) }
+            else -> run = scope.launch { execute(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual) }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
         if (run?.isCompleted != false) stopSelf()
         return START_NOT_STICKY
     }
 
-    private suspend fun execute(kind: ApplyKind) {
+    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger) {
         val progress = scope.launch {
             controller.state.collect { state ->
                 if (state is ApplyRunState.Running) notifications.update(notifications.progress(kind, state))
             }
         }
         try {
-            if (controller.run(kind, RunTrigger.Manual) == RunResult.Failed) notifications.showFailure()
+            // An automatic run that finds Vulkan in place changes nothing: no screen flashes for nothing.
+            val outcome = controller.run(kind, trigger, skipIfApplied = trigger == RunTrigger.Boot)
+            if (outcome != null) autoApply.onRunFinished(trigger, outcome)
         } finally {
             withContext(NonCancellable) {
                 progress.cancel()
@@ -103,12 +115,16 @@ class ApplyService(
     companion object {
         const val EXTRA_KIND = "kind"
         const val ACTION_CANCEL = "io.github.barqallayl.burkan.action.CANCEL_RUN"
+
+        /** The light apply after a restart, which skips itself when Vulkan is already in place. */
+        const val ACTION_AUTOMATIC = "io.github.barqallayl.burkan.action.AUTOMATIC_RUN"
     }
 }
 
 /** The run's notifications: its progress while it lasts, and a failure that outlives it. */
 @Inject
-class ApplyNotifications(private val application: Application) {
+@ContributesBinding(AppScope::class)
+class ApplyNotifications(private val application: Application) : RunAlerts {
 
     private val manager = application.getSystemService(NotificationManager::class.java)
 
@@ -145,10 +161,30 @@ class ApplyNotifications(private val application: Application) {
         manager.notify(ONGOING_ID, notification)
     }
 
-    fun showFailure() {
+    override fun showFailure(error: AppError?) {
+        createChannel()
+        val text = application.getString(error?.messageRes() ?: R.string.apply_failed_text)
         val notification = base()
             .setContentTitle(application.getString(R.string.apply_failed_title))
-            .setContentText(application.getString(R.string.apply_failed_text))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true)
+            .build()
+        manager.notify(FAILURE_ID, notification)
+    }
+
+    override fun showReadyToApply() {
+        createChannel()
+        val apply = PendingIntent.getForegroundService(
+            application,
+            0,
+            Intent(application, ApplyService::class.java).setAction(ApplyService.ACTION_AUTOMATIC),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = base()
+            .setContentTitle(application.getString(R.string.apply_ready_title))
+            .setContentText(application.getString(R.string.apply_ready_text))
+            .addAction(0, application.getString(R.string.apply_ready_action), apply)
             .setAutoCancel(true)
             .build()
         manager.notify(FAILURE_ID, notification)
@@ -175,6 +211,12 @@ class ApplyNotifications(private val application: Application) {
 interface ApplyLauncher {
     fun start(kind: ApplyKind)
 
+    /**
+     * Starts the automatic apply. False when Android does not let the app start it from the background, which it
+     * allows after a restart but not always later.
+     */
+    fun startAutomatic(): Boolean
+
     fun cancel()
 }
 
@@ -186,6 +228,15 @@ class ServiceApplyLauncher(private val application: Application) : ApplyLauncher
         application.startForegroundService(
             Intent(application, ApplyService::class.java).putExtra(ApplyService.EXTRA_KIND, kind.name),
         )
+    }
+
+    override fun startAutomatic(): Boolean = try {
+        application.startForegroundService(
+            Intent(application, ApplyService::class.java).setAction(ApplyService.ACTION_AUTOMATIC),
+        )
+        true
+    } catch (_: ForegroundServiceStartNotAllowedException) {
+        false
     }
 
     override fun cancel() {

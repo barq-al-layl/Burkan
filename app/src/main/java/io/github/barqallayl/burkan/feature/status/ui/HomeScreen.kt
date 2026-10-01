@@ -1,5 +1,7 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import android.content.Intent
+import android.provider.Settings as SystemSettings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
@@ -37,6 +40,7 @@ import com.composables.icons.tabler.outline.CircleCheck
 import com.composables.icons.tabler.outline.CircleX
 import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
+import com.composables.icons.tabler.outline.Hourglass
 import com.composables.icons.tabler.outline.Settings
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -48,6 +52,7 @@ import io.github.barqallayl.burkan.core.navigation.LogRoute
 import io.github.barqallayl.burkan.core.navigation.SettingsRoute
 import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.core.ui.formatDateTime
+import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
@@ -57,6 +62,7 @@ import io.github.barqallayl.burkan.feature.apply.data.RunPhase
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
+import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
@@ -78,6 +84,7 @@ fun HomeScreen() {
     val viewModel = metroViewModel<HomeViewModel>()
     val state by viewModel.collectAsState()
     val navigator = LocalNavigator.current
+    val context = LocalContext.current
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
         onPauseOrDispose { }
@@ -86,6 +93,8 @@ fun HomeScreen() {
         when (effect) {
             HomeSideEffect.OpenLog -> navigator.push(LogRoute)
             HomeSideEffect.OpenSettings -> navigator.push(SettingsRoute)
+            HomeSideEffect.OpenDeveloperOptions ->
+                context.openSettings(Intent(SystemSettings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
         }
     }
     HomeContent(
@@ -100,6 +109,7 @@ fun HomeScreen() {
             onCancelRun = viewModel::cancelRun,
             onOpenLog = viewModel::openLog,
             onOpenSettings = viewModel::openSettings,
+            onOpenDeveloperOptions = viewModel::openDeveloperOptions,
         ),
     )
 }
@@ -113,6 +123,7 @@ private class HomeActions(
     val onCancelRun: () -> Unit = {},
     val onOpenLog: () -> Unit = {},
     val onOpenSettings: () -> Unit = {},
+    val onOpenDeveloperOptions: () -> Unit = {},
 )
 
 @Composable
@@ -140,6 +151,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            state.waitingFor?.let { WaitingCard(it, actions.onOpenDeveloperOptions) }
             StatusCard(state, actions.onRetry)
             val run = state.run
             if (run is ApplyRunState.Running) RunningCard(run, actions.onCancelRun)
@@ -244,6 +256,28 @@ private fun RendererRow(label: Int, renderer: Renderer) {
 }
 
 @Composable
+private fun WaitingCard(reason: WaitReason, onOpenDeveloperOptions: () -> Unit) {
+    val (title, text) = when (reason) {
+        WaitReason.Wifi -> R.string.home_waiting_wifi_title to R.string.home_waiting_wifi_text
+        WaitReason.TrustedNetwork -> R.string.home_waiting_network_title to R.string.home_waiting_network_text
+    }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Tabler.Outline.Hourglass, contentDescription = null)
+                Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+            }
+            Text(stringResource(text))
+            if (reason == WaitReason.TrustedNetwork) {
+                TextButton(onClick = onOpenDeveloperOptions) {
+                    Text(stringResource(R.string.home_waiting_open_developer_options))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun RunningCard(run: ApplyRunState.Running, onCancel: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -300,7 +334,14 @@ private fun sample(
     lastRun: RunLogEntry? = null,
     run: ApplyRunState = ApplyRunState.Idle,
     confirming: Boolean = false,
-) = HomeState(status = status, lastRun = lastRun, run = run, isConfirmingFullApply = confirming)
+    waitingFor: WaitReason? = null,
+) = HomeState(
+    status = status,
+    lastRun = lastRun,
+    run = run,
+    isConfirmingFullApply = confirming,
+    waitingFor = waitingFor,
+)
 
 @Composable
 private fun HomePreviewContent(state: HomeState) {
@@ -358,6 +399,28 @@ private fun HomeRunningPreview() = HomePreviewContent(
     sample(
         run = ApplyRunState.Running(ApplyKind.Full, RunTrigger.Manual, RunPhase.Step(StepKind.StopApps(612))),
         lastRun = sampleLightRun,
+    ),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeWaitingForWifiPreview() = HomePreviewContent(
+    sample(status = StatusState.Failed(ConnectionError.NoWifi), waitingFor = WaitReason.Wifi),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeWaitingForTrustedNetworkPreview() = HomePreviewContent(
+    sample(
+        status = StatusState.Failed(ConnectionError.WirelessDebuggingRefused),
+        lastRun = sampleLightRun.copy(
+            trigger = RunTrigger.Boot,
+            result = RunResult.Failed,
+            error = AppErrorType.WirelessDebuggingRefused,
+        ),
+        waitingFor = WaitReason.TrustedNetwork,
     ),
 )
 
