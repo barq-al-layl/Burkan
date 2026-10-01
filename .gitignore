@@ -1,0 +1,16 @@
+*.iml
+.kotlin
+.gradle
+**/build/
+!src/**/build/
+# Signed builds Android Studio writes beside the module.
+app/release/
+local.properties
+keystore.properties
+*.jks
+*.p12
+.idea
+.DS_Store
+captures
+.externalNativeBuild
+.cxx
