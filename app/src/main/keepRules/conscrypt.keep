@@ -1,0 +1,4 @@
+# Conscrypt's compatibility code names the platform's own copies of these classes, which only some Android
+# versions have. It looks them up at run time and copes without them.
+-dontwarn com.android.org.conscrypt.SSLParametersImpl
+-dontwarn org.apache.harmony.xnet.provider.jsse.SSLParametersImpl

@@ -53,6 +53,8 @@ import io.github.barqallayl.burkan.core.navigation.SettingsRoute
 import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.core.ui.formatDateTime
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
@@ -439,6 +441,35 @@ private fun HomeActiveDarkPreview() {
                     RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
                 ),
                 lastRun = sampleLightRun.copy(kind = ApplyKind.Full, duration = 73.seconds),
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeRunningLargeTextPreview() {
+    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+        HomePreviewContent(
+            sample(
+                run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Boot, RunPhase.Step(StepKind.RestartSystemUi)),
+                lastRun = sampleLightRun,
+                waitingFor = WaitReason.Wifi,
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomePartlyAppliedTealPreview() {
+    BurkanPreviewTheme(seedColor = SeedColors.Teal) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.OpenGL, Renderer.Unknown),
+                ),
+                lastRun = sampleLightRun,
             ),
         )
     }

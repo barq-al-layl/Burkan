@@ -48,6 +48,7 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
@@ -369,5 +370,13 @@ private fun SetupPairWrongCodeDarkPreview() {
 private fun SetupBatteryLargeTextPreview() {
     BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
         SetupPreviewContent(sample(SetupStep.Battery, isUntestedModel = true))
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SetupConnectTealPreview() {
+    BurkanPreviewTheme(seedColor = SeedColors.Teal) {
+        SetupPreviewContent(sample(SetupStep.Connect))
     }
 }

@@ -129,6 +129,8 @@ class SettingsViewModel(
 
     fun openSource() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.SOURCE_URL)) }
 
+    fun openLicence() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.LICENCE_URL)) }
+
     fun openUrl(url: String) = intent { postSideEffect(SettingsSideEffect.OpenUrl(url)) }
 
     fun back() = intent { postSideEffect(SettingsSideEffect.Back) }

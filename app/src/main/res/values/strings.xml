@@ -57,6 +57,8 @@
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version</string>
     <string name="settings_source">Source code</string>
+    <string name="settings_licence">Licence</string>
+    <string name="settings_licence_text">Burkan is free software under the GNU General Public License, version 3 or later. It comes with no warranty.</string>
     <string name="settings_licences">Open-source licences</string>
     <string name="settings_licences_text">The libraries Burkan is built with.</string>
     <string name="dialog_cancel">Cancel</string>
@@ -151,8 +153,9 @@
     <string name="apply_ready_text">Burkan can apply Vulkan now.</string>
     <string name="apply_ready_action">Apply</string>
 
-    <string name="duration_seconds">%1$d s</string>
-    <string name="duration_minutes_seconds">%1$d min %2$d s</string>
+    <!-- Non-breaking spaces keep each number with its unit at large text sizes. -->
+    <string name="duration_seconds">%1$d\u00A0s</string>
+    <string name="duration_minutes_seconds">%1$d\u00A0min %2$d\u00A0s</string>
     <string name="navigate_back">Back</string>
     <string name="renderer_vulkan">Vulkan</string>
     <string name="renderer_opengl">OpenGL</string>

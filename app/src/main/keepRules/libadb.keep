@@ -1,0 +1,3 @@
+# libadb-android loads Conscrypt by class name, and its spake2 dependency is native code that finds its Java
+# members by name through JNI. Neither can be checked by R8, so both libraries are kept whole. They are small.
+-keep class io.github.muntashirakon.** { *; }

@@ -10,6 +10,7 @@ data class OpenSourceLibrary(val name: String, val licence: String, val url: Str
 
 object About {
     const val SOURCE_URL = "https://github.com/barq-al-layl/Burkan"
+    const val LICENCE_URL = "$SOURCE_URL/blob/main/LICENSE"
 
     private const val APACHE_2 = "Apache License 2.0"
     private const val MIT = "MIT License"

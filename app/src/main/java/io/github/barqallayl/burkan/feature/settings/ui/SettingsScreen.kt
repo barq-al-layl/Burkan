@@ -56,6 +56,7 @@ import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
+import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.settings.model.About
 import org.orbitmvi.orbit.compose.collectAsState
@@ -91,6 +92,7 @@ fun SettingsScreen() {
             onTextScale = viewModel::setTextScalePercent,
             onConfirmRedoSetup = viewModel::confirmRedoSetup,
             onOpenSource = viewModel::openSource,
+            onOpenLicence = viewModel::openLicence,
             onOpenUrl = viewModel::openUrl,
         ),
     )
@@ -110,6 +112,7 @@ private class SettingsActions(
     val onTextScale: (Int) -> Unit = {},
     val onConfirmRedoSetup: () -> Unit = {},
     val onOpenSource: () -> Unit = {},
+    val onOpenLicence: () -> Unit = {},
     val onOpenUrl: (String) -> Unit = {},
 )
 
@@ -179,6 +182,10 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 modifier = Modifier.clickable(onClick = actions.onOpenSource),
                 supportingContent = { Text(About.SOURCE_URL) },
             ) { Text(stringResource(R.string.settings_source)) }
+            ListItem(
+                modifier = Modifier.clickable(onClick = actions.onOpenLicence),
+                supportingContent = { Text(stringResource(R.string.settings_licence_text)) },
+            ) { Text(stringResource(R.string.settings_licence)) }
             ListItem(
                 modifier = Modifier.clickable { actions.onShow(SettingsDialog.Licences) },
                 supportingContent = { Text(stringResource(R.string.settings_licences_text)) },
@@ -357,7 +364,11 @@ private fun LicencesDialog(onOpenUrl: (String) -> Unit, onDismiss: () -> Unit) {
     )
 }
 
-private fun sample(dialog: SettingsDialog? = null, exclusions: Int = 0) = SettingsState(
+private fun sample(
+    dialog: SettingsDialog? = null,
+    exclusions: Int = 0,
+    textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
+) = SettingsState(
     values = SettingsValues(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
@@ -367,7 +378,7 @@ private fun sample(dialog: SettingsDialog? = null, exclusions: Int = 0) = Settin
             seedColor = SettingsStorage.Defaults.seedColor,
             paletteStyle = SettingsStorage.Defaults.paletteStyle,
             colorSpec = SettingsStorage.Defaults.colorSpec,
-            textScalePercent = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
+            textScalePercent = textScalePercent,
         ),
     ),
     dialog = dialog,
@@ -393,3 +404,27 @@ private fun SettingsRedoSetupPreview() = SettingsContent(sample(SettingsDialog.R
 @BurkanPreview
 @Composable
 private fun SettingsLicencesPreview() = SettingsContent(sample(SettingsDialog.Licences), SettingsActions())
+
+@BurkanPreview
+@Composable
+private fun SettingsDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
+        SettingsContent(sample(exclusions = 1), SettingsActions())
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SettingsLargeTextPreview() {
+    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+        SettingsContent(sample(textScalePercent = TextScale.percentages.last), SettingsActions())
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SettingsPaletteStyleTealPreview() {
+    BurkanPreviewTheme(seedColor = SeedColors.Teal) {
+        SettingsContent(sample(SettingsDialog.PaletteStyle), SettingsActions())
+    }
+}

@@ -38,7 +38,11 @@ import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.core.ui.formatDateTime
+import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
+import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -263,4 +267,30 @@ private fun LogExpandedPreview() {
 @Composable
 private fun LogEmptyPreview() {
     LogContent(LogState(emptyList()), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+}
+
+@BurkanPreview
+@Composable
+private fun LogExpandedDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
+        val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt))
+        LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun LogExpandedLargeTextPreview() {
+    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+        val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt))
+        LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun LogTealPreview() {
+    BurkanPreviewTheme(seedColor = SeedColors.Teal) {
+        LogContent(LogState(sampleRuns), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    }
 }

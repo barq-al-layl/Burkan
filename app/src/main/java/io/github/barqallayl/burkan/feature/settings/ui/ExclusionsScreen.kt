@@ -27,7 +27,11 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
+import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.settings.model.ExcludableApp
 import org.orbitmvi.orbit.compose.collectAsState
@@ -132,3 +136,32 @@ private fun ExclusionsPreview() = ExclusionsContent(
 @BurkanPreview
 @Composable
 private fun ExclusionsLoadingPreview() = ExclusionsContent(state = ExclusionsState(), onToggle = {}, onBack = {})
+
+private val sampleExclusions = ExclusionsState(
+    apps = sampleApps,
+    excluded = setOf(PackageName.known("org.example.chat")),
+)
+
+@BurkanPreview
+@Composable
+private fun ExclusionsDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
+        ExclusionsContent(state = sampleExclusions, onToggle = {}, onBack = {})
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun ExclusionsLargeTextPreview() {
+    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+        ExclusionsContent(state = sampleExclusions, onToggle = {}, onBack = {})
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun ExclusionsTealPreview() {
+    BurkanPreviewTheme(seedColor = SeedColors.Teal) {
+        ExclusionsContent(state = sampleExclusions, onToggle = {}, onBack = {})
+    }
+}

@@ -142,4 +142,12 @@ class SettingsViewModelTest {
             expectSideEffect(SettingsSideEffect.OpenUrl(About.SOURCE_URL))
         }
     }
+
+    @Test
+    fun `the licence link opens the licence in the repository`() = runTest {
+        viewModel().testWithInternalState(this) {
+            containerHost.openLicence()
+            expectSideEffect(SettingsSideEffect.OpenUrl(About.LICENCE_URL))
+        }
+    }
 }
