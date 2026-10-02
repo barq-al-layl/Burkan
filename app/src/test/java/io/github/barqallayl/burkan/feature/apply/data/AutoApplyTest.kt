@@ -1,6 +1,9 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
@@ -8,20 +11,26 @@ import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
+import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
+import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
+import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
+import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import kotlinx.coroutines.async
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class AutoApplyTest {
 
@@ -244,6 +253,47 @@ class AutoApplyTest {
     @Test
     fun `with nothing left for the lock there is nothing to wait for`() = runTest {
         assertFalse(autoApply.awaitLockWhilePending())
+    }
+
+    @Test
+    fun `an unlock during the wait at the lock waits for the next lock, which restarts System UI`() = runTest {
+        val shell = FakeShellExecutor().apply {
+            reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
+            reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-opengl.txt"))
+        }
+        val access = FakeShellAccess(shell)
+        val log = FakeRunLogStorage()
+        val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
+        val controller = ApplyController(access, log, settings, cooldown, lockEvents, FixedClock, FixtureDevice.Self)
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        val waiting = async {
+            autoApply.restartSystemUiAtLocks { controller.run(ApplyKind.Light, RunTrigger.AtLock) }
+        }
+        runCurrent()
+        lockEvents.lock()
+        // The user unlocks again while adbd settles.
+        advanceTimeBy(1.seconds)
+        lockEvents.locked = false
+        advanceTimeBy(ApplyController.ADBD_SETTLE)
+        runCurrent()
+
+        assertTrue(shell.lines.none { it.startsWith("am crash") }, "System UI was not restarted in front of the user")
+        assertEquals(1, access.releases)
+        assertTrue(storage.state.value.systemUiAtNextLock)
+        assertFalse(waiting.isCompleted, "waiting for the next lock")
+
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+        lockEvents.lock()
+        waiting.await()
+
+        assertEquals(1, shell.lines.count { it == "am crash com.android.systemui" })
+        assertFalse(storage.state.value.systemUiAtNextLock)
+        assertEquals(
+            listOf(RunResult.Succeeded, RunResult.Postponed),
+            log.runs.value.map { it.result },
+        )
+        assertTrue(log.runs.value.all { it.trigger == RunTrigger.AtLock })
     }
 
     @Test

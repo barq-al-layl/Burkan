@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /** What a run is doing now, in terms a person can be shown. */
@@ -44,7 +46,8 @@ sealed interface RunPhase {
 
 /**
  * How a run ended, and why when it failed. [status] is what the phone ran with at the end, when it could be read, so
- * that nobody has to connect again to show it. [systemUiDeferred] says System UI was left for the next lock.
+ * that nobody has to connect again to show it. [systemUiDeferred] says System UI was left for the next lock: by the
+ * run after a restart, or by the run at the lock when the phone was unlocked again before it.
  */
 data class RunOutcome(
     val result: RunResult,
@@ -72,6 +75,7 @@ class ApplyController(
     private val runLog: RunLogStorage,
     private val settings: SettingsStorage,
     private val cooldown: SystemUiCooldown,
+    private val lockEvents: LockEvents,
     private val clock: Clock,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) {
@@ -87,27 +91,36 @@ class ApplyController(
 
     /**
      * Returns how the run ended, or null without running when another run is in progress. A light apply restarts only
-     * the surfaces not on Vulkan yet, and changes nothing when all of them are. With [deferSystemUi], System UI is
-     * left alone and the outcome says so.
+     * the surfaces not on Vulkan yet, and changes nothing when all of them are.
+     *
+     * The [trigger] decides System UI. After a restart ([RunTrigger.Boot]) it is left alone, and the outcome says so:
+     * the user has just unlocked. At the lock ([RunTrigger.AtLock]) the run connects only once adbd has had
+     * [ADBD_SETTLE] to restart, reads no more than System UI needs, and crashes System UI only if the phone is still
+     * locked just before; otherwise it is left for the next lock again.
      */
-    suspend fun run(kind: ApplyKind, trigger: RunTrigger, deferSystemUi: Boolean = false): RunOutcome? {
+    suspend fun run(kind: ApplyKind, trigger: RunTrigger): RunOutcome? {
         if (!running.compareAndSet(false, true)) return null
+        val deferSystemUi = trigger == RunTrigger.Boot
+        val atLock = trigger == RunTrigger.AtLock
         val startedAt = clock.now()
         val records = mutableListOf<StepRecord>()
         var runError: AppError? = null
         var result = RunResult.Cancelled
         var alreadyApplied = false
         var systemUiDeferred = false
+        var systemUiLeft = false
         var status: RendererStatus? = null
         fun show(phase: RunPhase) {
             mutableState.value = ApplyRunState.Running(kind, trigger, phase)
         }
         try {
             show(RunPhase.Connecting)
-            val outcome = shellAccess.withShell { shell ->
+            // Locking restarted adbd, which takes about a second to accept connections again.
+            val outcome = shellAccess.withShell(settle = if (atLock) ADBD_SETTLE else Duration.ZERO) { shell ->
                 either {
                     show(RunPhase.Reading)
-                    val before = RendererReader(shell).read().bind()
+                    val reader = RendererReader(shell)
+                    val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
                         ApplyKind.Full -> FullApplyPlan.create(
@@ -122,12 +135,13 @@ class ApplyController(
                         before.status.newApps == Renderer.Vulkan
                     ) {
                         alreadyApplied = true
-                        status = before.status
+                        // At the lock only System UI was read; Home reads the rest itself.
+                        status = before.status.takeUnless { atLock }
                         return@either
                     }
-                    ApplyRunner(shell, cooldown).run(plan, onStepStarted = { show(RunPhase.Step(it)) }) {
-                        records += it
-                    }
+                    val mayRestartSystemUi: () -> Boolean = if (atLock) lockEvents::isLocked else ({ true })
+                    systemUiLeft = ApplyRunner(shell, cooldown, mayRestartSystemUi)
+                        .run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
                     show(RunPhase.Checking)
                     status = RendererReader(shell).read().getOrNull()?.status
                 }
@@ -136,10 +150,11 @@ class ApplyController(
             val stepError = records.firstNotNullOfOrNull { it.failure }
             result = when {
                 alreadyApplied -> RunResult.AlreadyApplied
-                runError == null && stepError == null -> RunResult.Succeeded
+                runError == null && stepError == null -> if (systemUiLeft) RunResult.Postponed else RunResult.Succeeded
                 else -> RunResult.Failed
             }
-            return RunOutcome(result, runError ?: stepError, status, systemUiDeferred && result == RunResult.Succeeded)
+            val leftForLock = (systemUiDeferred || systemUiLeft) && result != RunResult.Failed
+            return RunOutcome(result, runError ?: stepError, status, leftForLock)
         } catch (e: CancellationException) {
             result = RunResult.Cancelled
             throw e
@@ -166,5 +181,10 @@ class ApplyController(
                 )
             }
         }
+    }
+
+    companion object {
+        /** How long adbd is given after the phone locks. It was measured accepting connections again after a second. */
+        val ADBD_SETTLE = 3.seconds
     }
 }

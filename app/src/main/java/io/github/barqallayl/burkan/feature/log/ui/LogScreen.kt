@@ -249,6 +249,27 @@ private val sampleRuns = listOf(
         steps = emptyList(),
         error = AppErrorType.NoWifi,
     ),
+    // The run after a restart leaves System UI for the next lock, and the run at the lock continues it.
+    RunLogEntry(
+        startedAt = Instant.parse("2026-09-30T23:10:00Z"),
+        trigger = RunTrigger.AtLock,
+        kind = ApplyKind.Light,
+        result = RunResult.Succeeded,
+        duration = 9.seconds,
+        steps = listOf(LoggedStep(StepKind.RestartSystemUi)),
+    ),
+    RunLogEntry(
+        startedAt = Instant.parse("2026-09-30T23:05:00Z"),
+        trigger = RunTrigger.Boot,
+        kind = ApplyKind.Light,
+        result = RunResult.Succeeded,
+        duration = 9.seconds,
+        steps = listOf(
+            LoggedStep(StepKind.SetRenderer),
+            LoggedStep(StepKind.RestartLauncher),
+            LoggedStep(StepKind.RestartKeyboard),
+        ),
+    ),
     RunLogEntry(
         startedAt = Instant.parse("2026-09-30T22:15:00Z"),
         trigger = RunTrigger.Manual,

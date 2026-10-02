@@ -9,6 +9,7 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
@@ -25,6 +26,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -52,7 +54,8 @@ class ApplyControllerTest {
     private val settings = FakeSettingsStorage()
     private val clock = SteppingClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
-    private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
+    private val lockEvents = FakeLockEvents()
+    private val controller = ApplyController(access, log, settings, cooldown, lockEvents, clock, FixtureDevice.Self)
 
     @Test
     fun `a light run is logged with its steps`() = runTest {
@@ -83,12 +86,67 @@ class ApplyControllerTest {
 
     @Test
     fun `after a restart System UI is left for the next lock`() = runTest {
-        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = true)
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot)
 
         assertEquals(RunResult.Succeeded, outcome?.result)
         assertTrue(outcome?.systemUiDeferred == true)
         assertTrue("am crash com.android.systemui" !in shell.lines)
         assertTrue(shell.lines.any { it.startsWith("am force-stop com.sec.android.app.launcher;") })
+    }
+
+    @Test
+    fun `at the lock, adbd is given time to settle and only System UI is read before it restarts`() = runTest {
+        lockEvents.lock()
+
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.AtLock)
+
+        assertEquals(RunResult.Succeeded, outcome?.result)
+        assertFalse(outcome?.systemUiDeferred == true)
+        assertEquals(listOf(ApplyController.ADBD_SETTLE), access.settles)
+        assertEquals(
+            listOf(
+                "getprop debug.hwui.renderer",
+                "dumpsys gfxinfo com.android.systemui",
+                "setprop debug.hwui.renderer skiavk",
+                "am crash com.android.systemui",
+            ),
+            shell.lines.take(4),
+        )
+        val entry = log.runs.value.single()
+        assertEquals(RunTrigger.AtLock, entry.trigger)
+        assertEquals(StepKind.RestartSystemUi, entry.steps.last().kind)
+    }
+
+    @Test
+    fun `a phone unlocked during the wait at the lock is not locked again`() = runTest {
+        lockEvents.lock()
+
+        val run = async { controller.run(ApplyKind.Light, RunTrigger.AtLock) }
+        // The user unlocks while adbd settles, before the run has connected.
+        advanceTimeBy(1.seconds)
+        lockEvents.locked = false
+        val outcome = run.await()
+
+        assertEquals(RunResult.Postponed, outcome?.result)
+        assertTrue(outcome?.systemUiDeferred == true, "left for the next lock")
+        assertTrue(shell.lines.none { it.startsWith("am crash") }, "System UI was not restarted")
+        assertEquals(1, access.releases, "the connection is closed and wireless debugging switched back")
+        val entry = log.runs.value.single()
+        assertEquals(RunTrigger.AtLock to RunResult.Postponed, entry.trigger to entry.result)
+        assertTrue(entry.steps.none { it.kind == StepKind.RestartSystemUi })
+    }
+
+    @Test
+    fun `a phone unlocked just before the crash is not locked again`() = runTest {
+        lockEvents.lock()
+        // The last thing read before the crash is System UI's renderer: the user unlocks while it is read.
+        val systemUiRead = ShellCommands.gfxInfo(ShellCommands.SystemUi).line
+        shell.beforeEach = { if (it.line == systemUiRead) lockEvents.locked = false }
+
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.AtLock)
+
+        assertEquals(RunResult.Postponed, outcome?.result)
+        assertTrue(shell.lines.none { it.startsWith("am crash") })
     }
 
     @Test
@@ -191,7 +249,7 @@ class ApplyControllerTest {
             shell.reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-vulkan.txt"))
         }
 
-        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = true)
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot)
 
         val vulkan = RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan)
         assertEquals(RunOutcome(RunResult.AlreadyApplied, status = vulkan), outcome)

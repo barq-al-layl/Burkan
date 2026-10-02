@@ -20,6 +20,7 @@ import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -27,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /** The one way to a shell on the phone. */
@@ -35,8 +37,15 @@ interface ShellAccess {
      * Connects, or reuses a connection still open from just before, and runs [block] with a shell. Only one block runs
      * at a time: a run holds the connection from start to finish. The shell reconnects by itself when adbd restarts
      * part way through.
+     *
+     * [settle] is how long adbd may still be restarting from now, as it does when the phone has just locked: a new
+     * connection is not tried before it has passed. Switching wireless debugging on, which has its own wait, starts at
+     * once, so the two waits overlap.
      */
-    suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T>
+    suspend fun <T> withShell(
+        settle: Duration = Duration.ZERO,
+        block: suspend (ShellExecutor) -> T,
+    ): Either<AppError, T>
 
     /** Closes the connection now instead of keeping it for the next block, and switches wireless debugging back. */
     suspend fun release()
@@ -68,11 +77,14 @@ class AdbShellAccess(
     private var connection: OpenConnection? = null
     private var closing: Job? = null
 
-    override suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T> = mutex.withLock {
+    override suspend fun <T> withShell(
+        settle: Duration,
+        block: suspend (ShellExecutor) -> T,
+    ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()
         closing = null
         either {
-            if (connection == null) connection = open()
+            if (connection == null) connection = open(settle)
             val result = try {
                 block(ReconnectingShellExecutor(AdbShellExecutor(client), ::reconnect))
             } catch (e: Throwable) {
@@ -96,13 +108,19 @@ class AdbShellAccess(
         }
     }
 
-    /** Switches wireless debugging on if needed and connects. On failure, puts the switch back first. */
-    private suspend fun Raise<ConnectionError>.open(): OpenConnection {
+    /**
+     * Switches wireless debugging on if needed and connects, not before [settle] has passed. On failure, puts the
+     * switch back first.
+     */
+    private suspend fun Raise<ConnectionError>.open(settle: Duration): OpenConnection = coroutineScope {
+        val settling = launch { delay(settle) }
         val switchedOn = switchOn()
         try {
-            val endpoint = discovery.find(AdbService.Connect, DISCOVERY_TIMEOUT) ?: raise(ConnectionError.DaemonNotFound)
+            settling.join()
+            val endpoint =
+                discovery.find(AdbService.Connect, DISCOVERY_TIMEOUT) ?: raise(ConnectionError.DaemonNotFound)
             connect(endpoint).bind()
-            return OpenConnection(switchedOn)
+            OpenConnection(switchedOn)
         } catch (e: Throwable) {
             if (switchedOn) withContext(NonCancellable) { switchOff() }
             throw e

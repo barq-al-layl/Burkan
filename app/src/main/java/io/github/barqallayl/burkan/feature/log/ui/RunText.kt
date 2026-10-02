@@ -19,6 +19,7 @@ val RunTrigger.label: Int
     get() = when (this) {
         RunTrigger.Manual -> R.string.trigger_manual
         RunTrigger.Boot -> R.string.trigger_boot
+        RunTrigger.AtLock -> R.string.trigger_at_lock
     }
 
 @get:StringRes
@@ -28,4 +29,5 @@ val RunResult.label: Int
         RunResult.Failed -> R.string.result_failed
         RunResult.Cancelled -> R.string.result_cancelled
         RunResult.AlreadyApplied -> R.string.result_already_applied
+        RunResult.Postponed -> R.string.result_postponed
     }

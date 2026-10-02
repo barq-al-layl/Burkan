@@ -20,17 +20,24 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Executes an [ApplyPlan] through the shell. [shell] should reconnect by itself: restarting System UI brings up the
- * lock screen, which restarts adbd under the run.
+ * lock screen, which restarts adbd under the run. [mayRestartSystemUi] is asked immediately before System UI is
+ * crashed; the run at the lock passes whether the phone is still locked.
  */
-class ApplyRunner(private val shell: ShellExecutor, private val cooldown: SystemUiCooldown) {
+class ApplyRunner(
+    private val shell: ShellExecutor,
+    private val cooldown: SystemUiCooldown,
+    private val mayRestartSystemUi: () -> Boolean = { true },
+) {
 
     /**
      * Runs [plan], reporting each step to [onStepStarted] as it begins and to [onStep] once it has finished. Stops at
      * the first failed step. The restore steps run afterwards in every case: after success, after a failure, and
      * after cancellation, which is rethrown once the settings are back. System UI is restarted last, and only when
      * nothing failed.
+     *
+     * Returns true when System UI was due but [mayRestartSystemUi] said no: it was left alone, and no step recorded.
      */
-    suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit) {
+    suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit): Boolean {
         var failed = false
         try {
             for (step in plan.steps) {
@@ -54,8 +61,12 @@ class ApplyRunner(private val shell: ShellExecutor, private val cooldown: System
         }
         if (plan.restartSystemUi && !failed) {
             onStepStarted(StepKind.RestartSystemUi)
-            onStep(StepRecord(StepKind.RestartSystemUi, restartSystemUi()))
+            // As late as it can be asked. Between it and the crash there is only the cooldown, a local write.
+            if (!mayRestartSystemUi()) return true
+            val failure = if (cooldown.claim()) restartSystemUi() else ApplyError.SystemUiRestartedRecently
+            onStep(StepRecord(StepKind.RestartSystemUi, failure))
         }
+        return false
     }
 
     /**
@@ -64,7 +75,6 @@ class ApplyRunner(private val shell: ShellExecutor, private val cooldown: System
      * the shell reconnects for the checks after it.
      */
     private suspend fun restartSystemUi(): AppError? {
-        if (!cooldown.claim()) return ApplyError.SystemUiRestartedRecently
         shell.run(ShellCommands.crash(ShellCommands.SystemUi)).fold(
             ifLeft = { error -> if (error != ShellError.ConnectionLost) return error },
             ifRight = { result ->

@@ -107,6 +107,18 @@ class AutoApply(
         ).first()
     }
 
+    /**
+     * Restarts System UI at the next lock, for as long as it is left for then. [atLock] runs the apply once the phone
+     * has locked, and returns null when it could not start because another run holds the app. A run at the lock that
+     * found the phone unlocked again leaves System UI for the next lock, and the wait starts over.
+     */
+    suspend fun restartSystemUiAtLocks(atLock: suspend () -> RunOutcome?) {
+        while (awaitLockWhilePending()) {
+            val outcome = atLock() ?: return
+            onRunFinished(RunTrigger.AtLock, outcome)
+        }
+    }
+
     /** True while System UI is left for the next lock. */
     suspend fun isWaitingForLock(): Boolean = storage.state.first().systemUiAtNextLock
 

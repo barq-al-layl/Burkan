@@ -11,6 +11,7 @@ import io.github.barqallayl.burkan.core.shell.exit
 import io.github.barqallayl.burkan.core.shell.packet
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
+import kotlinx.coroutines.delay
 import java.io.IOException
 import kotlin.time.Duration
 
@@ -80,14 +81,17 @@ class FakeWirelessDebugging(
     override fun isWifiConnected(): Boolean = wifi
 }
 
-/** Runs each block on [shell], or fails before connecting with [failure]. */
+/** Runs each block on [shell] once its settle time has passed, or fails before connecting with [failure]. */
 class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
     var failure: AppError? = null
     var runs = 0
     var releases = 0
+    val settles = mutableListOf<Duration>()
 
-    override suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T> {
+    override suspend fun <T> withShell(settle: Duration, block: suspend (ShellExecutor) -> T): Either<AppError, T> {
         runs++
+        settles += settle
+        delay(settle)
         return failure?.left() ?: block(shell).right()
     }
 

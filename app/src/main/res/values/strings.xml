@@ -177,12 +177,14 @@
     <string name="renderer_unknown">Unknown</string>
     <string name="trigger_manual">Manual</string>
     <string name="trigger_boot">After restart</string>
+    <string name="trigger_at_lock">System UI at lock</string>
     <string name="kind_light">Apply</string>
     <string name="kind_full">Restart all apps</string>
     <string name="result_succeeded">Succeeded</string>
     <string name="result_failed">Failed</string>
     <string name="result_cancelled">Cancelled</string>
     <string name="result_already_applied">Already applied</string>
+    <string name="result_postponed">Left for the next lock</string>
 
     <string name="home_waiting_wifi_title">Waiting for Wi-Fi</string>
     <string name="home_waiting_wifi_text">The phone restarted without Wi-Fi. Vulkan will be applied when it connects to a Wi-Fi network.</string>

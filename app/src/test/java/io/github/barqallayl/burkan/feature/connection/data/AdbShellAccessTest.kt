@@ -67,6 +67,21 @@ class AdbShellAccessTest {
     }
 
     @Test
+    fun `waiting for adbd to settle overlaps the wait for the switch`() = runTest {
+        val result = access().withShell(settle = 3.seconds) { currentTime }
+
+        assertEquals(3_000L.right(), result, "3 seconds after the lock, not 2 + 3")
+        assertEquals(listOf(true), wirelessDebugging.writes, "switched on at once")
+    }
+
+    @Test
+    fun `with wireless debugging already on, the settle alone is waited`() = runTest {
+        wirelessDebugging.on = true
+
+        assertEquals(3_000L.right(), access().withShell(settle = 3.seconds) { currentTime })
+    }
+
+    @Test
     fun `a user who keeps wireless debugging on finds it on after the run`() = runTest {
         settings.turnOffWirelessDebugging.value = false
 

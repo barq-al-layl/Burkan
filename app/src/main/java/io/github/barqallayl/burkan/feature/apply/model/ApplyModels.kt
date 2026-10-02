@@ -14,7 +14,12 @@ enum class ApplyKind {
 /** What started a run. */
 enum class RunTrigger {
     Manual,
+
+    /** The automatic apply after a restart. The user has just unlocked, so System UI is left for the next lock. */
     Boot,
+
+    /** The rest of the automatic apply after a restart: System UI, restarted once the phone has locked. */
+    AtLock,
 }
 
 /** The device settings a full apply disturbs, and puts back. */

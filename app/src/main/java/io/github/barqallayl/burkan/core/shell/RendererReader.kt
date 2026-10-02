@@ -31,6 +31,24 @@ class RendererReader(private val shell: ShellExecutor) {
         )
     }
 
+    /**
+     * Reads only the property and System UI, leaving the launcher and the keyboard unknown and unnamed: for the run at
+     * the lock, which has nothing else to do and must reach System UI before the user unlocks.
+     */
+    suspend fun readSystemUi(): Either<ShellError, Surfaces> = either {
+        val property = shell.run(ShellCommands.getRenderer()).bind()
+        Surfaces(
+            status = RendererStatus(
+                newApps = rendererFromProperty(property.stdout),
+                systemUi = rendererOf(ShellCommands.SystemUi).bind(),
+                launcher = Renderer.Unknown,
+                keyboard = Renderer.Unknown,
+            ),
+            launcher = null,
+            keyboard = null,
+        )
+    }
+
     /** What the running process uses. A process that is not running has no pipeline to report: unknown. */
     suspend fun rendererOf(packageName: PackageName): Either<ShellError, Renderer> = either {
         val result = shell.run(ShellCommands.gfxInfo(packageName)).bind()

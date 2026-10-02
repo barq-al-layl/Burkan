@@ -26,6 +26,7 @@ import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
+import io.github.barqallayl.burkan.feature.apply.data.RunOutcome
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.ui.label
@@ -36,11 +37,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Keeps the app alive while a run is in progress. A full apply relaunches other apps over Burkan, and a cached
@@ -97,7 +96,7 @@ class ApplyService(
     private fun start(kind: ApplyKind, trigger: RunTrigger) {
         run = scope.launch {
             // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
-            execute(kind, trigger, deferSystemUi = trigger == RunTrigger.Boot)
+            execute(kind, trigger)?.let { autoApply.onRunFinished(trigger, it) }
             if (autoApply.isWaitingForLock()) awaitLock()
         }.also { it.invokeOnCompletion { stopIfIdle() } }
     }
@@ -105,30 +104,31 @@ class ApplyService(
     private fun awaitLock() {
         lockWait = scope.launch {
             notifications.update(notifications.waitingForLock())
-            if (!autoApply.awaitLockWhilePending()) return@launch
-            // The screen is off: keep the CPU awake for the run.
-            val wakeLock = getSystemService(PowerManager::class.java)
-                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
-            wakeLock.acquire(RUN_WAKE_LOCK_TIMEOUT.inWholeMilliseconds)
-            try {
-                // Locking restarted adbd; it takes about a second to accept connections again.
-                delay(ADBD_SETTLE)
-                execute(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = false)
-            } finally {
-                if (wakeLock.isHeld) wakeLock.release()
+            autoApply.restartSystemUiAtLocks {
+                // The screen is off: keep the CPU awake for the run.
+                val wakeLock = getSystemService(PowerManager::class.java)
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+                wakeLock.acquire(RUN_WAKE_LOCK_TIMEOUT.inWholeMilliseconds)
+                try {
+                    execute(ApplyKind.Light, RunTrigger.AtLock)
+                } finally {
+                    if (wakeLock.isHeld) wakeLock.release()
+                    // Shown again in case the phone was unlocked first and the wait starts over.
+                    notifications.update(notifications.waitingForLock())
+                }
             }
         }.also { it.invokeOnCompletion { stopIfIdle() } }
     }
 
-    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger, deferSystemUi: Boolean) {
+    /** Runs the apply, with its progress in the notification. Null when another run held the app. */
+    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger): RunOutcome? {
         val progress = scope.launch {
             controller.state.collect { state ->
                 if (state is ApplyRunState.Running) notifications.update(notifications.progress(kind, state))
             }
         }
         try {
-            val outcome = controller.run(kind, trigger, deferSystemUi)
-            if (outcome != null) autoApply.onRunFinished(trigger, outcome)
+            return controller.run(kind, trigger)
         } finally {
             withContext(NonCancellable) { progress.cancel() }
         }
@@ -179,7 +179,6 @@ class ApplyService(
         const val ACTION_AWAIT_LOCK = "io.github.barqallayl.burkan.action.AWAIT_LOCK"
 
         private const val WAKE_LOCK_TAG = "Burkan:apply"
-        private val ADBD_SETTLE = 3.seconds
         private val RUN_WAKE_LOCK_TIMEOUT = 2.minutes
     }
 }

@@ -14,6 +14,12 @@ enum class RunResult {
 
     /** An automatic run found Vulkan already in place and changed nothing. */
     AlreadyApplied,
+
+    /**
+     * The run at the lock found the phone unlocked again before it restarted System UI, and left it for the next
+     * lock rather than lock the phone in front of the user.
+     */
+    Postponed,
 }
 
 /**

@@ -76,12 +76,18 @@ class FakeRunAlerts : RunAlerts {
     }
 }
 
-/** The phone locks when a test says so. */
+/** The phone locks when a test says so, and stays locked until [locked] is set back to false: the user unlocked. */
 class FakeLockEvents : LockEvents {
     private val mutableLocks = MutableSharedFlow<Unit>()
     override val locks: Flow<Unit> = mutableLocks
+    var locked = false
 
-    suspend fun lock() = mutableLocks.emit(Unit)
+    suspend fun lock() {
+        locked = true
+        mutableLocks.emit(Unit)
+    }
+
+    override fun isLocked(): Boolean = locked
 }
 
 class FakeSystemUiRestarts : SystemUiRestarts {

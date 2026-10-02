@@ -18,12 +18,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** Tells when the phone locks. */
 interface LockEvents {
     /** Emits each time the screen is off and the keyguard is up, and at once if that is already so when collected. */
     val locks: Flow<Unit>
+
+    /** True while the keyguard is up: false once the user has unlocked. */
+    fun isLocked(): Boolean
 }
 
 /**
@@ -59,20 +63,23 @@ class KeyguardLockEvents(private val application: Application) : LockEvents {
         awaitClose { application.unregisterReceiver(receiver) }
     }
 
+    override fun isLocked(): Boolean = keyguard.isKeyguardLocked
+
     /**
-     * With the screen off the CPU may sleep, so a short wake lock covers the wait for the keyguard. A phone set to lock
-     * later than [LOCK_WAIT] after the screen goes off is caught the next time the screen goes off.
+     * With the screen off the CPU may sleep, so a short wake lock covers the wait for the keyguard. Asked every
+     * [LOCK_POLL], a cheap call, so that the lock is seen at once: the user may unlock again within seconds. A phone
+     * set to lock later than [LOCK_WAIT] after the screen goes off is caught the next time the screen goes off.
      */
     private suspend fun ProducerScope<Unit>.watchForLock() {
         val wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
         wakeLock.acquire(LOCK_WAIT.inWholeMilliseconds)
         try {
-            repeat(LOCK_WAIT.inWholeSeconds.toInt()) {
+            repeat((LOCK_WAIT / LOCK_POLL).toInt()) {
                 if (keyguard.isKeyguardLocked) {
                     send(Unit)
                     return
                 }
-                delay(1.seconds)
+                delay(LOCK_POLL)
             }
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
@@ -81,6 +88,7 @@ class KeyguardLockEvents(private val application: Application) : LockEvents {
 
     private companion object {
         val LOCK_WAIT = 15.seconds
+        val LOCK_POLL = 200.milliseconds
         const val WAKE_LOCK_TAG = "Burkan:lock"
     }
 }

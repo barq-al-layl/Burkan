@@ -8,6 +8,7 @@ import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
@@ -48,7 +49,8 @@ class HomeViewModelTest {
     private val settings = FakeSettingsStorage()
     private val clock = TestClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
-    private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
+    private val controller =
+        ApplyController(access, log, settings, cooldown, FakeLockEvents(), clock, FixtureDevice.Self)
     private val launcher = FakeApplyLauncher()
     private val autoApply = FakeAutoApplyStorage()
 
