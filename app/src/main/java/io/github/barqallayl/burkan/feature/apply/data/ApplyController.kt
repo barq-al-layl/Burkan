@@ -131,9 +131,7 @@ class ApplyController(
                         )
                     }
                     systemUiDeferred = deferSystemUi && before.status.systemUi != Renderer.Vulkan
-                    if (kind == ApplyKind.Light && plan.restartsNothing && !systemUiDeferred &&
-                        before.status.newApps == Renderer.Vulkan
-                    ) {
+                    if (kind == ApplyKind.Light && plan.changesNothing && !systemUiDeferred) {
                         alreadyApplied = true
                         // At the lock only System UI was read; Home reads the rest itself.
                         status = before.status.takeUnless { atLock }

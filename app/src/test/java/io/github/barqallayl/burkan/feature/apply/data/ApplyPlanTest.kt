@@ -48,7 +48,24 @@ class ApplyPlanTest {
 
         assertEquals(listOf(StepKind.SetRenderer), plan.steps.map { it.kind })
         assertFalse(plan.restartSystemUi)
-        assertTrue(plan.restartsNothing)
+        assertFalse(plan.changesNothing, "the property is still to set")
+    }
+
+    @Test
+    fun `a property already set is not set again`() {
+        val plan = LightApplyPlan.create(surfaces(newApps = Vulkan))
+
+        assertEquals(listOf(StepKind.RestartLauncher, StepKind.RestartKeyboard), plan.steps.map { it.kind })
+        assertTrue(plan.restartSystemUi)
+    }
+
+    @Test
+    fun `with the property set and every surface on Vulkan there is nothing to do`() {
+        val plan = LightApplyPlan.create(
+            surfaces(newApps = Vulkan, systemUi = Vulkan, launcher = Vulkan, keyboard = Vulkan),
+        )
+
+        assertTrue(plan.changesNothing)
     }
 
     @Test
@@ -106,7 +123,7 @@ class ApplyPlanTest {
         )
 
         assertEquals(names("org.example.app"), stopped(plan))
-        assertEquals(listOf(StepKind.SetRenderer, StepKind.StopApps(1)), plan.steps.map { it.kind })
+        assertEquals(listOf(StepKind.StopApps(1)), plan.steps.map { it.kind }, "the property is set already")
         assertFalse(plan.restartSystemUi)
     }
 
@@ -215,11 +232,12 @@ class ApplyPlanTest {
     )
 
     private fun surfaces(
+        newApps: Renderer = OpenGL,
         systemUi: Renderer = OpenGL,
         launcher: Renderer = OpenGL,
         keyboard: Renderer? = OpenGL,
     ) = Surfaces(
-        status = RendererStatus(OpenGL, systemUi, launcher, keyboard ?: Unknown),
+        status = RendererStatus(newApps, systemUi, launcher, keyboard ?: Unknown),
         launcher = FixtureDevice.Launcher,
         keyboard = FixtureDevice.Keyboard.takeIf { keyboard != null },
     )

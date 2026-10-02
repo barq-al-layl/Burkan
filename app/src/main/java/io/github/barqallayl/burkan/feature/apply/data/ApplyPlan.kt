@@ -29,9 +29,9 @@ data class ApplyPlan(
     val restore: List<ApplyStep.RestoreSetting> = emptyList(),
     val restartSystemUi: Boolean = false,
 ) {
-    /** True when the plan only sets the property: every surface it would restart is on Vulkan already. */
-    val restartsNothing: Boolean
-        get() = steps.all { it.kind == StepKind.SetRenderer } && !restartSystemUi
+    /** True when there is nothing to do: the property is set, and every surface is on Vulkan already. */
+    val changesNothing: Boolean
+        get() = steps.isEmpty() && !restartSystemUi
 }
 
 val RestoredSetting.key: SettingKey

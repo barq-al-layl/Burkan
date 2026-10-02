@@ -6,9 +6,9 @@ import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 
 /**
- * The light apply: set the property and restart the system surfaces that are not on Vulkan yet. What runs after
- * boot, when almost nothing with a UI is running yet. It force-stops only the launcher, so there is no state to
- * capture.
+ * The light apply: set the property unless it is set, and restart the system surfaces that are not on Vulkan yet.
+ * What runs after boot, when almost nothing with a UI is running yet. It force-stops only the launcher, so there is
+ * no state to capture.
  */
 object LightApplyPlan {
 
@@ -18,7 +18,9 @@ object LightApplyPlan {
      */
     fun create(before: Surfaces, deferSystemUi: Boolean = false): ApplyPlan = ApplyPlan(
         steps = buildList {
-            add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
+            if (before.status.newApps != Renderer.Vulkan) {
+                add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
+            }
             if (before.launcher != null && before.status.launcher != Renderer.Vulkan) {
                 add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(before.launcher)))
             }

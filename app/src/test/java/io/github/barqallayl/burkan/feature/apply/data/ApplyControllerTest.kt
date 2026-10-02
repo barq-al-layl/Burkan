@@ -268,7 +268,7 @@ class ApplyControllerTest {
     }
 
     @Test
-    fun `only the surfaces not on Vulkan are restarted`() = runTest {
+    fun `only what is not in place yet is done`() = runTest {
         shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
         shell.reply(ShellCommands.gfxInfo(FixtureDevice.Launcher), stdout = fixture("gfxinfo-vulkan.txt"))
         shell.reply(ShellCommands.gfxInfo(FixtureDevice.Keyboard), stdout = fixture("gfxinfo-vulkan.txt"))
@@ -276,10 +276,26 @@ class ApplyControllerTest {
         val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
 
         assertEquals(RunResult.Succeeded, outcome?.result)
+        assertEquals(listOf(StepKind.RestartSystemUi), log.runs.value.single().steps.map { it.kind })
+        assertTrue(shell.lines.none { it.startsWith("setprop") }, "the property was set already")
+    }
+
+    @Test
+    fun `the run at the lock, after the first part set the property, only restarts System UI`() = runTest {
+        shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
+        lockEvents.lock()
+
+        controller.run(ApplyKind.Light, RunTrigger.AtLock)
+
         assertEquals(
-            listOf(StepKind.SetRenderer, StepKind.RestartSystemUi),
-            log.runs.value.single().steps.map { it.kind },
+            listOf(
+                "getprop debug.hwui.renderer",
+                "dumpsys gfxinfo com.android.systemui",
+                "am crash com.android.systemui",
+            ),
+            shell.lines.take(3),
         )
+        assertEquals(listOf(StepKind.RestartSystemUi), log.runs.value.single().steps.map { it.kind })
     }
 
     @Test

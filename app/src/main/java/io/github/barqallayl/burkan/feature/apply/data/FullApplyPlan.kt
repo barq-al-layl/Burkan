@@ -78,7 +78,9 @@ object FullApplyPlan {
 
         return ApplyPlan(
             steps = buildList {
-                add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
+                if (before.status.newApps != Renderer.Vulkan) {
+                    add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
+                }
                 if (stopped.isNotEmpty()) {
                     add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.forceStopAll(stopped)))
                 }
