@@ -38,6 +38,17 @@ class DataStoreAutoApplyStorageTest {
     }
 
     @Test
+    fun `the last boot handled is kept apart from the wait`() = runTest {
+        val storage = DataStoreAutoApplyStorage(dataStore())
+        assertEquals(null, storage.lastBoot())
+
+        storage.setLastBoot(17)
+        storage.set(AutoApplyState())
+
+        assertEquals(17, storage.lastBoot())
+    }
+
+    @Test
     fun `a reason this version does not know reads as not waiting`() = runTest {
         val dataStore = dataStore()
         dataStore.edit { it[stringPreferencesKey("auto_apply_waiting_for")] = "Bluetooth" }

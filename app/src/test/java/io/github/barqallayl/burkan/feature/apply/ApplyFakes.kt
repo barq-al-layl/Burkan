@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.apply
 
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.data.BootCount
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.SystemUiRestarts
@@ -43,10 +44,22 @@ class FakeApplyLauncher : ApplyLauncher {
 
 class FakeAutoApplyStorage(initial: AutoApplyState = AutoApplyState()) : AutoApplyStorage {
     override val state = MutableStateFlow(initial)
+    var lastBoot: Int? = null
 
     override suspend fun set(state: AutoApplyState) {
         this.state.value = state
     }
+
+    override suspend fun lastBoot(): Int? = lastBoot
+
+    override suspend fun setLastBoot(count: Int) {
+        lastBoot = count
+    }
+}
+
+/** The phone's boot count, which a test raises to play a restart. */
+class FakeBootCount(var count: Int? = 1) : BootCount {
+    override fun current(): Int? = count
 }
 
 class FakeWifiWatch(var active: Long? = null) : WifiWatch {

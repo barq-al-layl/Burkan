@@ -8,6 +8,7 @@ import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.FakeBootCount
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
@@ -42,8 +43,9 @@ class AutoApplyTest {
     private val launcher = FakeApplyLauncher()
     private val alerts = FakeRunAlerts()
     private val lockEvents = FakeLockEvents()
+    private val bootCount = FakeBootCount()
     private val autoApply =
-        AutoApply(settings, deviceState, storage, wirelessDebugging, wifiWatch, launcher, alerts, lockEvents)
+        AutoApply(settings, deviceState, storage, wirelessDebugging, wifiWatch, launcher, alerts, lockEvents, bootCount)
 
     @Test
     fun `a restart on Wi-Fi starts the run`() = runTest {
@@ -52,6 +54,63 @@ class AutoApplyTest {
         assertEquals(1, launcher.automaticStarts)
         assertEquals(AutoApplyState(), storage.state.value)
         assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `BOOT_COMPLETED again in the same boot is not a restart, and applies nothing`() = runTest {
+        autoApply.onBoot()
+        assertEquals(1, launcher.automaticStarts)
+
+        // Installing from Android Studio force-stops the app; opening it again sends BOOT_COMPLETED, twice here.
+        autoApply.onBoot()
+        autoApply.onBoot()
+
+        assertEquals(1, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `a real restart after that applies again`() = runTest {
+        autoApply.onBoot()
+        bootCount.count = 2
+
+        autoApply.onBoot()
+
+        assertEquals(2, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `BOOT_COMPLETED again in the same boot picks the wait for Wi-Fi up again`() = runTest {
+        wirelessDebugging.wifi = false
+        autoApply.onBoot()
+        // The force-stop cancelled the network callback.
+        wifiWatch.watching = false
+
+        autoApply.onBoot()
+
+        assertTrue(wifiWatch.watching)
+        assertEquals(AutoApplyState(WaitReason.Wifi), storage.state.value)
+        assertEquals(0, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `BOOT_COMPLETED again in the same boot waits for the lock again, if System UI was left for it`() = runTest {
+        autoApply.onBoot()
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Succeeded, systemUiDeferred = true))
+
+        autoApply.onBoot()
+
+        assertEquals(1, launcher.lockWaits)
+        assertTrue(storage.state.value.systemUiAtNextLock)
+    }
+
+    @Test
+    fun `a boot count the system does not give is taken as a restart`() = runTest {
+        bootCount.count = null
+
+        autoApply.onBoot()
+        autoApply.onBoot()
+
+        assertEquals(2, launcher.automaticStarts)
     }
 
     @Test

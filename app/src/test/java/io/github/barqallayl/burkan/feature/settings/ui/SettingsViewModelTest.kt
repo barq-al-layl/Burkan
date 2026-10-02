@@ -10,6 +10,7 @@ import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeBootCount
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
 import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
@@ -40,6 +41,7 @@ class SettingsViewModelTest {
         FakeApplyLauncher(),
         FakeRunAlerts(),
         FakeLockEvents(),
+        FakeBootCount(),
     )
 
     private fun viewModel() = SettingsViewModel(settings, deviceState, autoApply, version = "1.0")

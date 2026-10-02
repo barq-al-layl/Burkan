@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -18,6 +19,7 @@ import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -29,6 +31,11 @@ interface AutoApplyStorage {
     val state: Flow<AutoApplyState>
 
     suspend fun set(state: AutoApplyState)
+
+    /** The boot count of the last `BOOT_COMPLETED` handled, or null before the first. */
+    suspend fun lastBoot(): Int?
+
+    suspend fun setLastBoot(count: Int)
 }
 
 @Inject
@@ -60,9 +67,18 @@ class DataStoreAutoApplyStorage(
         }
     }
 
+    override suspend fun lastBoot(): Int? = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .first()[Keys.lastBoot]
+
+    override suspend fun setLastBoot(count: Int) {
+        dataStore.edit { it[Keys.lastBoot] = count }
+    }
+
     private object Keys {
         val waitingFor = stringPreferencesKey("auto_apply_waiting_for")
         val triedNetwork = longPreferencesKey("auto_apply_tried_network")
         val systemUiAtNextLock = booleanPreferencesKey("auto_apply_system_ui_at_next_lock")
+        val lastBoot = intPreferencesKey("auto_apply_last_boot")
     }
 }

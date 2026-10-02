@@ -18,7 +18,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Starts the automatic apply after a restart. `BOOT_COMPLETED` arrives after the first unlock, when encrypted storage
- * is readable; the app does nothing before it.
+ * is readable; the app does nothing before it. It can also arrive without a restart, which [AutoApply.onBoot] tells
+ * apart.
  */
 @Inject
 @BroadcastReceiverKey

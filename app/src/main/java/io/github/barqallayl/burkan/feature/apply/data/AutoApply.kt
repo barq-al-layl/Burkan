@@ -43,12 +43,22 @@ class AutoApply(
     private val launcher: ApplyLauncher,
     private val alerts: RunAlerts,
     private val lockEvents: LockEvents,
+    private val bootCount: BootCount,
 ) {
 
     val state: Flow<AutoApplyState> = storage.state
 
-    /** The phone has restarted. Whatever the previous boot was waiting for is forgotten. */
+    /**
+     * `BOOT_COMPLETED` arrived. After a restart, whatever the previous boot was waiting for is forgotten and the
+     * apply starts. The same boot count as last time means the phone did not restart: see [resumeThisBoot].
+     */
     suspend fun onBoot() {
+        val boot = bootCount.current()
+        if (boot != null && boot == storage.lastBoot()) {
+            resumeThisBoot()
+            return
+        }
+        if (boot != null) storage.setLastBoot(boot)
         stopWaiting()
         if (!isEnabled()) return
         if (!wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
@@ -131,6 +141,19 @@ class AutoApply(
     suspend fun stopWaiting() {
         wifiWatch.stop()
         storage.set(AutoApplyState())
+    }
+
+    /**
+     * `BOOT_COMPLETED` again within one boot. Since Android 15 the system sends it to an app taken out of the stopped
+     * state, which a force-stop leaves it in (an install from Android Studio does one), so that the app can register
+     * again the pending intents the force-stop cancelled. Nothing has restarted, so nothing is applied: only what
+     * this boot is still waiting for is picked up again.
+     */
+    private suspend fun resumeThisBoot() {
+        if (!isEnabled()) return
+        val state = storage.state.first()
+        if (state.waitingFor != null) wifiWatch.start()
+        if (state.systemUiAtNextLock) launcher.awaitLock()
     }
 
     private suspend fun waitFor(reason: WaitReason, triedNetwork: Long?) {
