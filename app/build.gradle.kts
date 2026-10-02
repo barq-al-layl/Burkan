@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.Properties
 
 plugins {
+    alias(libs.plugins.aboutLibraries.android)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
@@ -114,8 +115,20 @@ roborazzi {
     outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
+// The open-source licences screen reads R.raw.aboutlibraries, generated here at build time from the resolved
+// dependencies. Nothing is fetched from the network, at build time or at run time.
+aboutLibraries {
+    offlineMode = true
+    collect {
+        // libadb-android's published metadata calls its licence "Other". It is Apache-2.0 or GPL-3.0-or-later, at the
+        // user's choice; aboutlibraries/licenses/ names it, under the hash the plugin gives that entry.
+        configPath = file("aboutlibraries")
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.aboutlibraries.compose.m3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3)

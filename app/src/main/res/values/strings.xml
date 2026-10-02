@@ -62,7 +62,6 @@
     <string name="settings_licences">Open-source licences</string>
     <string name="settings_licences_text">The libraries Burkan is built with.</string>
     <string name="dialog_cancel">Cancel</string>
-    <string name="dialog_close">Close</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>

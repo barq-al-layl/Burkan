@@ -37,7 +37,6 @@ enum class SettingsDialog {
     PaletteStyle,
     ColorSpec,
     RedoSetup,
-    Licences,
 }
 
 /** [values] is null until the settings have been read. */
@@ -51,6 +50,7 @@ data class SettingsState(
 sealed interface SettingsSideEffect {
     data object Back : SettingsSideEffect
     data object OpenExclusions : SettingsSideEffect
+    data object OpenLicences : SettingsSideEffect
     data class OpenUrl(val url: String) : SettingsSideEffect
 }
 
@@ -131,7 +131,7 @@ class SettingsViewModel(
 
     fun openLicence() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.LICENCE_URL)) }
 
-    fun openUrl(url: String) = intent { postSideEffect(SettingsSideEffect.OpenUrl(url)) }
+    fun openLicences() = intent { postSideEffect(SettingsSideEffect.OpenLicences) }
 
     fun back() = intent { postSideEffect(SettingsSideEffect.Back) }
 }

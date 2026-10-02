@@ -48,6 +48,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.Appearance
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.navigation.ExclusionsRoute
+import io.github.barqallayl.burkan.core.navigation.LicencesRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.ColorSpecs
@@ -73,6 +74,7 @@ fun SettingsScreen() {
         when (effect) {
             SettingsSideEffect.Back -> navigator.pop()
             SettingsSideEffect.OpenExclusions -> navigator.push(ExclusionsRoute)
+            SettingsSideEffect.OpenLicences -> navigator.push(LicencesRoute)
             is SettingsSideEffect.OpenUrl -> uriHandler.openUri(effect.url)
         }
     }
@@ -93,7 +95,7 @@ fun SettingsScreen() {
             onConfirmRedoSetup = viewModel::confirmRedoSetup,
             onOpenSource = viewModel::openSource,
             onOpenLicence = viewModel::openLicence,
-            onOpenUrl = viewModel::openUrl,
+            onOpenLicences = viewModel::openLicences,
         ),
     )
 }
@@ -113,7 +115,7 @@ private class SettingsActions(
     val onConfirmRedoSetup: () -> Unit = {},
     val onOpenSource: () -> Unit = {},
     val onOpenLicence: () -> Unit = {},
-    val onOpenUrl: (String) -> Unit = {},
+    val onOpenLicences: () -> Unit = {},
 )
 
 @Composable
@@ -187,7 +189,7 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 supportingContent = { Text(stringResource(R.string.settings_licence_text)) },
             ) { Text(stringResource(R.string.settings_licence)) }
             ListItem(
-                modifier = Modifier.clickable { actions.onShow(SettingsDialog.Licences) },
+                modifier = Modifier.clickable(onClick = actions.onOpenLicences),
                 supportingContent = { Text(stringResource(R.string.settings_licences_text)) },
             ) { Text(stringResource(R.string.settings_licences)) }
         }
@@ -255,7 +257,6 @@ private fun SettingsDialogs(dialog: SettingsDialog, appearance: Appearance, acti
                 TextButton(onClick = actions.onDismissDialog) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
-        SettingsDialog.Licences -> LicencesDialog(actions.onOpenUrl, actions.onDismissDialog)
     }
 }
 
@@ -345,25 +346,6 @@ private fun <T> ChoiceDialog(
     )
 }
 
-@Composable
-private fun LicencesDialog(onOpenUrl: (String) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_licences)) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                About.libraries.forEach { library ->
-                    ListItem(
-                        modifier = Modifier.clickable { onOpenUrl(library.url) },
-                        supportingContent = { Text(library.licence) },
-                    ) { Text(library.name) }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) } },
-    )
-}
-
 private fun sample(
     dialog: SettingsDialog? = null,
     exclusions: Int = 0,
@@ -399,11 +381,6 @@ private fun SettingsSeedColorPreview() = SettingsContent(sample(SettingsDialog.S
 @BurkanPreview
 @Composable
 private fun SettingsRedoSetupPreview() = SettingsContent(sample(SettingsDialog.RedoSetup), SettingsActions())
-
-@PreviewWrapper(BurkanPreviewWrapper::class)
-@BurkanPreview
-@Composable
-private fun SettingsLicencesPreview() = SettingsContent(sample(SettingsDialog.Licences), SettingsActions())
 
 @BurkanPreview
 @Composable

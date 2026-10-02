@@ -21,3 +21,6 @@ data object LogRoute : Route
 
 @Serializable
 data object ExclusionsRoute : Route
+
+@Serializable
+data object LicencesRoute : Route

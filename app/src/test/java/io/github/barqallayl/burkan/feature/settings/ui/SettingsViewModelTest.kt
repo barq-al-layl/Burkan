@@ -146,6 +146,14 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `the open-source licences open on their own screen`() = runTest {
+        viewModel().testWithInternalState(this) {
+            containerHost.openLicences()
+            expectSideEffect(SettingsSideEffect.OpenLicences)
+        }
+    }
+
+    @Test
     fun `the licence link opens the licence in the repository`() = runTest {
         viewModel().testWithInternalState(this) {
             containerHost.openLicence()
