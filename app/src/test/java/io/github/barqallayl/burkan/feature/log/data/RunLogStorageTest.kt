@@ -21,6 +21,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -75,14 +77,16 @@ class RunLogStorageTest {
     }
 
     @Test
-    fun `a log this version cannot read starts afresh`() = runTest {
+    fun `a log this version cannot read says so, and starts afresh with the next run`() = runTest {
         val dataStore = dataStore()
         dataStore.edit { it[stringPreferencesKey("run_log")] = "not json" }
         val storage = DataStoreRunLogStorage(dataStore)
 
         assertEquals(emptyList(), storage.runs.first())
+        assertTrue(storage.unreadable.first())
         storage.add(fullRun)
         assertEquals(listOf(fullRun), storage.runs.first())
+        assertFalse(storage.unreadable.first())
     }
 
     private fun TestScope.dataStore(): DataStore<Preferences> = PreferenceDataStoreFactory.create(

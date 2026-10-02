@@ -61,6 +61,9 @@
     <string name="settings_licence_text">Burkan is free software under the GNU General Public License, version 3 or later. It comes with no warranty.</string>
     <string name="settings_licences">Open-source licences</string>
     <string name="settings_licences_text">The libraries Burkan is built with.</string>
+    <string name="licences_empty_title">No libraries listed</string>
+    <string name="licences_empty_text">This build of Burkan carries no list of the libraries it is built with. The source code lists them.</string>
+    <string name="licences_failed_title">Licences could not be shown</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_light">Light</string>
@@ -88,6 +91,10 @@
     <string name="exclusions_text">Restart all apps leaves the apps ticked here running. Apply now never restarts other apps.</string>
     <string name="exclusions_loading">Listing installed apps…</string>
     <string name="exclusions_not_installed">Not installed</string>
+    <string name="exclusions_empty_title">No apps to choose from</string>
+    <string name="exclusions_empty_text">Android listed no apps with a launcher icon. The ones below are always kept running.</string>
+    <string name="exclusions_failed_title">Apps could not be listed</string>
+    <string name="exclusions_retry">Try again</string>
     <string name="exclusions_fixed_title">Always kept running</string>
     <string name="exclusions_fixed_text">Keyboards, the live wallpaper and Burkan itself are never restarted, nor are these, because restarting them breaks Wi-Fi calling or the connection.</string>
     <string name="log_title">Log</string>
@@ -112,6 +119,8 @@
     <string name="error_system_ui_restarted_recently">System UI was restarted less than a minute ago, so it was left alone: restarting it again so soon makes One UI switch off its customisation add-ons. Try again in a minute.</string>
     <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
     <string name="error_keyboard_not_restored">Restarting the keyboard changed the default keyboard, and Burkan could not put it back. Choose it again in Settings › General management › Keyboard list and default.</string>
+    <string name="error_apps_not_listed">Android did not answer when asked for the installed apps.</string>
+    <string name="error_licences_unreadable">The list of libraries built into Burkan could not be read. The source code lists them too.</string>
     <string name="error_unexpected">Something went wrong.</string>
 
     <string name="pairing_channel_name">Pairing</string>
@@ -189,6 +198,9 @@
     <string name="home_headline_partly">Partly applied</string>
     <string name="home_headline_unknown">Unknown — cannot connect</string>
     <string name="home_checking">Checking…</string>
+    <string name="home_value_checking">Checking</string>
+    <string name="home_headline_changing">Being changed</string>
+    <string name="home_changing_note">These were read before the run started. They are read again when it ends.</string>
     <string name="home_open_apps_note">Apps that were already open stay on OpenGL until they restart. Restart all apps to switch them too.</string>
     <string name="home_row_new_apps">New apps</string>
     <string name="home_row_system_ui">System UI</string>
@@ -210,7 +222,11 @@
     <string name="home_confirm_dismiss">Not now</string>
 
     <string name="log_share">Share</string>
-    <string name="log_empty">No runs yet.</string>
+    <string name="log_empty_title">No runs yet</string>
+    <string name="log_empty_text">Each time Burkan applies Vulkan, by hand or after a restart, the run appears here with each of its steps.</string>
+    <string name="log_empty_action">Back to apply</string>
+    <string name="log_unreadable_title">The log could not be read</string>
+    <string name="log_unreadable_text">It may have been written by another version of Burkan. The next run starts a new log.</string>
     <string name="log_run_title">%1$s · %2$s</string>
     <string name="log_run_detail">%1$s · %2$s · %3$s</string>
     <string name="log_share_chooser">Share the log</string>

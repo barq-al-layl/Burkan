@@ -160,9 +160,10 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
         ) {
             state.waitingFor?.let { WaitingCard(it, actions.onOpenDeveloperOptions) }
             if (state.systemUiAtNextLock) NextLockCard()
-            StatusCard(state, actions.onRetry)
             val run = state.run
+            // The run first: it is what is happening, and the status below says it is about to change.
             if (run is ApplyRunState.Running) RunningCard(run, actions.onCancelRun)
+            StatusCard(state, actions.onRetry)
             LastRun(state.lastRun, zone)
             val idle = run == ApplyRunState.Idle
             Button(onClick = actions.onApplyNow, enabled = idle, modifier = Modifier.fillMaxWidth()) {
@@ -179,7 +180,9 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             title = { Text(stringResource(R.string.home_confirm_apply_title)) },
             text = { Text(stringResource(R.string.home_confirm_apply_text)) },
             confirmButton = {
-                TextButton(onClick = actions.onConfirmApply) { Text(stringResource(R.string.home_confirm_apply_action)) }
+                TextButton(onClick = actions.onConfirmApply) {
+                    Text(stringResource(R.string.home_confirm_apply_action))
+                }
             },
             dismissButton = {
                 TextButton(onClick = actions.onDismissApply) { Text(stringResource(R.string.home_confirm_dismiss)) }
@@ -210,35 +213,52 @@ private fun StatusCard(state: HomeState, onRetry: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (val status = state.status) {
-                StatusState.Loading -> Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    LoadingIndicator(modifier = Modifier.size(40.dp))
-                    Text(stringResource(R.string.home_checking))
+                // The rows stay in place with placeholders, so nothing moves when the status arrives.
+                StatusState.Loading -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LoadingIndicator(modifier = Modifier.size(24.dp))
+                        Text(stringResource(R.string.home_checking), style = MaterialTheme.typography.titleLarge)
+                    }
+                    HorizontalDivider()
+                    RendererRows(status = null)
                 }
                 is StatusState.Failed -> {
-                    HeadlineRow(Headline.Unknown)
+                    HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
                     Text(stringResource(status.error.messageRes()))
                     Button(onClick = onRetry, enabled = !state.isRefreshing) {
                         Text(stringResource(R.string.home_retry))
                     }
                 }
                 is StatusState.Loaded -> {
-                    val headline = status.status.headline()
-                    HeadlineRow(headline)
-                    if (headline == Headline.VulkanActive && state.lastRun.isManualLightApply()) {
-                        Text(stringResource(R.string.home_open_apps_note))
+                    if (state.run is ApplyRunState.Running) {
+                        // What is shown was read before the run, which is changing it now.
+                        HeadlineRow(Tabler.Outline.Hourglass, R.string.home_headline_changing)
+                        Text(stringResource(R.string.home_changing_note))
+                    } else {
+                        val headline = status.status.headline()
+                        HeadlineRow(headline)
+                        if (headline == Headline.VulkanActive && state.lastRun.isManualLightApply()) {
+                            Text(stringResource(R.string.home_open_apps_note))
+                        }
                     }
                     HorizontalDivider()
-                    RendererRow(R.string.home_row_new_apps, status.status.newApps)
-                    RendererRow(R.string.home_row_system_ui, status.status.systemUi)
-                    RendererRow(R.string.home_row_launcher, status.status.launcher)
-                    RendererRow(R.string.home_row_keyboard, status.status.keyboard)
+                    RendererRows(status.status)
                 }
             }
         }
     }
+}
+
+/** The four rows; [status] null shows placeholders while it is read. */
+@Composable
+private fun RendererRows(status: RendererStatus?) {
+    RendererRow(R.string.home_row_new_apps, status?.newApps)
+    RendererRow(R.string.home_row_system_ui, status?.systemUi)
+    RendererRow(R.string.home_row_launcher, status?.launcher)
+    RendererRow(R.string.home_row_keyboard, status?.keyboard)
 }
 
 /** After a manual light apply, apps that were already open are still on OpenGL; the status must not hide that. */
@@ -248,31 +268,41 @@ private fun RunLogEntry?.isManualLightApply(): Boolean =
 @Composable
 private fun HeadlineRow(headline: Headline) {
     // An icon and words for each: never colour alone.
-    val (icon: ImageVector, text: Int) = when (headline) {
-        Headline.VulkanActive -> Tabler.Outline.CircleCheck to R.string.home_headline_active
-        Headline.NotApplied -> Tabler.Outline.CircleX to R.string.home_headline_not_applied
-        Headline.PartlyApplied -> Tabler.Outline.AlertTriangle to R.string.home_headline_partly
-        Headline.Unknown -> Tabler.Outline.HelpCircle to R.string.home_headline_unknown
+    when (headline) {
+        Headline.VulkanActive -> HeadlineRow(Tabler.Outline.CircleCheck, R.string.home_headline_active)
+        Headline.NotApplied -> HeadlineRow(Tabler.Outline.CircleX, R.string.home_headline_not_applied)
+        Headline.PartlyApplied -> HeadlineRow(Tabler.Outline.AlertTriangle, R.string.home_headline_partly)
+        Headline.Unknown -> HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
     }
+}
+
+@Composable
+private fun HeadlineRow(icon: ImageVector, text: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null)
         Text(stringResource(text), style = MaterialTheme.typography.titleLarge)
     }
 }
 
+/** A surface and its renderer, with an icon as well as the word so the three differ at a glance. */
 @Composable
-private fun RendererRow(label: Int, renderer: Renderer) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+private fun RendererRow(label: Int, renderer: Renderer?) {
+    val (icon, value) = when (renderer) {
+        Renderer.Vulkan -> Tabler.Outline.CircleCheck to R.string.renderer_vulkan
+        Renderer.OpenGL -> Tabler.Outline.CircleX to R.string.renderer_opengl
+        Renderer.Unknown -> Tabler.Outline.HelpCircle to R.string.renderer_unknown
+        null -> Tabler.Outline.Hourglass to R.string.home_value_checking
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(stringResource(label))
-        Text(
-            stringResource(
-                when (renderer) {
-                    Renderer.Vulkan -> R.string.renderer_vulkan
-                    Renderer.OpenGL -> R.string.renderer_opengl
-                    Renderer.Unknown -> R.string.renderer_unknown
-                },
-            ),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Text(stringResource(value))
+        }
     }
 }
 

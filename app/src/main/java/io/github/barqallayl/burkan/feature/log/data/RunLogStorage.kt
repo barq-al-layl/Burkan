@@ -3,7 +3,6 @@ package io.github.barqallayl.burkan.feature.log.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.AppScope
@@ -33,6 +32,9 @@ import kotlin.time.Instant
 interface RunLogStorage {
     val runs: Flow<List<RunLogEntry>>
 
+    /** True while the stored log could not be read: [runs] is then empty, though runs were recorded. */
+    val unreadable: Flow<Boolean>
+
     suspend fun add(entry: RunLogEntry)
 
     companion object {
@@ -45,10 +47,13 @@ interface RunLogStorage {
 @ContributesBinding(AppScope::class)
 class DataStoreRunLogStorage(private val dataStore: DataStore<Preferences>) : RunLogStorage {
 
-    override val runs: Flow<List<RunLogEntry>> = dataStore.data
-        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
-        .map { decode(it[KEY]) }
-        .distinctUntilChanged()
+    private val read: Flow<Read> = dataStore.data
+        .map { preferences -> decode(preferences[KEY]) }
+        .catch { error -> if (error is IOException) emit(Read(emptyList(), unreadable = true)) else throw error }
+
+    override val runs: Flow<List<RunLogEntry>> = read.map { it.runs }.distinctUntilChanged()
+
+    override val unreadable: Flow<Boolean> = read.map { it.unreadable }.distinctUntilChanged()
 
     override suspend fun add(entry: RunLogEntry) {
         dataStore.edit { preferences ->
@@ -57,18 +62,25 @@ class DataStoreRunLogStorage(private val dataStore: DataStore<Preferences>) : Ru
         }
     }
 
-    private fun decode(text: String?): List<RunLogEntry> = storedRuns(text).mapNotNull { it.toEntry() }
-
-    private fun storedRuns(text: String?): List<StoredRun> {
-        if (text == null) return emptyList()
-        return try {
-            json.decodeFromString<List<StoredRun>>(text)
-        } catch (e: SerializationException) {
-            // A log this version cannot read is started afresh rather than taking the screen down.
-            Logger.w(e) { "Run log unreadable" }
-            emptyList()
-        }
+    private fun decode(text: String?): Read = try {
+        Read(stored(text).mapNotNull { it.toEntry() }, unreadable = false)
+    } catch (e: SerializationException) {
+        Logger.w(e) { "Run log unreadable" }
+        Read(emptyList(), unreadable = true)
     }
+
+    /** A log this version cannot read is started afresh when the next run is added, rather than lost every time. */
+    private fun storedRuns(text: String?): List<StoredRun> = try {
+        stored(text)
+    } catch (_: SerializationException) {
+        emptyList()
+    }
+
+    private fun stored(text: String?): List<StoredRun> =
+        if (text == null) emptyList() else json.decodeFromString<List<StoredRun>>(text)
+
+    private data class Read(val runs: List<RunLogEntry>, val unreadable: Boolean)
+
 
     private companion object {
         val KEY = stringPreferencesKey("run_log")

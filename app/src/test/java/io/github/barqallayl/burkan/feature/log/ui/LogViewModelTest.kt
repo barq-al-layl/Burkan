@@ -62,4 +62,16 @@ class LogViewModelTest {
             reading.cancel()
         }
     }
+
+    @Test
+    fun `an unreadable log is shown as such`() = runTest {
+        val log = FakeRunLogStorage().apply { unreadable.value = true }
+
+        LogViewModel(log).testWithInternalState(this) {
+            val reading = runOnCreate()
+            expectInternalState(LogState(runs = emptyList(), isUnreadable = true))
+
+            reading.cancel()
+        }
+    }
 }

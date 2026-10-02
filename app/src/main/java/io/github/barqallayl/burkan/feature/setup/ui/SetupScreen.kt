@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -104,7 +105,13 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
                 item { UntestedModelNotice() }
             }
             val done = state.done
-            if (done != null) {
+            if (done == null) {
+                item {
+                    Box(Modifier.fillParentMaxWidth().fillParentMaxHeight(0.5f), contentAlignment = Alignment.Center) {
+                        LoadingIndicator()
+                    }
+                }
+            } else {
                 items(SetupStep.entries) { step ->
                     StepItem(
                         step = step,
@@ -274,6 +281,11 @@ private fun sample(
 private fun SetupPreviewContent(state: SetupState) {
     SetupContent(state = state, onAction = {}, onSkipBattery = {})
 }
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun SetupLoadingPreview() = SetupPreviewContent(SetupState())
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

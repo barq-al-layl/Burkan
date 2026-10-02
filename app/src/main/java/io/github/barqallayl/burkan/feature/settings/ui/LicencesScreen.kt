@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertCircle
+import com.composables.icons.tabler.outline.License
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.entity.License
@@ -27,9 +30,12 @@ import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
 import com.mikepenz.aboutlibraries.ui.compose.style.LicenseHueResolver
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
+import io.github.barqallayl.burkan.feature.settings.model.SettingsError
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 
@@ -61,10 +67,25 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
         },
     ) { innerPadding ->
         val libraries = state.libraries
-        if (libraries == null) {
+        val error = state.error
+        if (error != null) {
+            BurkanMessage(
+                icon = Tabler.Outline.AlertCircle,
+                title = stringResource(R.string.licences_failed_title),
+                text = stringResource(error.messageRes()),
+                modifier = Modifier.padding(innerPadding),
+            )
+        } else if (libraries == null) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 LoadingIndicator()
             }
+        } else if (libraries.libraries.isEmpty()) {
+            BurkanMessage(
+                icon = Tabler.Outline.License,
+                title = stringResource(R.string.licences_empty_title),
+                text = stringResource(R.string.licences_empty_text),
+                modifier = Modifier.padding(innerPadding),
+            )
         } else {
             // Each library opens its licence in a dialog of the library's own. Its licence chips take the theme's
             // colours rather than a colour per licence: the app's colours come from the scheme alone.
@@ -125,3 +146,14 @@ private fun LicencesPreview() = LicencesContent(LicencesState(sampleLibraries), 
 @BurkanPreview
 @Composable
 private fun LicencesLoadingPreview() = LicencesContent(LicencesState(), onBack = {})
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun LicencesEmptyPreview() = LicencesContent(LicencesState(Libs(emptyList(), emptySet())), onBack = {})
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun LicencesFailedPreview() =
+    LicencesContent(LicencesState(error = SettingsError.LicencesUnreadable), onBack = {})

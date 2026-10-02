@@ -8,13 +8,14 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.feature.settings.data.LibraryCatalogue
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
-/** [libraries] is null until read. */
+/** [libraries] is null until read, and stays null when [error] says it could not be. */
 @Immutable
-data class LicencesState(val libraries: Libs? = null)
+data class LicencesState(val libraries: Libs? = null, val error: AppError? = null)
 
 sealed interface LicencesSideEffect {
     data object Back : LicencesSideEffect
@@ -28,8 +29,8 @@ class LicencesViewModel(
 ) : OrbitContainerHost<LicencesState, LicencesState, LicencesSideEffect>, ViewModel() {
 
     override val container = orbitContainer<LicencesState, LicencesSideEffect>(LicencesState()) {
-        val libraries = catalogue.read()
-        reduce { state.copy(libraries = libraries) }
+        val read = catalogue.read()
+        reduce { state.copy(libraries = read.getOrNull(), error = read.leftOrNull()) }
     }
 
     fun back() = intent { postSideEffect(LicencesSideEffect.Back) }

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.Resources
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,9 +13,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.CircleCheck
+import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Share
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -41,6 +45,7 @@ import io.github.barqallayl.burkan.core.ui.formatDateTime
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -139,11 +144,23 @@ private fun LogContent(
     ) { innerPadding ->
         val runs = state.runs
         when {
-            runs == null -> Unit
-            runs.isEmpty() -> Text(
-                stringResource(R.string.log_empty),
-                modifier = Modifier.padding(innerPadding).padding(16.dp),
+            runs == null -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                LoadingIndicator()
+            }
+            runs.isEmpty() && state.isUnreadable -> BurkanMessage(
+                icon = Tabler.Outline.AlertCircle,
+                title = stringResource(R.string.log_unreadable_title),
+                text = stringResource(R.string.log_unreadable_text),
+                modifier = Modifier.padding(innerPadding),
             )
+            runs.isEmpty() -> BurkanMessage(
+                icon = Tabler.Outline.History,
+                title = stringResource(R.string.log_empty_title),
+                text = stringResource(R.string.log_empty_text),
+                modifier = Modifier.padding(innerPadding),
+            ) {
+                FilledTonalButton(onClick = onBack) { Text(stringResource(R.string.log_empty_action)) }
+            }
             else -> LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = innerPadding) {
                 items(runs, key = { it.startedAt.toEpochMilliseconds() }) { run ->
                     RunItem(run, expanded = run.startedAt in state.expanded, zone = zone, onClick = { onToggle(run) })
@@ -260,6 +277,20 @@ private fun LogPreview() {
 private fun LogExpandedPreview() {
     val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt, sampleRuns[1].startedAt))
     LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+}
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun LogLoadingPreview() {
+    LogContent(LogState(), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+}
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun LogUnreadablePreview() {
+    LogContent(LogState(emptyList(), isUnreadable = true), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
 }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)

@@ -9,13 +9,21 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
+import kotlinx.coroutines.flow.combine
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 import kotlin.time.Instant
 
-/** [runs] is null until the log has been read. A run is identified by when it started. */
+/**
+ * [runs] is null until the log has been read. [isUnreadable] says the stored log could not be read. A run is
+ * identified by when it started.
+ */
 @Immutable
-data class LogState(val runs: List<RunLogEntry>? = null, val expanded: Set<Instant> = emptySet())
+data class LogState(
+    val runs: List<RunLogEntry>? = null,
+    val isUnreadable: Boolean = false,
+    val expanded: Set<Instant> = emptySet(),
+)
 
 sealed interface LogSideEffect {
     /** The screen turns the runs into text; a ViewModel holds no user-facing text. */
@@ -31,7 +39,9 @@ class LogViewModel(
 ) : OrbitContainerHost<LogState, LogState, LogSideEffect>, ViewModel() {
 
     override val container = orbitContainer<LogState, LogSideEffect>(LogState()) {
-        runLog.runs.collect { runs -> reduce { state.copy(runs = runs) } }
+        combine(runLog.runs, runLog.unreadable, ::Pair).collect { (runs, unreadable) ->
+            reduce { state.copy(runs = runs, isUnreadable = unreadable) }
+        }
     }
 
     fun toggle(run: RunLogEntry) = intent {

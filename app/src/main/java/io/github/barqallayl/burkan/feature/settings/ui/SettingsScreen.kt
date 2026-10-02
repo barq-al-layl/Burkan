@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -132,7 +133,13 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
             )
         },
     ) { innerPadding ->
-        val values = state.values ?: return@Scaffold
+        val values = state.values
+        if (values == null) {
+            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                LoadingIndicator()
+            }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -371,6 +378,11 @@ private fun sample(
 @BurkanPreview
 @Composable
 private fun SettingsPreview() = SettingsContent(sample(exclusions = 3), SettingsActions())
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun SettingsLoadingPreview() = SettingsContent(SettingsState(), SettingsActions())
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

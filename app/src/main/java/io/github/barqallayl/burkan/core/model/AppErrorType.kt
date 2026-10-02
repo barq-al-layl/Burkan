@@ -6,6 +6,7 @@ import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
+import io.github.barqallayl.burkan.feature.settings.model.SettingsError
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 
 /** One entry per message a user can be shown about a failure. */
@@ -30,6 +31,8 @@ enum class AppErrorType(@StringRes val resource: Int) {
     SystemUiRestartedRecently(R.string.error_system_ui_restarted_recently),
     SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
     KeyboardNotRestored(R.string.error_keyboard_not_restored),
+    AppsNotListed(R.string.error_apps_not_listed),
+    LicencesUnreadable(R.string.error_licences_unreadable),
     Unexpected(R.string.error_unexpected),
 }
 
@@ -54,6 +57,8 @@ fun AppError.type(): AppErrorType = when (this) {
     ApplyError.SystemUiRestartedRecently -> AppErrorType.SystemUiRestartedRecently
     ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan
     ApplyError.KeyboardNotRestored -> AppErrorType.KeyboardNotRestored
+    SettingsError.AppsNotListed -> AppErrorType.AppsNotListed
+    SettingsError.LicencesUnreadable -> AppErrorType.LicencesUnreadable
     else -> AppErrorType.Unexpected
 }
 
