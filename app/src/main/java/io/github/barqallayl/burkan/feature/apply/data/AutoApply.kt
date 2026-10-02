@@ -14,7 +14,10 @@ import io.github.barqallayl.burkan.feature.connection.data.WirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 
 /** The notifications a run's end can leave behind. */
 interface RunAlerts {
@@ -39,6 +42,7 @@ class AutoApply(
     private val wifiWatch: WifiWatch,
     private val launcher: ApplyLauncher,
     private val alerts: RunAlerts,
+    private val lockEvents: LockEvents,
 ) {
 
     val state: Flow<AutoApplyState> = storage.state
@@ -71,6 +75,10 @@ class AutoApply(
     suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) {
         val tried = storage.state.first().triedNetwork
         when {
+            outcome.systemUiDeferred -> {
+                wifiWatch.stop()
+                storage.set(AutoApplyState(systemUiAtNextLock = true))
+            }
             outcome.result == RunResult.Succeeded || outcome.result == RunResult.AlreadyApplied -> stopWaiting()
             trigger == RunTrigger.Manual -> if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)
             outcome.error == ConnectionError.NoWifi -> waitFor(WaitReason.Wifi, tried)
@@ -84,6 +92,27 @@ class AutoApply(
             }
             else -> stopWaiting()
         }
+    }
+
+    /**
+     * Waits for the phone to lock while System UI is still left for then. True when it locked with System UI still to
+     * restart; false at once when nothing is waiting, or as soon as something else (a manual apply, the automatic
+     * apply turned off) settled it.
+     */
+    suspend fun awaitLockWhilePending(): Boolean {
+        if (!storage.state.first().systemUiAtNextLock) return false
+        return merge(
+            lockEvents.locks.map { true },
+            storage.state.filter { !it.systemUiAtNextLock }.map { false },
+        ).first()
+    }
+
+    /** True while System UI is left for the next lock. */
+    suspend fun isWaitingForLock(): Boolean = storage.state.first().systemUiAtNextLock
+
+    /** The user cancelled the wait for the lock: System UI stays as it is until they apply. */
+    suspend fun cancelSystemUiAtLock() {
+        storage.set(storage.state.first().copy(systemUiAtNextLock = false))
     }
 
     /** Stops waiting: the user turned the automatic apply off, or setup starts again. */

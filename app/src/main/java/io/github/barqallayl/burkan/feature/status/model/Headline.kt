@@ -1,17 +1,7 @@
 package io.github.barqallayl.burkan.feature.status.model
 
 import io.github.barqallayl.burkan.core.model.Renderer
-
-/**
- * Which renderer is in use. [newApps] is what the property gives processes started from now on; the others are what
- * the three system surfaces are actually running with.
- */
-data class RendererStatus(
-    val newApps: Renderer,
-    val systemUi: Renderer,
-    val launcher: Renderer,
-    val keyboard: Renderer,
-)
+import io.github.barqallayl.burkan.core.model.RendererStatus
 
 enum class Headline {
     VulkanActive,
@@ -37,11 +27,4 @@ fun RendererStatus.headline(): Headline {
         newApps != Renderer.Vulkan && surfaces.none { it == Renderer.Vulkan } -> Headline.NotApplied
         else -> Headline.PartlyApplied
     }
-}
-
-/** `getprop debug.hwui.renderer`: `skiavk` is Vulkan; unset or `skiagl` is the default, OpenGL. */
-fun rendererFromProperty(value: String): Renderer = when (value.trim()) {
-    "skiavk" -> Renderer.Vulkan
-    "", "skiagl" -> Renderer.OpenGL
-    else -> Renderer.Unknown
 }

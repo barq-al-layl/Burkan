@@ -11,7 +11,7 @@ import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
-import io.github.barqallayl.burkan.feature.status.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.test.assertEquals

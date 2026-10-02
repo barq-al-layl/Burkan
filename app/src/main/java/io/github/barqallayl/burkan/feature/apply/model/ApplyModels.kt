@@ -48,6 +48,12 @@ sealed interface ApplyError : AppError {
 
     /** The value was written but did not read back the same after every retry. */
     data class SettingNotRestored(val setting: RestoredSetting) : ApplyError
+
+    /** System UI was restarted less than a minute ago, so it was left alone: see `SystemUiCooldown`. */
+    data object SystemUiRestartedRecently : ApplyError
+
+    /** System UI came back, or was still answering, on a renderer other than Vulkan. */
+    data object SystemUiNotOnVulkan : ApplyError
 }
 
 /** What the automatic apply after a restart is waiting for before it can connect. */
@@ -61,6 +67,12 @@ enum class WaitReason {
 
 /**
  * Where the automatic apply after a restart stands. [triedNetwork] is the handle of the network the last attempt was
- * made on, so that network coming up again does not start the same failing attempt.
+ * made on, so that network coming up again does not start the same failing attempt. [systemUiAtNextLock] is set when
+ * the run after a restart left System UI for the next time the phone locks, so as not to lock a phone the user has
+ * just unlocked.
  */
-data class AutoApplyState(val waitingFor: WaitReason? = null, val triedNetwork: Long? = null)
+data class AutoApplyState(
+    val waitingFor: WaitReason? = null,
+    val triedNetwork: Long? = null,
+    val systemUiAtNextLock: Boolean = false,
+)

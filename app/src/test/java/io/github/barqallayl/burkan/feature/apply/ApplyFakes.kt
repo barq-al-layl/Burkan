@@ -2,15 +2,19 @@ package io.github.barqallayl.burkan.feature.apply
 
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.WifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeApplyLauncher : ApplyLauncher {
     val started = mutableListOf<ApplyKind>()
     var automaticStarts = 0
+    var lockWaits = 0
     var cancels = 0
 
     /** False plays Android refusing a foreground service started from the background. */
@@ -18,6 +22,10 @@ class FakeApplyLauncher : ApplyLauncher {
 
     override fun start(kind: ApplyKind) {
         started += kind
+    }
+
+    override fun awaitLock() {
+        lockWaits++
     }
 
     override fun startAutomatic(): Boolean {
@@ -64,4 +72,12 @@ class FakeRunAlerts : RunAlerts {
     override fun showReadyToApply() {
         readyToApply++
     }
+}
+
+/** The phone locks when a test says so. */
+class FakeLockEvents : LockEvents {
+    private val mutableLocks = MutableSharedFlow<Unit>()
+    override val locks: Flow<Unit> = mutableLocks
+
+    suspend fun lock() = mutableLocks.emit(Unit)
 }

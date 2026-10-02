@@ -4,9 +4,15 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-/** One command line and how long it may take. Built only by [ShellCommands]. */
+/**
+ * One command line and how long it may take. Built only by [ShellCommands].
+ *
+ * [repeatable] says whether running it twice does no harm, so it may be sent again when the connection drops part
+ * way through. Reads, `setprop`, `settings put` and stopping or starting an app are; restarting a process by crashing
+ * it is not.
+ */
 @ConsistentCopyVisibility
-data class ShellCommand internal constructor(val line: String, val timeout: Duration)
+data class ShellCommand internal constructor(val line: String, val timeout: Duration, val repeatable: Boolean = true)
 
 /** A `settings` namespace. */
 enum class SettingsNamespace(val value: String) {
@@ -49,8 +55,13 @@ object ShellCommands {
 
     fun setVulkanRenderer(): ShellCommand = ShellCommand("setprop debug.hwui.renderer skiavk", ShortTimeout)
 
-    /** Restarts a process the system brings back by itself, without clearing it as a default (keyboard). */
-    fun crash(packageName: PackageName): ShellCommand = ShellCommand("am crash $packageName", ShortTimeout)
+    /**
+     * Restarts a process the system brings back by itself, without clearing it as a default (keyboard). Not
+     * repeatable: crashing System UI twice in a row makes One UI turn off its customisation modules, and crashing it
+     * at all restarts adbd, so the connection that sent it is usually gone before the answer.
+     */
+    fun crash(packageName: PackageName): ShellCommand =
+        ShellCommand("am crash $packageName", ShortTimeout, repeatable = false)
 
     fun forceStop(packageName: PackageName): ShellCommand = ShellCommand("am force-stop $packageName", ShortTimeout)
 

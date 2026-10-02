@@ -1,5 +1,7 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -47,8 +49,15 @@ object FullApplyPlan {
     /**
      * @param userExclusions packages the user chose never to restart, matched by whole name.
      * @param self Burkan's own package, which has to survive to report the result.
+     * @param before what the system surfaces ran with when the run started. One already on Vulkan is not restarted.
      */
-    fun create(inputs: FullApplyInputs, userExclusions: Set<PackageName>, self: PackageName): ApplyPlan {
+    fun create(
+        inputs: FullApplyInputs,
+        userExclusions: Set<PackageName>,
+        self: PackageName,
+        before: RendererStatus,
+    ): ApplyPlan {
+        val restartLauncher = before.launcher != Renderer.Vulkan
         val excluded = buildSet {
             // Never force-stop an input method: that clears it as the default keyboard.
             addAll(inputs.inputMethods)
@@ -57,6 +66,7 @@ object FullApplyPlan {
             addAll(FixedExclusions)
             addAll(userExclusions)
             add(self)
+            if (!restartLauncher) add(ShellCommands.Launcher)
         }
         val stopped = inputs.installed.filter { it !in excluded && MEDIA_PROVIDER_MODULE !in it.value }
         val wanted = inputs.running + inputs.widgets.providers + inputs.widgets.hosts
@@ -70,12 +80,11 @@ object FullApplyPlan {
                 if (stopped.isNotEmpty()) {
                     add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.forceStopAll(stopped)))
                 }
-                add(ApplyStep.Run(StepKind.RestartSystemUi, ShellCommands.crash(ShellCommands.SystemUi)))
-                add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher()))
+                if (restartLauncher) add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher()))
                 if (relaunched.isNotEmpty()) {
                     add(ApplyStep.Run(StepKind.RelaunchApps(relaunched.size), ShellCommands.launchAll(relaunched)))
                 }
-                if (inputs.keyboard != null) {
+                if (inputs.keyboard != null && before.keyboard != Renderer.Vulkan) {
                     add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(inputs.keyboard)))
                 }
             },
@@ -86,6 +95,7 @@ object FullApplyPlan {
                     ?.takeIf { it.isNotEmpty() && it != "null" }
                     ?.let { ApplyStep.RestoreSetting(setting, it) }
             },
+            restartSystemUi = before.systemUi != Renderer.Vulkan,
         )
     }
 }

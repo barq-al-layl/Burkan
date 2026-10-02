@@ -12,7 +12,8 @@ import kotlinx.coroutines.ensureActive
  */
 class FakeShellExecutor : ShellExecutor {
 
-    private val replies = mutableMapOf<String, Either<ShellError, ShellResult>>()
+    /** Answers per command line, in order; the last one repeats. */
+    private val replies = mutableMapOf<String, ArrayDeque<Either<ShellError, ShellResult>>>()
 
     /** Every command run, in order. */
     val commands = mutableListOf<ShellCommand>()
@@ -23,11 +24,23 @@ class FakeShellExecutor : ShellExecutor {
     var beforeEach: suspend (ShellCommand) -> Unit = {}
 
     fun reply(command: ShellCommand, stdout: String = "", stderr: String = "", exitCode: Int = 0) {
-        replies[command.line] = ShellResult(exitCode = exitCode, stdout = stdout, stderr = stderr).right()
+        replies[command.line] = ArrayDeque(listOf(ShellResult(exitCode, stdout, stderr).right()))
+    }
+
+    /** Adds an answer after those already given for [command]: the command answers differently the next time. */
+    fun thenReply(command: ShellCommand, stdout: String = "", stderr: String = "", exitCode: Int = 0) {
+        replies.getOrPut(command.line) { ArrayDeque() } += ShellResult(exitCode, stdout, stderr).right()
     }
 
     fun fail(command: ShellCommand, error: ShellError) {
-        replies[command.line] = error.left()
+        replies[command.line] = ArrayDeque(listOf(error.left()))
+    }
+
+    /** [command] fails with [error] once, then answers as before. */
+    fun failOnce(command: ShellCommand, error: ShellError) {
+        val answers = replies.getOrPut(command.line) { ArrayDeque() }
+        if (answers.isEmpty()) answers += ShellResult(0, "", "").right()
+        answers.addFirst(error.left())
     }
 
     /** Any command without a reply succeeds with no output. Like a real connection, it refuses once cancelled. */
@@ -35,7 +48,8 @@ class FakeShellExecutor : ShellExecutor {
         currentCoroutineContext().ensureActive()
         commands += command
         beforeEach(command)
-        return replies[command.line] ?: ShellResult(exitCode = 0, stdout = "", stderr = "").right()
+        val answers = replies[command.line] ?: return ShellResult(exitCode = 0, stdout = "", stderr = "").right()
+        return if (answers.size > 1) answers.removeFirst() else answers.first()
     }
 }
 

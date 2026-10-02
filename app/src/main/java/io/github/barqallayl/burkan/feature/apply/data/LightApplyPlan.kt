@@ -1,24 +1,32 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
-import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 
 /**
- * The light apply: set the property and restart the three system surfaces. What runs after boot, when almost
- * nothing with a UI is running yet. It force-stops only the launcher, so there is no state to capture.
+ * The light apply: set the property and restart the system surfaces that are not on Vulkan yet. What runs after
+ * boot, when almost nothing with a UI is running yet. It force-stops only the launcher, so there is no state to
+ * capture.
  */
 object LightApplyPlan {
 
-    /** [keyboard] is the current input method's package, or null when none is set. */
-    fun create(keyboard: PackageName?): ApplyPlan = ApplyPlan(
+    /**
+     * [before] is what the phone was running with when the run started. With [deferSystemUi], System UI is left
+     * alone: restarting it brings up the lock screen, which a phone the user has just unlocked should not show.
+     */
+    fun create(before: Surfaces, deferSystemUi: Boolean = false): ApplyPlan = ApplyPlan(
         steps = buildList {
             add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
-            // SystemUI is persistent: force-stop leaves it running, so it has to be crashed.
-            add(ApplyStep.Run(StepKind.RestartSystemUi, ShellCommands.crash(ShellCommands.SystemUi)))
-            add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.forceStop(ShellCommands.Launcher)))
+            if (before.status.launcher != Renderer.Vulkan) {
+                add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.forceStop(ShellCommands.Launcher)))
+            }
             // Never force-stop an input method: that clears it as the default keyboard.
-            if (keyboard != null) add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(keyboard)))
+            if (before.keyboard != null && before.status.keyboard != Renderer.Vulkan) {
+                add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(before.keyboard)))
+            }
         },
+        restartSystemUi = !deferSystemUi && before.status.systemUi != Renderer.Vulkan,
     )
 }

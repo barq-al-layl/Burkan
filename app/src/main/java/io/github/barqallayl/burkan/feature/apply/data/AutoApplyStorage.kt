@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -44,6 +45,7 @@ class DataStoreAutoApplyStorage(
             AutoApplyState(
                 waitingFor = WaitReason.entries.firstOrNull { it.name == waitingFor },
                 triedNetwork = preferences[Keys.triedNetwork],
+                systemUiAtNextLock = preferences[Keys.systemUiAtNextLock] ?: false,
             )
         }
         .distinctUntilChanged()
@@ -54,11 +56,13 @@ class DataStoreAutoApplyStorage(
             preferences.remove(Keys.triedNetwork)
             state.waitingFor?.let { preferences[Keys.waitingFor] = it.name }
             state.triedNetwork?.let { preferences[Keys.triedNetwork] = it }
+            preferences[Keys.systemUiAtNextLock] = state.systemUiAtNextLock
         }
     }
 
     private object Keys {
         val waitingFor = stringPreferencesKey("auto_apply_waiting_for")
         val triedNetwork = longPreferencesKey("auto_apply_tried_network")
+        val systemUiAtNextLock = booleanPreferencesKey("auto_apply_system_ui_at_next_lock")
     }
 }

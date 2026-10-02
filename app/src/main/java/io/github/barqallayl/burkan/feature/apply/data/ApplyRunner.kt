@@ -1,9 +1,11 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import arrow.core.getOrElse
-import dev.zacsweers.metro.Inject
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.shell.RendererReader
 import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.shell.parseSettingValue
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
@@ -14,31 +16,66 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
-/** Executes an [ApplyPlan] through the shell. */
-@Inject
-class ApplyRunner(private val shell: ShellExecutor) {
+/**
+ * Executes an [ApplyPlan] through the shell. [shell] should reconnect by itself: restarting System UI brings up the
+ * lock screen, which restarts adbd under the run.
+ */
+class ApplyRunner(private val shell: ShellExecutor, private val cooldown: SystemUiCooldown) {
 
     /**
      * Runs [plan], reporting each step to [onStepStarted] as it begins and to [onStep] once it has finished. Stops at
      * the first failed step. The restore steps run afterwards in every case: after success, after a failure, and
-     * after cancellation, which is rethrown once the settings are back.
+     * after cancellation, which is rethrown once the settings are back. System UI is restarted last, and only when
+     * nothing failed.
      */
     suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit) {
+        var failed = false
         try {
             for (step in plan.steps) {
                 onStepStarted(step.kind)
                 val failure = execute(step)
                 onStep(StepRecord(step.kind, failure))
-                if (failure != null) break
+                if (failure != null) {
+                    failed = true
+                    break
+                }
             }
         } finally {
             withContext(NonCancellable) {
                 plan.restore.forEach { step ->
                     onStepStarted(step.kind)
-                    onStep(StepRecord(step.kind, restore(step)))
+                    val failure = restore(step)
+                    if (failure != null) failed = true
+                    onStep(StepRecord(step.kind, failure))
                 }
             }
         }
+        if (plan.restartSystemUi && !failed) {
+            onStepStarted(StepKind.RestartSystemUi)
+            onStep(StepRecord(StepKind.RestartSystemUi, restartSystemUi()))
+        }
+    }
+
+    /**
+     * Crashes System UI, the only way to restart it, then asks until the new process answers on Vulkan. The lock
+     * screen it brings up restarts adbd, so the crash usually loses its connection: that is the expected outcome, and
+     * the shell reconnects for the checks after it.
+     */
+    private suspend fun restartSystemUi(): AppError? {
+        if (!cooldown.claim()) return ApplyError.SystemUiRestartedRecently
+        shell.run(ShellCommands.crash(ShellCommands.SystemUi)).fold(
+            ifLeft = { error -> if (error != ShellError.ConnectionLost) return error },
+            ifRight = { result ->
+                if (result.exitCode != 0) return ApplyError.CommandFailed(result.exitCode, result.stderr)
+            },
+        )
+        val reader = RendererReader(shell)
+        repeat(VERIFY_ATTEMPTS) {
+            delay(VERIFY_PAUSE)
+            // Until the old process is gone it still answers, on OpenGL; until the new one is up, nothing does.
+            if (reader.rendererOf(ShellCommands.SystemUi).getOrElse { return it } == Renderer.Vulkan) return null
+        }
+        return ApplyError.SystemUiNotOnVulkan
     }
 
     private suspend fun execute(step: ApplyStep.Run): AppError? =
@@ -73,5 +110,7 @@ class ApplyRunner(private val shell: ShellExecutor) {
     private companion object {
         const val RESTORE_ATTEMPTS = 3
         val RESTORE_PAUSE = 1.seconds
+        const val VERIFY_ATTEMPTS = 15
+        val VERIFY_PAUSE = 1.seconds
     }
 }

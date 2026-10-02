@@ -6,7 +6,11 @@ import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Clock
 
 @ContributesTo(AppScope::class)
@@ -22,6 +26,12 @@ object AppBindings {
     @Provides
     fun provideClock(): Clock = Clock.System
 
+    /** Work that outlives the screen or service that started it, such as closing a connection a little later. */
+    @Provides
+    @SingleIn(AppScope::class)
+    @Named(APP_SCOPE)
+    fun provideAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     /** The version name shown in Settings. */
     @Provides
     @Named(APP_VERSION)
@@ -30,4 +40,5 @@ object AppBindings {
 
     const val OWN_PACKAGE = "own_package"
     const val APP_VERSION = "app_version"
+    const val APP_SCOPE = "app_scope"
 }

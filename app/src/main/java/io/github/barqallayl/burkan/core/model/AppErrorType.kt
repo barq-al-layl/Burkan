@@ -27,6 +27,8 @@ enum class AppErrorType(@StringRes val resource: Int) {
     CommandFailed(R.string.error_command_failed),
     NoPackagesListed(R.string.error_no_packages_listed),
     SettingNotRestored(R.string.error_setting_not_restored),
+    SystemUiRestartedRecently(R.string.error_system_ui_restarted_recently),
+    SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
     Unexpected(R.string.error_unexpected),
 }
 
@@ -48,6 +50,8 @@ fun AppError.type(): AppErrorType = when (this) {
     is ApplyError.CommandFailed -> AppErrorType.CommandFailed
     ApplyError.NoPackagesListed -> AppErrorType.NoPackagesListed
     is ApplyError.SettingNotRestored -> AppErrorType.SettingNotRestored
+    ApplyError.SystemUiRestartedRecently -> AppErrorType.SystemUiRestartedRecently
+    ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan
     else -> AppErrorType.Unexpected
 }
 

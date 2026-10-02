@@ -20,9 +20,19 @@ sealed interface ApplyStep {
 
 /**
  * What a run does: [steps] in order, stopping at the first failure, then [restore], which runs whatever happened
- * to [steps], including cancellation.
+ * to [steps], including cancellation. Last of all, when nothing failed and [restartSystemUi] is set, System UI is
+ * restarted: that brings up the lock screen, which restarts adbd and drops the connection, so nothing that matters may
+ * come after it.
  */
-data class ApplyPlan(val steps: List<ApplyStep.Run>, val restore: List<ApplyStep.RestoreSetting> = emptyList())
+data class ApplyPlan(
+    val steps: List<ApplyStep.Run>,
+    val restore: List<ApplyStep.RestoreSetting> = emptyList(),
+    val restartSystemUi: Boolean = false,
+) {
+    /** True when the plan only sets the property: every surface it would restart is on Vulkan already. */
+    val restartsNothing: Boolean
+        get() = steps.all { it.kind == StepKind.SetRenderer } && !restartSystemUi
+}
 
 val RestoredSetting.key: SettingKey
     get() = when (this) {

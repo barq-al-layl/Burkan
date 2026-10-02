@@ -1,12 +1,14 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -35,12 +37,21 @@ import kotlin.time.Instant
 
 class ApplyControllerTest {
 
-    private val shell = FakeShellExecutor().apply { replyLikeFixtureDevice() }
+    private val shell = FakeShellExecutor().apply {
+        replyLikeFixtureDevice()
+        reply(ShellCommands.getRenderer(), stdout = "\n")
+        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+            reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-opengl.txt"))
+        }
+        // Once restarted, System UI answers on Vulkan.
+        thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+    }
     private val access = FakeShellAccess(shell)
     private val log = FakeRunLogStorage()
     private val settings = FakeSettingsStorage()
     private val clock = SteppingClock()
-    private val controller = ApplyController(access, log, settings, clock, FixtureDevice.Self)
+    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), FixedClock)
+    private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
 
     @Test
     fun `a light run is logged with its steps`() = runTest {
@@ -53,10 +64,30 @@ class ApplyControllerTest {
         assertEquals(Instant.parse("2026-10-01T09:00:00Z"), entry.startedAt)
         assertEquals(5.seconds, entry.duration)
         assertEquals(
-            listOf(StepKind.SetRenderer, StepKind.RestartSystemUi, StepKind.RestartLauncher, StepKind.RestartKeyboard),
+            listOf(StepKind.SetRenderer, StepKind.RestartLauncher, StepKind.RestartKeyboard, StepKind.RestartSystemUi),
             entry.steps.map { it.kind },
         )
         assertEquals(ApplyRunState.Idle, controller.state.value)
+    }
+
+    @Test
+    fun `the status read at the end of a run is kept, and the connection is let go`() = runTest {
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        val finalStatus = RendererStatus(Renderer.OpenGL, Renderer.Vulkan, Renderer.OpenGL, Renderer.OpenGL)
+        assertEquals(finalStatus, outcome?.status)
+        assertEquals(VerifiedStatus(finalStatus, Instant.parse("2026-10-01T09:00:05Z")), controller.verified.value)
+        assertEquals(1, access.releases)
+    }
+
+    @Test
+    fun `after a restart System UI is left for the next lock`() = runTest {
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = true)
+
+        assertEquals(RunResult.Succeeded, outcome?.result)
+        assertTrue(outcome?.systemUiDeferred == true)
+        assertTrue("am crash com.android.systemui" !in shell.lines)
+        assertTrue("am force-stop com.sec.android.app.launcher" in shell.lines)
     }
 
     @Test
@@ -65,7 +96,8 @@ class ApplyControllerTest {
 
         val steps = log.runs.value.single().steps.map { it.kind }
         assertEquals(StepKind.StopApps(12), steps[1])
-        assertEquals(StepKind.RestoreSetting(RestoredSetting.AutoRotation), steps[steps.size - 3])
+        assertEquals(StepKind.RestoreSetting(RestoredSetting.AutoRotation), steps[steps.size - 4])
+        assertEquals(StepKind.RestartSystemUi, steps.last())
     }
 
     @Test
@@ -94,18 +126,18 @@ class ApplyControllerTest {
     }
 
     @Test
-    fun `a failed step fails the run`() = runTest {
-        shell.fail(ShellCommands.crash(ShellCommands.SystemUi), ShellError.ConnectionLost)
+    fun `a failed step fails the run, and System UI is left alone`() = runTest {
+        shell.fail(ShellCommands.crash(FixtureDevice.Keyboard), ShellError.ConnectionLost)
 
-        assertEquals(
-            RunOutcome(RunResult.Failed, ShellError.ConnectionLost),
-            controller.run(ApplyKind.Light, RunTrigger.Manual),
-        )
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
 
+        assertEquals(RunResult.Failed, outcome?.result)
+        assertEquals(ShellError.ConnectionLost, outcome?.error)
         assertEquals(
-            LoggedStep(StepKind.RestartSystemUi, AppErrorType.ConnectionLost),
+            LoggedStep(StepKind.RestartKeyboard, AppErrorType.ConnectionLost),
             log.runs.value.single().steps.last(),
         )
+        assertTrue("am crash com.android.systemui" !in shell.lines)
     }
 
     @Test
@@ -152,26 +184,42 @@ class ApplyControllerTest {
     }
 
     @Test
-    fun `an automatic run finds Vulkan already in place and changes nothing`() = runTest {
+    fun `a run that finds Vulkan already in place changes nothing`() = runTest {
         shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
-        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+            shell.reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-vulkan.txt"))
+        }
 
-        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, skipIfApplied = true)
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = true)
 
-        assertEquals(RunOutcome(RunResult.AlreadyApplied), outcome)
-        assertEquals(listOf("getprop debug.hwui.renderer", "dumpsys gfxinfo com.android.systemui"), shell.lines)
+        val vulkan = RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan)
+        assertEquals(RunOutcome(RunResult.AlreadyApplied, status = vulkan), outcome)
+        assertEquals(
+            listOf(
+                "getprop debug.hwui.renderer",
+                "settings get secure default_input_method",
+                "dumpsys gfxinfo com.android.systemui",
+                "dumpsys gfxinfo com.sec.android.app.launcher",
+                "dumpsys gfxinfo com.samsung.android.honeyboard",
+            ),
+            shell.lines,
+        )
         assertEquals(RunResult.AlreadyApplied, log.runs.value.single().result)
     }
 
     @Test
-    fun `with the property set but SystemUI still on OpenGL, it applies`() = runTest {
+    fun `only the surfaces not on Vulkan are restarted`() = runTest {
         shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
-        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-opengl.txt"))
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.Launcher), stdout = fixture("gfxinfo-vulkan.txt"))
+        shell.reply(ShellCommands.gfxInfo(FixtureDevice.Keyboard), stdout = fixture("gfxinfo-vulkan.txt"))
 
-        val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot, skipIfApplied = true)
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
 
         assertEquals(RunResult.Succeeded, outcome?.result)
-        assertTrue("setprop debug.hwui.renderer skiavk" in shell.lines)
+        assertEquals(
+            listOf(StepKind.SetRenderer, StepKind.RestartSystemUi),
+            log.runs.value.single().steps.map { it.kind },
+        )
     }
 
     @Test
@@ -189,9 +237,10 @@ class ApplyControllerTest {
                 running(RunPhase.Connecting),
                 running(RunPhase.Reading),
                 running(RunPhase.Step(StepKind.SetRenderer)),
-                running(RunPhase.Step(StepKind.RestartSystemUi)),
                 running(RunPhase.Step(StepKind.RestartLauncher)),
                 running(RunPhase.Step(StepKind.RestartKeyboard)),
+                running(RunPhase.Step(StepKind.RestartSystemUi)),
+                running(RunPhase.Checking),
                 ApplyRunState.Idle,
             ),
             states,

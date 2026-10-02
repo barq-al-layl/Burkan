@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -35,12 +36,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Keeps the app alive while a run is in progress. A full apply relaunches other apps over Burkan, and a cached
- * process can be frozen before its restore steps run. An entry point only: the work is in [ApplyController].
+ * process can be frozen before its restore steps run. After a restart it also stays, in the foreground, until the
+ * phone next locks, when it restarts System UI. An entry point only: the work is in [ApplyController] and
+ * [AutoApply].
  */
 @Inject
 @ServiceKey
@@ -53,6 +59,7 @@ class ApplyService(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var run: Job? = null
+    private var lockWait: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -64,33 +71,82 @@ class ApplyService(
         } else {
             intent?.getStringExtra(EXTRA_KIND)?.let { name -> ApplyKind.entries.firstOrNull { it.name == name } }
         }
-        startInForeground(notifications.progress(kind ?: ApplyKind.Light, controller.state.value))
+        val waiting = intent?.action == ACTION_AWAIT_LOCK || (run?.isActive != true && lockWait?.isActive == true)
+        startInForeground(
+            if (waiting) {
+                notifications.waitingForLock()
+            } else {
+                notifications.progress(kind ?: ApplyKind.Light, controller.state.value)
+            },
+        )
         when {
-            intent?.action == ACTION_CANCEL -> run?.cancel()
+            intent?.action == ACTION_CANCEL -> cancel()
+            intent?.action == ACTION_AWAIT_LOCK -> if (run?.isActive != true && lockWait?.isActive != true) awaitLock()
             run?.isActive == true || kind == null -> Unit
-            else -> run = scope.launch { execute(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual) }
+            else -> {
+                // A run started by hand replaces the wait for the lock; it restarts System UI itself.
+                lockWait?.cancel()
+                start(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual)
+            }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
-        if (run?.isCompleted != false) stopSelf()
+        stopIfIdle()
         return START_NOT_STICKY
     }
 
-    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger) {
+    private fun start(kind: ApplyKind, trigger: RunTrigger) {
+        run = scope.launch {
+            // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
+            execute(kind, trigger, deferSystemUi = trigger == RunTrigger.Boot)
+            if (autoApply.isWaitingForLock()) awaitLock()
+        }.also { it.invokeOnCompletion { stopIfIdle() } }
+    }
+
+    private fun awaitLock() {
+        lockWait = scope.launch {
+            notifications.update(notifications.waitingForLock())
+            if (!autoApply.awaitLockWhilePending()) return@launch
+            // The screen is off: keep the CPU awake for the run.
+            val wakeLock = getSystemService(PowerManager::class.java)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+            wakeLock.acquire(RUN_WAKE_LOCK_TIMEOUT.inWholeMilliseconds)
+            try {
+                // Locking restarted adbd; it takes about a second to accept connections again.
+                delay(ADBD_SETTLE)
+                execute(ApplyKind.Light, RunTrigger.Boot, deferSystemUi = false)
+            } finally {
+                if (wakeLock.isHeld) wakeLock.release()
+            }
+        }.also { it.invokeOnCompletion { stopIfIdle() } }
+    }
+
+    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger, deferSystemUi: Boolean) {
         val progress = scope.launch {
             controller.state.collect { state ->
                 if (state is ApplyRunState.Running) notifications.update(notifications.progress(kind, state))
             }
         }
         try {
-            // An automatic run that finds Vulkan in place changes nothing: no screen flashes for nothing.
-            val outcome = controller.run(kind, trigger, skipIfApplied = trigger == RunTrigger.Boot)
+            val outcome = controller.run(kind, trigger, deferSystemUi)
             if (outcome != null) autoApply.onRunFinished(trigger, outcome)
         } finally {
-            withContext(NonCancellable) {
-                progress.cancel()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
+            withContext(NonCancellable) { progress.cancel() }
+        }
+    }
+
+    private fun cancel() {
+        run?.cancel()
+        lockWait?.let { wait ->
+            wait.cancel()
+            // Nothing waits for the lock any more, so Home must not say System UI will switch then.
+            scope.launch { autoApply.cancelSystemUiAtLock() }.invokeOnCompletion { stopIfIdle() }
+        }
+    }
+
+    private fun stopIfIdle() {
+        if (run?.isCompleted != false && lockWait?.isCompleted != false) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
@@ -118,6 +174,13 @@ class ApplyService(
 
         /** The light apply after a restart, which skips itself when Vulkan is already in place. */
         const val ACTION_AUTOMATIC = "io.github.barqallayl.burkan.action.AUTOMATIC_RUN"
+
+        /** Waits for the next lock to restart System UI, when a run after a restart left it for then. */
+        const val ACTION_AWAIT_LOCK = "io.github.barqallayl.burkan.action.AWAIT_LOCK"
+
+        private const val WAKE_LOCK_TAG = "Burkan:apply"
+        private val ADBD_SETTLE = 3.seconds
+        private val RUN_WAKE_LOCK_TIMEOUT = 2.minutes
     }
 }
 
@@ -173,6 +236,24 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
         manager.notify(FAILURE_ID, notification)
     }
 
+    /** Shown while the service waits for the phone to lock, with a way to stop waiting. */
+    fun waitingForLock(): Notification {
+        val cancel = PendingIntent.getService(
+            application,
+            0,
+            Intent(application, ApplyService::class.java).setAction(ApplyService.ACTION_CANCEL),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val text = application.getString(R.string.apply_waiting_for_lock_text)
+        return base()
+            .setContentTitle(application.getString(R.string.apply_waiting_for_lock_title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setOngoing(true)
+            .addAction(0, application.getString(R.string.apply_cancel_action), cancel)
+            .build()
+    }
+
     override fun showReadyToApply() {
         createChannel()
         val apply = PendingIntent.getForegroundService(
@@ -211,6 +292,9 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
 interface ApplyLauncher {
     fun start(kind: ApplyKind)
 
+    /** Waits for the next lock to restart System UI, if a run after a restart left it for then. */
+    fun awaitLock()
+
     /**
      * Starts the automatic apply. False when Android does not let the app start it from the background, which it
      * allows after a restart but not always later.
@@ -228,6 +312,16 @@ class ServiceApplyLauncher(private val application: Application) : ApplyLauncher
         application.startForegroundService(
             Intent(application, ApplyService::class.java).putExtra(ApplyService.EXTRA_KIND, kind.name),
         )
+    }
+
+    override fun awaitLock() {
+        try {
+            application.startForegroundService(
+                Intent(application, ApplyService::class.java).setAction(ApplyService.ACTION_AWAIT_LOCK),
+            )
+        } catch (_: ForegroundServiceStartNotAllowedException) {
+            // Asked from the background: the service that left System UI for the lock is still waiting for it.
+        }
     }
 
     override fun startAutomatic(): Boolean = try {

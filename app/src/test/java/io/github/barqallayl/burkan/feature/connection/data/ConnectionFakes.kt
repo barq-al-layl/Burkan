@@ -4,16 +4,23 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.BytesStream
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellStream
+import io.github.barqallayl.burkan.core.shell.exit
+import io.github.barqallayl.burkan.core.shell.packet
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import java.io.IOException
 import kotlin.time.Duration
 
-/** Records every call; answers per host from [connectResults] and [pairResults], succeeding by default. */
+/**
+ * Records every call; answers per host from [connectResults] and [pairResults], succeeding by default. Each stream
+ * opened answers `ok`, except that the next [dropOpens] fail as they do once adbd has restarted.
+ */
 class FakeAdbClient : AdbClient {
     val calls = mutableListOf<String>()
+    var dropOpens = 0
     val connectResults = mutableMapOf<String, Either<ConnectionError, Unit>>()
     val pairResults = mutableMapOf<String, Either<PairingError, Unit>>()
 
@@ -31,7 +38,13 @@ class FakeAdbClient : AdbClient {
         calls += "disconnect"
     }
 
-    override fun open(destination: String): ShellStream = throw IOException("not used by these tests")
+    override fun open(destination: String): ShellStream {
+        if (dropOpens > 0) {
+            dropOpens--
+            throw IOException("Not connected")
+        }
+        return BytesStream(packet(1, "ok\n") + exit(0))
+    }
 }
 
 class FakeAdbDiscovery : AdbDiscovery {
@@ -71,9 +84,14 @@ class FakeWirelessDebugging(
 class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
     var failure: AppError? = null
     var runs = 0
+    var releases = 0
 
     override suspend fun <T> withShell(block: suspend (ShellExecutor) -> T): Either<AppError, T> {
         runs++
         return failure?.left() ?: block(shell).right()
+    }
+
+    override suspend fun release() {
+        releases++
     }
 }

@@ -2,7 +2,12 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import arrow.core.getOrElse
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.RendererReader
+import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
 import kotlinx.coroutines.test.runTest
@@ -10,41 +15,61 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Instant
 
 /** Each flow end to end against the fixture phone: read, plan, run. Pins the exact command list. */
 class ApplyFlowTest {
 
-    private val shell = FakeShellExecutor().apply { replyLikeFixtureDevice() }
+    private val shell = FakeShellExecutor().apply {
+        replyLikeFixtureDevice()
+        reply(ShellCommands.getRenderer(), stdout = "\n")
+        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+            reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-opengl.txt"))
+        }
+        // Once restarted, System UI answers on Vulkan.
+        thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+    }
     private val reader = ApplyInputsReader(shell)
-    private val runner = ApplyRunner(shell)
+    private val runner = ApplyRunner(shell, SystemUiCooldown(InMemorySystemUiRestarts(), FixedClock))
     private val records = mutableListOf<StepRecord>()
 
     @Test
     fun `light apply sends exactly these commands`() = runTest {
-        val keyboard = reader.readKeyboard().getOrElse { fail("read failed: $it") }
+        val before = RendererReader(shell).read().getOrElse { fail("read failed: $it") }
 
-        runner.run(LightApplyPlan.create(keyboard)) { records += it }
+        runner.run(LightApplyPlan.create(before)) { records += it }
 
         assertEquals(
             listOf(
+                // What everything runs with now decides what is restarted.
+                "getprop debug.hwui.renderer",
                 "settings get secure default_input_method",
+                "dumpsys gfxinfo com.android.systemui",
+                "dumpsys gfxinfo com.sec.android.app.launcher",
+                "dumpsys gfxinfo com.samsung.android.honeyboard",
                 "setprop debug.hwui.renderer skiavk",
-                "am crash com.android.systemui",
                 "am force-stop com.sec.android.app.launcher",
                 "am crash com.samsung.android.honeyboard",
+                // Last, because it locks the screen; then asked until it is back on Vulkan.
+                "am crash com.android.systemui",
+                "dumpsys gfxinfo com.android.systemui",
             ),
             shell.lines,
         )
-        assertTrue(records.all { it.failure == null })
+        assertTrue(records.all { it.failure == null }, "$records")
     }
 
     @Test
     fun `full apply sends exactly these commands`() = runTest {
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
         val inputs = reader.readFull().getOrElse { fail("read failed: $it") }
         val plan = FullApplyPlan.create(
             inputs = inputs,
             userExclusions = setOf(PackageName.known("com.example.notes")),
             self = FixtureDevice.Self,
+            before = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
         )
 
         runner.run(plan) { records += it }
@@ -77,7 +102,6 @@ class ApplyFlowTest {
                     "am force-stop com.example.camera.pro; " +
                     "am force-stop org.example.chat; " +
                     "true",
-                "am crash com.android.systemui",
                 "am force-stop com.sec.android.app.launcher; sleep 2; " +
                     "monkey -p com.sec.android.app.launcher -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; " +
                     "true",
@@ -99,9 +123,26 @@ class ApplyFlowTest {
                 "settings get secure enabled_accessibility_services",
                 "settings put secure edge_enable '1'",
                 "settings get secure edge_enable",
+                // Last of all, after the restore, because it locks the screen and drops the connection.
+                "am crash com.android.systemui",
+                "dumpsys gfxinfo com.android.systemui",
             ),
             shell.lines,
         )
         assertTrue(records.all { it.failure == null }, "$records")
+    }
+}
+
+/** Always the same moment: no test reads the real clock. */
+object FixedClock : Clock {
+    override fun now(): Instant = Instant.parse("2026-10-02T09:30:00Z")
+}
+
+/** A clock a test moves by hand. */
+class TestClock(private var now: Instant = Instant.parse("2026-10-02T09:30:00Z")) : Clock {
+    override fun now(): Instant = now
+
+    fun advance(by: Duration) {
+        now += by
     }
 }

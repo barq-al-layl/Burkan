@@ -31,4 +31,12 @@ class SharedParsersTest {
         )
         assertNull(parseComponentPackage("com.samsung.android.honeyboard"))
     }
+
+    @Test
+    fun `the property reads skiavk as Vulkan and nothing as the OpenGL default`() {
+        assertEquals(Renderer.Vulkan, rendererFromProperty("skiavk\n"))
+        assertEquals(Renderer.OpenGL, rendererFromProperty("\n"))
+        assertEquals(Renderer.OpenGL, rendererFromProperty("skiagl\n"))
+        assertEquals(Renderer.Unknown, rendererFromProperty("something-else\n"))
+    }
 }

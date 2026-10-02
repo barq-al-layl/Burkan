@@ -110,6 +110,8 @@
     <string name="error_command_failed">A command on the phone reported a failure.</string>
     <string name="error_no_packages_listed">The phone did not list its apps, so nothing was restarted.</string>
     <string name="error_setting_not_restored">The setting did not read back as it was. Check it in Settings.</string>
+    <string name="error_system_ui_restarted_recently">System UI was restarted less than a minute ago, so it was left alone: restarting it again so soon makes One UI switch off its customisation add-ons. Try again in a minute.</string>
+    <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
     <string name="error_unexpected">Something went wrong.</string>
 
     <string name="pairing_channel_name">Pairing</string>
@@ -141,6 +143,8 @@
     <string name="step_restore_edge_panels">Put back the Edge panel list</string>
     <string name="phase_connecting">Connecting to wireless debugging</string>
     <string name="phase_reading">Reading the phone’s state</string>
+    <string name="phase_restart_system_ui">Restarting System UI. The screen locks for a moment; unlock to carry on.</string>
+    <string name="phase_checking">Checking the result</string>
 
     <string name="apply_channel_name">Applying Vulkan</string>
     <string name="apply_channel_description">Shows a run while it is in progress, and a run that failed.</string>
@@ -149,6 +153,8 @@
     <string name="apply_cancel_action">Cancel</string>
     <string name="apply_failed_title">Vulkan was not applied</string>
     <string name="apply_failed_text">Open Burkan to see what went wrong.</string>
+    <string name="apply_waiting_for_lock_title">System UI switches at the next lock</string>
+    <string name="apply_waiting_for_lock_text">New apps, the launcher and the keyboard are on Vulkan. Restarting System UI shows the lock screen, so it waits until you lock the phone.</string>
     <string name="apply_ready_title">Wi-Fi is connected</string>
     <string name="apply_ready_text">Burkan can apply Vulkan now.</string>
     <string name="apply_ready_action">Apply</string>
@@ -174,6 +180,8 @@
     <string name="home_waiting_network_title">Waiting for a network that allows wireless debugging</string>
     <string name="home_waiting_network_text">Android did not allow wireless debugging on this Wi-Fi network. In Developer options, switch on Wireless debugging and tick “Always allow on this network”, then tap Apply now.</string>
     <string name="home_waiting_open_developer_options">Open Developer options</string>
+    <string name="home_next_lock_title">System UI switches at the next lock</string>
+    <string name="home_next_lock_text">New apps, the launcher and the keyboard are on Vulkan. Restarting System UI shows the lock screen, so Burkan waits until you next lock the phone rather than lock it on you now.</string>
     <string name="home_open_log">Log</string>
     <string name="home_open_settings">Settings</string>
     <string name="home_headline_active">Vulkan is active</string>
@@ -193,8 +201,11 @@
     <string name="home_restart_all">Restart all apps</string>
     <string name="home_retry">Try again</string>
     <string name="home_cancel_run">Cancel</string>
+    <string name="home_confirm_apply_title">The screen will lock for a moment</string>
+    <string name="home_confirm_apply_text">Restarting System UI brings up the lock screen, and wireless debugging disconnects and reconnects. Unlock the phone afterwards; Burkan finishes by itself.</string>
+    <string name="home_confirm_apply_action">Apply</string>
     <string name="home_confirm_title">Restart all apps?</string>
-    <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
+    <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. At the end the screen locks for a moment while System UI restarts. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
     <string name="home_confirm_action">Restart all apps</string>
     <string name="home_confirm_dismiss">Not now</string>
 

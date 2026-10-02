@@ -4,10 +4,11 @@ import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.Renderer.OpenGL
 import io.github.barqallayl.burkan.core.model.Renderer.Unknown
 import io.github.barqallayl.burkan.core.model.Renderer.Vulkan
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class RendererStatusTest {
+class HeadlineTest {
 
     private fun status(newApps: Renderer, systemUi: Renderer, launcher: Renderer, keyboard: Renderer) =
         RendererStatus(newApps, systemUi, launcher, keyboard)
@@ -35,13 +36,5 @@ class RendererStatusTest {
     @Test
     fun `a surface on Vulkan without the property is partly applied`() {
         assertEquals(Headline.PartlyApplied, status(OpenGL, Vulkan, OpenGL, OpenGL).headline())
-    }
-
-    @Test
-    fun `the property reads skiavk as Vulkan and nothing as the OpenGL default`() {
-        assertEquals(Vulkan, rendererFromProperty("skiavk\n"))
-        assertEquals(OpenGL, rendererFromProperty("\n"))
-        assertEquals(OpenGL, rendererFromProperty("skiagl\n"))
-        assertEquals(Unknown, rendererFromProperty("something-else\n"))
     }
 }

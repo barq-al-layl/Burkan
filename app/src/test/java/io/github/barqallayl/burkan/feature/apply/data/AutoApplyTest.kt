@@ -6,6 +6,7 @@ import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
 import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
@@ -14,6 +15,8 @@ import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.model.RunResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -29,7 +32,9 @@ class AutoApplyTest {
     private val wifiWatch = FakeWifiWatch(active = HOME_NETWORK)
     private val launcher = FakeApplyLauncher()
     private val alerts = FakeRunAlerts()
-    private val autoApply = AutoApply(settings, deviceState, storage, wirelessDebugging, wifiWatch, launcher, alerts)
+    private val lockEvents = FakeLockEvents()
+    private val autoApply =
+        AutoApply(settings, deviceState, storage, wirelessDebugging, wifiWatch, launcher, alerts, lockEvents)
 
     @Test
     fun `a restart on Wi-Fi starts the run`() = runTest {
@@ -198,6 +203,65 @@ class AutoApplyTest {
         assertEquals(listOf<AppError?>(ShellError.ConnectionLost), alerts.failures)
         assertEquals(AutoApplyState(), storage.state.value)
         assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a run that left System UI for later waits for the next lock`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi, triedNetwork = HOME_NETWORK)
+        wifiWatch.watching = true
+
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Succeeded, systemUiDeferred = true))
+
+        assertEquals(AutoApplyState(systemUiAtNextLock = true), storage.state.value)
+        assertFalse(wifiWatch.watching)
+        assertTrue(autoApply.isWaitingForLock())
+    }
+
+    @Test
+    fun `the wait ends when the phone locks`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        val waiting = async { autoApply.awaitLockWhilePending() }
+        runCurrent()
+        assertFalse(waiting.isCompleted)
+        lockEvents.lock()
+
+        assertTrue(waiting.await())
+    }
+
+    @Test
+    fun `the wait ends without restarting once something else settled System UI`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        val waiting = async { autoApply.awaitLockWhilePending() }
+        runCurrent()
+        // A manual apply restarted System UI meanwhile.
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        assertFalse(waiting.await())
+    }
+
+    @Test
+    fun `with nothing left for the lock there is nothing to wait for`() = runTest {
+        assertFalse(autoApply.awaitLockWhilePending())
+    }
+
+    @Test
+    fun `cancelling the wait forgets that System UI was left for the lock`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        autoApply.cancelSystemUiAtLock()
+
+        assertFalse(autoApply.isWaitingForLock())
+    }
+
+    @Test
+    fun `a restart forgets System UI left for the previous boot's lock`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        autoApply.onBoot()
+
+        assertFalse(storage.state.value.systemUiAtNextLock)
     }
 
     private companion object {

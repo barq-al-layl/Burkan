@@ -1,11 +1,16 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import arrow.core.getOrElse
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.ReconnectingShellExecutor
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
+import io.github.barqallayl.burkan.core.shell.Surfaces
+import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -20,11 +25,17 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlin.time.Duration.Companion.seconds
 
 class ApplyRunnerTest {
 
-    private val shell = FakeShellExecutor().apply { replyLikeFixtureDevice() }
-    private val runner = ApplyRunner(shell)
+    private val shell = FakeShellExecutor().apply {
+        replyLikeFixtureDevice()
+        reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+    }
+    private val clock = TestClock()
+    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), clock)
+    private val runner = ApplyRunner(shell, cooldown)
     private val records = mutableListOf<StepRecord>()
 
     private val restoreLines = listOf(
@@ -46,8 +57,9 @@ class ApplyRunnerTest {
             }
             val records = mutableListOf<StepRecord>()
 
-            ApplyRunner(shell).run(plan) { records += it }
+            ApplyRunner(shell, cooldown).run(plan) { records += it }
 
+            // Nothing after the restore: System UI is not restarted after a failure.
             val ran = plan.steps.take(failing + 1).map { it.command.line }
             assertEquals(ran + restoreLines, shell.lines, "failing at step $failing")
             assertEquals(StepRecord(step.kind, ShellError.ConnectionLost), records[failing])
@@ -57,19 +69,110 @@ class ApplyRunnerTest {
 
     @Test
     fun `a non-zero exit fails the step`() = runTest {
-        val plan = LightApplyPlan.create(keyboard = FixtureDevice.Keyboard)
-        shell.reply(ShellCommands.crash(ShellCommands.SystemUi), stderr = "Unknown package\n", exitCode = 1)
+        shell.reply(ShellCommands.crash(FixtureDevice.Keyboard), stderr = "Unknown package\n", exitCode = 1)
 
-        runner.run(plan) { records += it }
+        runner.run(LightApplyPlan.create(openGlEverywhere)) { records += it }
 
         assertEquals(
             listOf(
                 StepRecord(StepKind.SetRenderer),
-                StepRecord(StepKind.RestartSystemUi, ApplyError.CommandFailed(1, "Unknown package\n")),
+                StepRecord(StepKind.RestartLauncher),
+                StepRecord(StepKind.RestartKeyboard, ApplyError.CommandFailed(1, "Unknown package\n")),
             ),
             records,
         )
+        assertTrue("am crash com.android.systemui" !in shell.lines)
     }
+
+    @Test
+    fun `System UI is restarted after the restore, then asked until it answers on Vulkan`() = runTest {
+        val systemUi = ShellCommands.gfxInfo(ShellCommands.SystemUi)
+        shell.reply(systemUi, stdout = fixture("gfxinfo-opengl.txt"))
+        shell.thenReply(systemUi, stdout = "")
+        shell.thenReply(systemUi, stdout = fixture("gfxinfo-vulkan.txt"))
+
+        runner.run(fullPlan()) { records += it }
+
+        assertEquals(
+            restoreLines + listOf(
+                "am crash com.android.systemui",
+                "dumpsys gfxinfo com.android.systemui",
+                "dumpsys gfxinfo com.android.systemui",
+                "dumpsys gfxinfo com.android.systemui",
+            ),
+            shell.lines.takeLast(restoreLines.size + 4),
+        )
+        assertEquals(StepRecord(StepKind.RestartSystemUi), records.last())
+        assertEquals(3_000, currentTime)
+    }
+
+    @Test
+    fun `System UI that never comes back on Vulkan fails the step`() = runTest {
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-opengl.txt"))
+
+        runner.run(systemUiOnly) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartSystemUi, ApplyError.SystemUiNotOnVulkan)), records)
+        assertEquals(15, shell.lines.count { it == "dumpsys gfxinfo com.android.systemui" })
+    }
+
+    @Test
+    fun `System UI is never restarted twice within a minute`() = runTest {
+        runner.run(systemUiOnly) { records += it }
+        clock.advance(59.seconds)
+        runner.run(systemUiOnly) { records += it }
+        clock.advance(2.seconds)
+        runner.run(systemUiOnly) { records += it }
+
+        assertEquals(
+            listOf(
+                StepRecord(StepKind.RestartSystemUi),
+                StepRecord(StepKind.RestartSystemUi, ApplyError.SystemUiRestartedRecently),
+                StepRecord(StepKind.RestartSystemUi),
+            ),
+            records,
+        )
+        assertEquals(2, shell.lines.count { it == "am crash com.android.systemui" })
+    }
+
+    @Test
+    fun `a connection dropped at any step is picked up again, and only harmless commands are sent twice`() =
+        runTest {
+            val plan = LightApplyPlan.create(openGlEverywhere)
+            val commands = plan.steps.map { it.command } + ShellCommands.crash(ShellCommands.SystemUi) +
+                ShellCommands.gfxInfo(ShellCommands.SystemUi)
+            commands.forEach { dropped ->
+                val shell = FakeShellExecutor().apply {
+                    reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+                    failOnce(dropped, ShellError.ConnectionLost)
+                }
+                var reconnects = 0
+                val reconnecting = ReconnectingShellExecutor(shell) {
+                    reconnects++
+                    true
+                }
+                val records = mutableListOf<StepRecord>()
+
+                ApplyRunner(reconnecting, SystemUiCooldown(InMemorySystemUiRestarts(), clock)).run(plan) {
+                    records += it
+                }
+
+                val keyboard = ShellCommands.crash(FixtureDevice.Keyboard)
+                if (dropped == keyboard) {
+                    // Whether the keyboard restarted is unknown, and crashing it again is not harmless: the run stops.
+                    assertEquals(StepRecord(StepKind.RestartKeyboard, ShellError.ConnectionLost), records.last())
+                    assertEquals(0, reconnects, "nothing was sent after it")
+                } else {
+                    assertEquals(1, reconnects, "dropped at ${dropped.line}")
+                    assertTrue(records.all { it.failure == null }, "dropped at ${dropped.line}: $records")
+                    assertEquals(
+                        if (dropped.repeatable) 2 else 1,
+                        shell.lines.count { it == dropped.line },
+                        "dropped at ${dropped.line}",
+                    )
+                }
+            }
+        }
 
     @Test
     fun `cancelling a run still restores the settings, then cancels`() = runTest {
@@ -135,8 +238,20 @@ class ApplyRunnerTest {
     private suspend fun fullPlan(): ApplyPlan {
         val inputs = ApplyInputsReader(shell).readFull().getOrElse { fail("read failed: $it") }
         shell.commands.clear()
-        return FullApplyPlan.create(inputs, setOf(PackageName.known("com.example.notes")), FixtureDevice.Self)
+        return FullApplyPlan.create(
+            inputs = inputs,
+            userExclusions = setOf(PackageName.known("com.example.notes")),
+            self = FixtureDevice.Self,
+            before = openGlEverywhere.status,
+        )
     }
+
+    private val openGlEverywhere = Surfaces(
+        status = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
+        keyboard = FixtureDevice.Keyboard,
+    )
+
+    private val systemUiOnly = ApplyPlan(steps = emptyList(), restartSystemUi = true)
 
     private fun restoreOnly(vararg values: Pair<RestoredSetting, String>): ApplyPlan = ApplyPlan(
         steps = emptyList(),

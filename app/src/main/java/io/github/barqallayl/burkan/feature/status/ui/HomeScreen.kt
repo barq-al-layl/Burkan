@@ -41,6 +41,7 @@ import com.composables.icons.tabler.outline.CircleX
 import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Hourglass
+import com.composables.icons.tabler.outline.Lock
 import com.composables.icons.tabler.outline.Settings
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -72,7 +73,7 @@ import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import io.github.barqallayl.burkan.feature.log.ui.label
 import io.github.barqallayl.burkan.feature.status.model.Headline
-import io.github.barqallayl.burkan.feature.status.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.feature.status.model.headline
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
@@ -88,8 +89,8 @@ fun HomeScreen() {
     val navigator = LocalNavigator.current
     val context = LocalContext.current
     LifecycleResumeEffect(viewModel) {
-        viewModel.refresh()
-        onPauseOrDispose { }
+        viewModel.onResume()
+        onPauseOrDispose { viewModel.onPause() }
     }
     viewModel.collectSideEffect { effect ->
         when (effect) {
@@ -105,6 +106,8 @@ fun HomeScreen() {
         actions = HomeActions(
             onRetry = viewModel::refresh,
             onApplyNow = viewModel::applyNow,
+            onConfirmApply = viewModel::confirmApply,
+            onDismissApply = viewModel::dismissApply,
             onRestartAll = viewModel::requestRestartAll,
             onConfirmRestartAll = viewModel::confirmRestartAll,
             onDismissRestartAll = viewModel::dismissRestartAll,
@@ -119,6 +122,8 @@ fun HomeScreen() {
 private class HomeActions(
     val onRetry: () -> Unit = {},
     val onApplyNow: () -> Unit = {},
+    val onConfirmApply: () -> Unit = {},
+    val onDismissApply: () -> Unit = {},
     val onRestartAll: () -> Unit = {},
     val onConfirmRestartAll: () -> Unit = {},
     val onDismissRestartAll: () -> Unit = {},
@@ -154,6 +159,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             state.waitingFor?.let { WaitingCard(it, actions.onOpenDeveloperOptions) }
+            if (state.systemUiAtNextLock) NextLockCard()
             StatusCard(state, actions.onRetry)
             val run = state.run
             if (run is ApplyRunState.Running) RunningCard(run, actions.onCancelRun)
@@ -166,6 +172,19 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 Text(stringResource(R.string.home_restart_all))
             }
         }
+    }
+    if (state.isConfirmingApply) {
+        AlertDialog(
+            onDismissRequest = actions.onDismissApply,
+            title = { Text(stringResource(R.string.home_confirm_apply_title)) },
+            text = { Text(stringResource(R.string.home_confirm_apply_text)) },
+            confirmButton = {
+                TextButton(onClick = actions.onConfirmApply) { Text(stringResource(R.string.home_confirm_apply_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.onDismissApply) { Text(stringResource(R.string.home_confirm_dismiss)) }
+            },
+        )
     }
     if (state.isConfirmingFullApply) {
         AlertDialog(
@@ -275,6 +294,19 @@ private fun WaitingCard(reason: WaitReason, onOpenDeveloperOptions: () -> Unit) 
                     Text(stringResource(R.string.home_waiting_open_developer_options))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun NextLockCard() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Tabler.Outline.Lock, contentDescription = null)
+                Text(stringResource(R.string.home_next_lock_title), style = MaterialTheme.typography.titleMedium)
+            }
+            Text(stringResource(R.string.home_next_lock_text))
         }
     }
 }
@@ -423,6 +455,33 @@ private fun HomeWaitingForTrustedNetworkPreview() = HomePreviewContent(
             error = AppErrorType.WirelessDebuggingRefused,
         ),
         waitingFor = WaitReason.TrustedNetwork,
+    ),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeSystemUiAtNextLockPreview() = HomePreviewContent(
+    sample(
+        status = StatusState.Loaded(
+            RendererStatus(Renderer.Vulkan, Renderer.OpenGL, Renderer.Vulkan, Renderer.Vulkan),
+        ),
+        lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot),
+    ).copy(systemUiAtNextLock = true),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeConfirmApplyPreview() = HomePreviewContent(sample().copy(isConfirmingApply = true))
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeRestartingSystemUiPreview() = HomePreviewContent(
+    sample(
+        run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Manual, RunPhase.Step(StepKind.RestartSystemUi)),
+        lastRun = sampleLightRun,
     ),
 )
 

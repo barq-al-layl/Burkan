@@ -98,7 +98,15 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
     }
 
     override fun open(destination: String): ShellStream {
-        val stream = (manager ?: throw IOException("Not connected")).openStream(destination)
+        val manager = manager ?: throw IOException("Not connected")
+        // libadb reports a connection that went away in more ways than one; to the caller they all mean not connected.
+        val stream = try {
+            manager.openStream(destination)
+        } catch (e: IllegalStateException) {
+            throw IOException(e)
+        } catch (e: InterruptedException) {
+            throw IOException(e)
+        }
         return object : ShellStream {
             override fun read(buffer: ByteArray): Int = stream.read(buffer, 0, buffer.size)
             override fun close() = stream.close()

@@ -14,6 +14,13 @@ fun parseRenderer(stdout: String): Renderer =
         else -> Renderer.Unknown
     }
 
+/** `getprop debug.hwui.renderer`: `skiavk` is Vulkan; unset or `skiagl` is the default, OpenGL. */
+fun rendererFromProperty(value: String): Renderer = when (value.trim()) {
+    "skiavk" -> Renderer.Vulkan
+    "", "skiagl" -> Renderer.OpenGL
+    else -> Renderer.Unknown
+}
+
 /** `settings get`: the value, or null when the key is unset. `settings get` prints `null` for an unset key. */
 fun parseSettingValue(stdout: String): String? =
     stdout.removeSuffix("\n").removeSuffix("\r").takeUnless { it.isEmpty() || it == "null" }

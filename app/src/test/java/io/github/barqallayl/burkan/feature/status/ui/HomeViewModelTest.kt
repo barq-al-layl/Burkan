@@ -1,24 +1,27 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
-import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
+import io.github.barqallayl.burkan.feature.apply.data.InMemorySystemUiRestarts
+import io.github.barqallayl.burkan.feature.apply.data.SystemUiCooldown
+import io.github.barqallayl.burkan.feature.apply.data.TestClock
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
-import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
+import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
-import io.github.barqallayl.burkan.feature.status.model.RendererStatus
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -26,9 +29,8 @@ import org.orbitmvi.orbit.test.Item
 import org.orbitmvi.orbit.test.OrbitScopedTestContextInternal
 import org.orbitmvi.orbit.test.testWithInternalState
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 private typealias HomeTest = OrbitScopedTestContextInternal<HomeState, HomeState, HomeSideEffect, HomeViewModel>
 
@@ -44,11 +46,14 @@ class HomeViewModelTest {
     private val access = FakeShellAccess(shell)
     private val log = FakeRunLogStorage()
     private val settings = FakeSettingsStorage()
-    private val controller = ApplyController(access, log, settings, Clock.System, FixtureDevice.Self)
+    private val clock = TestClock()
+    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), clock)
+    private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
     private val launcher = FakeApplyLauncher()
     private val autoApply = FakeAutoApplyStorage()
 
-    private fun viewModel() = HomeViewModel(StatusRepository(access), controller, launcher, log, autoApply)
+    private fun viewModel() =
+        HomeViewModel(StatusRepository(access), controller, launcher, log, autoApply, clock)
 
     private val notApplied = StatusState.Loaded(
         RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
@@ -135,9 +140,29 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `apply now starts the light apply`() = runTest {
+    fun `apply now says first that the screen will lock, when System UI is to restart`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
+
+            containerHost.applyNow()
+            awaitState { it.isConfirmingApply }
+            assertEquals(emptyList(), launcher.started)
+
+            containerHost.confirmApply()
+            awaitState { !it.isConfirmingApply }
+            assertEquals(listOf(ApplyKind.Light), launcher.started)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `apply now with System UI already on Vulkan starts at once`() = runTest {
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh().join()
 
             containerHost.applyNow().join()
 
@@ -148,7 +173,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `a finished run shows as the last run and the status is read again`() = runTest {
+    fun `a finished run shows the status it read itself, without connecting again`() = runTest {
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
             // Let the first read of the log land, so the run's entry arrives as a new one.
@@ -158,10 +185,49 @@ class HomeViewModelTest {
 
             val state = awaitState { it.lastRun != null && it.status is StatusState.Loaded }
             assertEquals(ApplyKind.Light, state.lastRun?.kind)
-            assertFalse(state.isRefreshing)
-            // The light apply never reads the property; only the status read after it does.
-            val runEnd = shell.lines.indexOf("am crash com.samsung.android.honeyboard")
-            assertTrue(shell.lines.indexOf("getprop debug.hwui.renderer") > runEnd)
+            assertEquals(Renderer.Vulkan, (state.status as StatusState.Loaded).status.systemUi)
+            assertEquals(1, access.runs, "only the run connected")
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `resuming soon after a read shows it as it is, and later reads again`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.onResume().join()
+            containerHost.onResume().join()
+            assertEquals(1, access.runs)
+
+            clock.advance(31.seconds)
+            containerHost.onResume().join()
+            assertEquals(2, access.runs)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `leaving the screen lets the connection go`() = runTest {
+        viewModel().testWithInternalState(this) {
+            containerHost.onPause().join()
+
+            assertEquals(1, access.releases)
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `System UI left for the next lock shows, and the wait for the lock is set up again`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            autoApply.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+            assertTrue(awaitState { it.systemUiAtNextLock }.systemUiAtNextLock)
+            assertEquals(1, launcher.lockWaits)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
