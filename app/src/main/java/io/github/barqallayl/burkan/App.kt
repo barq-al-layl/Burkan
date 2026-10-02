@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan
 
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -38,7 +39,7 @@ fun App(viewModelFactory: MetroViewModelFactory) {
                 paletteStyle = appearance.paletteStyle.style,
                 specVersion = appearance.colorSpec.version,
             ) {
-                AppNavigation(isSetupComplete)
+                Surface { AppNavigation(isSetupComplete) }
             }
         }
     }
