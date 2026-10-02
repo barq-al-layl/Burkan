@@ -29,4 +29,19 @@ fun parseSettingValue(stdout: String): String? =
 fun parseComponentPackage(component: String): PackageName? =
     component.trim().takeIf { '/' in it }?.substringBefore('/')?.let(PackageName::parse)
 
+/**
+ * `cmd package resolve-activity --brief`: the last line is the `package/class` that answers. When no home app is
+ * chosen it is the system's chooser, in the `android` package, which is no home app.
+ */
+fun parseHomeActivity(stdout: String): PackageName? =
+    stdout.lineSequence()
+        .lastOrNull { '/' in it }
+        ?.let(::parseComponentPackage)
+        ?.takeIf { it.value != CHOOSER_PACKAGE }
+
+/** `cmd role get-role-holders`: the holders, separated by `;` or by lines. The first that is a package name. */
+fun parseRoleHolders(stdout: String): PackageName? =
+    stdout.split(';', '\n').firstNotNullOfOrNull { PackageName.parse(it.trim()) }
+
 private const val PIPELINE_MARKER = "Pipeline="
+private const val CHOOSER_PACKAGE = "android"

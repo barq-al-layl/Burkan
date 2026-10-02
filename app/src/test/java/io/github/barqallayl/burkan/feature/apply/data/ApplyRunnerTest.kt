@@ -11,6 +11,7 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -34,7 +35,7 @@ class ApplyRunnerTest {
         reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
     }
     private val clock = TestClock()
-    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), clock)
+    private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
     private val runner = ApplyRunner(shell, cooldown)
     private val records = mutableListOf<StepRecord>()
 
@@ -59,8 +60,11 @@ class ApplyRunnerTest {
 
             ApplyRunner(shell, cooldown).run(plan) { records += it }
 
-            // Nothing after the restore: System UI is not restarted after a failure.
-            val ran = plan.steps.take(failing + 1).map { it.command.line }
+            // Nothing after the restore: System UI is not restarted after a failure. The keyboard's restart reads
+            // the default keyboard first.
+            val ran = plan.steps.take(failing + 1).flatMap { ran ->
+                listOfNotNull(DEFAULT_KEYBOARD.takeIf { ran.kind == StepKind.RestartKeyboard }, ran.command.line)
+            }
             assertEquals(ran + restoreLines, shell.lines, "failing at step $failing")
             assertEquals(StepRecord(step.kind, ShellError.ConnectionLost), records[failing])
             assertEquals(plan.restore.map { StepRecord(it.kind) }, records.drop(failing + 1))
@@ -103,7 +107,47 @@ class ApplyRunnerTest {
             shell.lines.takeLast(restoreLines.size + 4),
         )
         assertEquals(StepRecord(StepKind.RestartSystemUi), records.last())
-        assertEquals(3_000, currentTime)
+        // A second for the keyboard to settle, and a second before each check of System UI.
+        assertEquals(4_000, currentTime)
+    }
+
+    @Test
+    fun `a keyboard restart that changes the default keyboard puts it back`() = runTest {
+        val default = ShellCommands.getSetting(SettingKey.DefaultInputMethod)
+        shell.reply(default, stdout = "$HONEYBOARD\n")
+        shell.thenReply(default, stdout = "$OTHER_KEYBOARD\n")
+        shell.thenReply(default, stdout = "$HONEYBOARD\n")
+
+        runner.run(keyboardOnly) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartKeyboard)), records)
+        assertEquals("ime set '$HONEYBOARD'", shell.lines[3])
+        assertTrue(shell.lines.none { it.startsWith("settings put") })
+    }
+
+    @Test
+    fun `when ime set does not take, the setting is written instead`() = runTest {
+        val default = ShellCommands.getSetting(SettingKey.DefaultInputMethod)
+        shell.reply(default, stdout = "$HONEYBOARD\n")
+        shell.thenReply(default, stdout = "$OTHER_KEYBOARD\n")
+        shell.thenReply(default, stdout = "$OTHER_KEYBOARD\n")
+        shell.thenReply(default, stdout = "$HONEYBOARD\n")
+
+        runner.run(keyboardOnly) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartKeyboard)), records)
+        assertEquals("settings put secure default_input_method '$HONEYBOARD'", shell.lines[5])
+    }
+
+    @Test
+    fun `a default keyboard that cannot be put back fails the step`() = runTest {
+        val default = ShellCommands.getSetting(SettingKey.DefaultInputMethod)
+        shell.reply(default, stdout = "$HONEYBOARD\n")
+        shell.thenReply(default, stdout = "$OTHER_KEYBOARD\n")
+
+        runner.run(keyboardOnly) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartKeyboard, ApplyError.KeyboardNotRestored)), records)
     }
 
     @Test
@@ -153,7 +197,7 @@ class ApplyRunnerTest {
                 }
                 val records = mutableListOf<StepRecord>()
 
-                ApplyRunner(reconnecting, SystemUiCooldown(InMemorySystemUiRestarts(), clock)).run(plan) {
+                ApplyRunner(reconnecting, SystemUiCooldown(FakeSystemUiRestarts(), clock)).run(plan) {
                     records += it
                 }
 
@@ -242,19 +286,30 @@ class ApplyRunnerTest {
             inputs = inputs,
             userExclusions = setOf(PackageName.known("com.example.notes")),
             self = FixtureDevice.Self,
-            before = openGlEverywhere.status,
+            before = openGlEverywhere,
         )
     }
 
     private val openGlEverywhere = Surfaces(
         status = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
+        launcher = FixtureDevice.Launcher,
         keyboard = FixtureDevice.Keyboard,
     )
 
     private val systemUiOnly = ApplyPlan(steps = emptyList(), restartSystemUi = true)
 
+    private val keyboardOnly = ApplyPlan(
+        steps = listOf(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(FixtureDevice.Keyboard))),
+    )
+
     private fun restoreOnly(vararg values: Pair<RestoredSetting, String>): ApplyPlan = ApplyPlan(
         steps = emptyList(),
         restore = values.map { (setting, value) -> ApplyStep.RestoreSetting(setting, value) },
     )
+
+    private companion object {
+        const val DEFAULT_KEYBOARD = "settings get secure default_input_method"
+        const val HONEYBOARD = "com.samsung.android.honeyboard/.service.HoneyBoardService"
+        const val OTHER_KEYBOARD = "com.example.keyboard/.Ime"
+    }
 }

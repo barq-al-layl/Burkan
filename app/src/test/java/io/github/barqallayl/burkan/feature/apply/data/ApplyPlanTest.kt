@@ -24,7 +24,8 @@ class ApplyPlanTest {
         assertEquals(
             listOf(
                 "setprop debug.hwui.renderer skiavk",
-                "am force-stop com.sec.android.app.launcher",
+                "am force-stop com.sec.android.app.launcher; sleep 2; " +
+                    "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
                 "am crash com.samsung.android.honeyboard",
             ),
             plan.steps.map { it.command.line },
@@ -210,7 +211,7 @@ class ApplyPlanTest {
         inputs = FullApplyInputs(installed, inputMethods, wallpaper, running, widgets, keyboard, captured),
         userExclusions = userExclusions,
         self = FixtureDevice.Self,
-        before = before,
+        before = Surfaces(before, FixtureDevice.Launcher, keyboard),
     )
 
     private fun surfaces(
@@ -219,6 +220,7 @@ class ApplyPlanTest {
         keyboard: Renderer? = OpenGL,
     ) = Surfaces(
         status = RendererStatus(OpenGL, systemUi, launcher, keyboard ?: Unknown),
+        launcher = FixtureDevice.Launcher,
         keyboard = FixtureDevice.Keyboard.takeIf { keyboard != null },
     )
 

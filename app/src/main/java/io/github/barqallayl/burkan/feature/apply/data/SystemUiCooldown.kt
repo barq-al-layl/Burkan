@@ -1,11 +1,21 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
+import io.github.barqallayl.burkan.core.storage.DataStoreDeviceStateStorage
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -17,17 +27,25 @@ interface SystemUiRestarts {
     suspend fun record(at: Instant)
 }
 
-/** Kept for the life of the process. */
+/** Kept with the device state, so a process that died just after a restart still waits out the minute. */
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class InMemorySystemUiRestarts : SystemUiRestarts {
-    private var last: Instant? = null
+class DataStoreSystemUiRestarts(
+    @Named(DataStoreDeviceStateStorage.DEVICE_STATE_STORE) private val dataStore: DataStore<Preferences>,
+) : SystemUiRestarts {
 
-    override suspend fun last(): Instant? = last
+    override suspend fun last(): Instant? = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .first()[LAST_RESTART]
+        ?.let(Instant::fromEpochMilliseconds)
 
     override suspend fun record(at: Instant) {
-        last = at
+        dataStore.edit { it[LAST_RESTART] = at.toEpochMilliseconds() }
+    }
+
+    private companion object {
+        val LAST_RESTART = longPreferencesKey("system_ui_last_restart")
     }
 }
 

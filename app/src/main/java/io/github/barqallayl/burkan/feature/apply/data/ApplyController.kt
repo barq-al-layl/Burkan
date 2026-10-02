@@ -114,7 +114,7 @@ class ApplyController(
                             inputs = ApplyInputsReader(shell).readFull().bind(),
                             userExclusions = settings.userExclusions.first(),
                             self = ownPackage,
-                            before = before.status,
+                            before = before,
                         )
                     }
                     systemUiDeferred = deferSystemUi && before.status.systemUi != Renderer.Vulkan
@@ -125,7 +125,9 @@ class ApplyController(
                         status = before.status
                         return@either
                     }
-                    ApplyRunner(shell, cooldown).run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
+                    ApplyRunner(shell, cooldown).run(plan, onStepStarted = { show(RunPhase.Step(it)) }) {
+                        records += it
+                    }
                     show(RunPhase.Checking)
                     status = RendererReader(shell).read().getOrNull()?.status
                 }

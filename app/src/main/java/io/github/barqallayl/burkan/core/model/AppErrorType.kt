@@ -29,6 +29,7 @@ enum class AppErrorType(@StringRes val resource: Int) {
     SettingNotRestored(R.string.error_setting_not_restored),
     SystemUiRestartedRecently(R.string.error_system_ui_restarted_recently),
     SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
+    KeyboardNotRestored(R.string.error_keyboard_not_restored),
     Unexpected(R.string.error_unexpected),
 }
 
@@ -52,6 +53,7 @@ fun AppError.type(): AppErrorType = when (this) {
     is ApplyError.SettingNotRestored -> AppErrorType.SettingNotRestored
     ApplyError.SystemUiRestartedRecently -> AppErrorType.SystemUiRestartedRecently
     ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan
+    ApplyError.KeyboardNotRestored -> AppErrorType.KeyboardNotRestored
     else -> AppErrorType.Unexpected
 }
 

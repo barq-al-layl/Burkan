@@ -4,12 +4,14 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
+import io.github.barqallayl.burkan.feature.apply.data.SystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.WifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.time.Instant
 
 class FakeApplyLauncher : ApplyLauncher {
     val started = mutableListOf<ApplyKind>()
@@ -80,4 +82,14 @@ class FakeLockEvents : LockEvents {
     override val locks: Flow<Unit> = mutableLocks
 
     suspend fun lock() = mutableLocks.emit(Unit)
+}
+
+class FakeSystemUiRestarts : SystemUiRestarts {
+    private var last: Instant? = null
+
+    override suspend fun last(): Instant? = last
+
+    override suspend fun record(at: Instant) {
+        last = at
+    }
 }

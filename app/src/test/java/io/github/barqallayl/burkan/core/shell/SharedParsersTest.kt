@@ -39,4 +39,24 @@ class SharedParsersTest {
         assertEquals(Renderer.OpenGL, rendererFromProperty("skiagl\n"))
         assertEquals(Renderer.Unknown, rendererFromProperty("something-else\n"))
     }
+
+    @Test
+    fun `the home intent resolves to the home app, but the chooser is no home app`() {
+        assertEquals(
+            PackageName.known("com.sec.android.app.launcher"),
+            parseHomeActivity(fixture("resolve-activity-home.txt")),
+        )
+        assertNull(parseHomeActivity(fixture("resolve-activity-home-chooser.txt")))
+        assertNull(parseHomeActivity("No activity found\n"))
+    }
+
+    @Test
+    fun `the home role's holder is read from a line, or from a list separated by semicolons`() {
+        assertEquals(
+            PackageName.known("com.sec.android.app.launcher"),
+            parseRoleHolders(fixture("role-holders-home.txt")),
+        )
+        assertEquals(PackageName.known("org.example.home"), parseRoleHolders("org.example.home;org.example.other\n"))
+        assertNull(parseRoleHolders("\n"))
+    }
 }

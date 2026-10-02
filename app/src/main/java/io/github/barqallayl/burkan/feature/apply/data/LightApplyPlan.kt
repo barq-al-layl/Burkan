@@ -19,8 +19,8 @@ object LightApplyPlan {
     fun create(before: Surfaces, deferSystemUi: Boolean = false): ApplyPlan = ApplyPlan(
         steps = buildList {
             add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
-            if (before.status.launcher != Renderer.Vulkan) {
-                add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.forceStop(ShellCommands.Launcher)))
+            if (before.launcher != null && before.status.launcher != Renderer.Vulkan) {
+                add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(before.launcher)))
             }
             // Never force-stop an input method: that clears it as the default keyboard.
             if (before.keyboard != null && before.status.keyboard != Renderer.Vulkan) {

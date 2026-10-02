@@ -54,6 +54,9 @@ sealed interface ApplyError : AppError {
 
     /** System UI came back, or was still answering, on a renderer other than Vulkan. */
     data object SystemUiNotOnVulkan : ApplyError
+
+    /** Restarting the keyboard changed the default keyboard, and it could not be put back. */
+    data object KeyboardNotRestored : ApplyError
 }
 
 /** What the automatic apply after a restart is waiting for before it can connect. */

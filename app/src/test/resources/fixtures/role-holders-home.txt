@@ -1,0 +1,1 @@
+com.sec.android.app.launcher

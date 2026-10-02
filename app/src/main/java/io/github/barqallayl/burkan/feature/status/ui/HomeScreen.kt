@@ -47,6 +47,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.LogRoute
@@ -73,7 +74,6 @@ import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import io.github.barqallayl.burkan.feature.log.ui.label
 import io.github.barqallayl.burkan.feature.status.model.Headline
-import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.feature.status.model.headline
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect

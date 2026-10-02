@@ -112,6 +112,7 @@
     <string name="error_setting_not_restored">The setting did not read back as it was. Check it in Settings.</string>
     <string name="error_system_ui_restarted_recently">System UI was restarted less than a minute ago, so it was left alone: restarting it again so soon makes One UI switch off its customisation add-ons. Try again in a minute.</string>
     <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
+    <string name="error_keyboard_not_restored">Restarting the keyboard changed the default keyboard, and Burkan could not put it back. Choose it again in Settings › General management › Keyboard list and default.</string>
     <string name="error_unexpected">Something went wrong.</string>
 
     <string name="pairing_channel_name">Pairing</string>

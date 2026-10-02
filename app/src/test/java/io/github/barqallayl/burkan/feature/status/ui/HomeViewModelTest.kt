@@ -8,12 +8,12 @@ import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
-import io.github.barqallayl.burkan.feature.apply.data.InMemorySystemUiRestarts
+import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.data.SystemUiCooldown
 import io.github.barqallayl.burkan.feature.apply.data.TestClock
-import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
@@ -39,7 +39,7 @@ class HomeViewModelTest {
     private val shell = FakeShellExecutor().apply {
         replyLikeFixtureDevice()
         reply(ShellCommands.getRenderer(), stdout = "\n")
-        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+        listOf(ShellCommands.SystemUi, FixtureDevice.Launcher, FixtureDevice.Keyboard).forEach {
             reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-opengl.txt"))
         }
     }
@@ -47,7 +47,7 @@ class HomeViewModelTest {
     private val log = FakeRunLogStorage()
     private val settings = FakeSettingsStorage()
     private val clock = TestClock()
-    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), clock)
+    private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
     private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
     private val launcher = FakeApplyLauncher()
     private val autoApply = FakeAutoApplyStorage()

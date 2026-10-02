@@ -11,6 +11,7 @@ object FixtureDevice {
 
     val Self = PackageName.known("io.github.barqallayl.burkan")
     val Keyboard = PackageName.known("com.samsung.android.honeyboard")
+    val Launcher = PackageName.known("com.sec.android.app.launcher")
 
     /** Contains `$`, which an unquoted write would truncate. */
     const val ACCESSIBILITY = "org.example.chat/org.example.chat.a11y.Outer\$Reader:com.example.notes/.Assist"
@@ -20,6 +21,7 @@ object FixtureDevice {
 
     /** Answers every read a full apply makes, as this phone would. Restores read back what was captured. */
     fun FakeShellExecutor.replyLikeFixtureDevice() {
+        reply(ShellCommands.resolveHomeActivity(), stdout = fixture("resolve-activity-home.txt"))
         reply(ShellCommands.listPackages(), stdout = fixture("pm-list-packages.txt"), stderr = SECURE_FOLDER_ERROR)
         reply(ShellCommands.listInputMethods(), stdout = fixture("ime-list.txt"))
         reply(ShellCommands.dumpWallpaper(), stdout = fixture("dumpsys-wallpaper.txt"))

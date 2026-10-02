@@ -1,9 +1,11 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import arrow.core.Either
 import arrow.core.getOrElse
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.shell.RendererReader
+import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
@@ -33,7 +35,7 @@ class ApplyRunner(private val shell: ShellExecutor, private val cooldown: System
         try {
             for (step in plan.steps) {
                 onStepStarted(step.kind)
-                val failure = execute(step)
+                val failure = if (step.kind == StepKind.RestartKeyboard) keepingDefaultKeyboard(step) else execute(step)
                 onStep(StepRecord(step.kind, failure))
                 if (failure != null) {
                     failed = true
@@ -78,6 +80,28 @@ class ApplyRunner(private val shell: ShellExecutor, private val cooldown: System
         return ApplyError.SystemUiNotOnVulkan
     }
 
+    /**
+     * Runs [step], which restarts the keyboard, and puts the default keyboard back if the restart changed it: with
+     * `ime set`, and failing that by writing the setting.
+     */
+    private suspend fun keepingDefaultKeyboard(step: ApplyStep.Run): AppError? {
+        val before = defaultKeyboard().getOrElse { return it }
+        execute(step)?.let { return it }
+        if (before == null) return null
+        delay(KEYBOARD_SETTLE)
+        if (defaultKeyboard().getOrElse { return it } == before) return null
+        val restores = listOf(ShellCommands.setInputMethod(before), ShellCommands.putSetting(DefaultKeyboard, before))
+        for (restore in restores) {
+            shell.run(restore).getOrElse { return it }
+            if (defaultKeyboard().getOrElse { return it } == before) return null
+        }
+        return ApplyError.KeyboardNotRestored
+    }
+
+    /** The default keyboard's component, `package/class`, or null when none is set. */
+    private suspend fun defaultKeyboard(): Either<AppError, String?> =
+        shell.run(ShellCommands.getSetting(DefaultKeyboard)).map { parseSettingValue(it.stdout) }
+
     private suspend fun execute(step: ApplyStep.Run): AppError? =
         shell.run(step.command).fold(
             ifLeft = { it },
@@ -110,6 +134,8 @@ class ApplyRunner(private val shell: ShellExecutor, private val cooldown: System
     private companion object {
         const val RESTORE_ATTEMPTS = 3
         val RESTORE_PAUSE = 1.seconds
+        val DefaultKeyboard = SettingKey.DefaultInputMethod
+        val KEYBOARD_SETTLE = 1.seconds
         const val VERIFY_ATTEMPTS = 15
         val VERIFY_PAUSE = 1.seconds
     }

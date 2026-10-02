@@ -9,6 +9,7 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -40,7 +41,7 @@ class ApplyControllerTest {
     private val shell = FakeShellExecutor().apply {
         replyLikeFixtureDevice()
         reply(ShellCommands.getRenderer(), stdout = "\n")
-        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+        listOf(ShellCommands.SystemUi, FixtureDevice.Launcher, FixtureDevice.Keyboard).forEach {
             reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-opengl.txt"))
         }
         // Once restarted, System UI answers on Vulkan.
@@ -50,7 +51,7 @@ class ApplyControllerTest {
     private val log = FakeRunLogStorage()
     private val settings = FakeSettingsStorage()
     private val clock = SteppingClock()
-    private val cooldown = SystemUiCooldown(InMemorySystemUiRestarts(), FixedClock)
+    private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
     private val controller = ApplyController(access, log, settings, cooldown, clock, FixtureDevice.Self)
 
     @Test
@@ -87,7 +88,7 @@ class ApplyControllerTest {
         assertEquals(RunResult.Succeeded, outcome?.result)
         assertTrue(outcome?.systemUiDeferred == true)
         assertTrue("am crash com.android.systemui" !in shell.lines)
-        assertTrue("am force-stop com.sec.android.app.launcher" in shell.lines)
+        assertTrue(shell.lines.any { it.startsWith("am force-stop com.sec.android.app.launcher;") })
     }
 
     @Test
@@ -186,7 +187,7 @@ class ApplyControllerTest {
     @Test
     fun `a run that finds Vulkan already in place changes nothing`() = runTest {
         shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
-        listOf(ShellCommands.SystemUi, ShellCommands.Launcher, FixtureDevice.Keyboard).forEach {
+        listOf(ShellCommands.SystemUi, FixtureDevice.Launcher, FixtureDevice.Keyboard).forEach {
             shell.reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-vulkan.txt"))
         }
 
@@ -197,6 +198,7 @@ class ApplyControllerTest {
         assertEquals(
             listOf(
                 "getprop debug.hwui.renderer",
+                "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME",
                 "settings get secure default_input_method",
                 "dumpsys gfxinfo com.android.systemui",
                 "dumpsys gfxinfo com.sec.android.app.launcher",
@@ -210,7 +212,7 @@ class ApplyControllerTest {
     @Test
     fun `only the surfaces not on Vulkan are restarted`() = runTest {
         shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
-        shell.reply(ShellCommands.gfxInfo(ShellCommands.Launcher), stdout = fixture("gfxinfo-vulkan.txt"))
+        shell.reply(ShellCommands.gfxInfo(FixtureDevice.Launcher), stdout = fixture("gfxinfo-vulkan.txt"))
         shell.reply(ShellCommands.gfxInfo(FixtureDevice.Keyboard), stdout = fixture("gfxinfo-vulkan.txt"))
 
         val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)

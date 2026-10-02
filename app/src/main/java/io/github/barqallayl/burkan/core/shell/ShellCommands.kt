@@ -40,7 +40,6 @@ data class SettingKey private constructor(val namespace: SettingsNamespace, val 
 object ShellCommands {
 
     val SystemUi: PackageName = PackageName.known("com.android.systemui")
-    val Launcher: PackageName = PackageName.known("com.sec.android.app.launcher")
 
     private val ShortTimeout = 10.seconds
     private val DumpTimeout = 20.seconds
@@ -72,9 +71,21 @@ object ShellCommands {
     fun forceStopAll(packages: List<PackageName>): ShellCommand =
         ShellCommand(packages.joinToString(separator = "") { "am force-stop $it; " } + "true", BulkTimeout)
 
-    /** Stops the launcher, gives it about two seconds, and starts it again. */
-    fun restartLauncher(): ShellCommand =
-        ShellCommand("am force-stop $Launcher; sleep 2; ${launch(Launcher)}; true", ShortTimeout)
+    /**
+     * Stops the home app, gives it about two seconds, and starts home again. The exit status is that of starting it.
+     */
+    fun restartLauncher(launcher: PackageName): ShellCommand =
+        ShellCommand("am force-stop $launcher; sleep 2; am start -a $ACTION_MAIN -c $CATEGORY_HOME", ShortTimeout)
+
+    /** The activity that answers the home intent: the user's home app, or the chooser when none is set. */
+    fun resolveHomeActivity(): ShellCommand =
+        ShellCommand("cmd package resolve-activity --brief -a $ACTION_MAIN -c $CATEGORY_HOME", ShortTimeout)
+
+    /** The app holding the home role, for when the home intent does not resolve to one app. */
+    fun homeRoleHolders(): ShellCommand = ShellCommand("cmd role get-role-holders android.app.role.HOME", ShortTimeout)
+
+    /** Makes [component] (`package/class`) the default keyboard. */
+    fun setInputMethod(component: String): ShellCommand = ShellCommand("ime set ${quote(component)}", ShortTimeout)
 
     /** Launches each package. A package with no launcher activity makes `monkey` complain; that is normal. */
     fun launchAll(packages: List<PackageName>): ShellCommand =
@@ -107,6 +118,9 @@ object ShellCommands {
         require(value.isNotEmpty()) { "An empty value cannot be written; skip the write instead" }
         return ShellCommand("settings put ${key.namespace.value} ${key.name} ${quote(value)}", ShortTimeout)
     }
+
+    private const val ACTION_MAIN = "android.intent.action.MAIN"
+    private const val CATEGORY_HOME = "android.intent.category.HOME"
 
     private fun launch(packageName: PackageName): String =
         "monkey -p $packageName -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"
