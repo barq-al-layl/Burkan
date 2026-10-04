@@ -3,6 +3,12 @@
 
     <string name="setup_title">Set up Burkan</string>
     <string name="setup_untested_model">Burkan is tested only on the Galaxy S23, S23+ and S23 Ultra. It may not work on this phone.</string>
+    <string name="setup_progress">Step %1$d of %2$d</string>
+    <plurals name="setup_steps_done">
+        <item quantity="one">%1$d step done</item>
+        <item quantity="other">%1$d steps done</item>
+    </plurals>
+    <string name="list_separator">", "</string>
     <string name="setup_step_done">Done</string>
     <string name="setup_step_current">Current step</string>
     <string name="setup_step_waiting">Not yet</string>
@@ -32,10 +38,10 @@
     <string name="setup_battery_skip">Skip</string>
     <string name="settings_title">Settings</string>
     <string name="settings_section_restart">After a restart</string>
-    <string name="settings_apply_on_boot">Apply automatically after restart</string>
+    <string name="settings_apply_on_boot">Apply after restart</string>
     <string name="settings_apply_on_boot_text">Applies Vulkan by itself each time the phone restarts, once it is on Wi-Fi.</string>
-    <string name="settings_turn_off_wireless_debugging">Turn wireless debugging off after applying</string>
-    <string name="settings_turn_off_wireless_debugging_text">Only when Burkan was the one that switched it on.</string>
+    <string name="settings_turn_off_wireless_debugging">Turn off wireless debugging</string>
+    <string name="settings_turn_off_wireless_debugging_text">After applying, and only when Burkan was the one that switched it on.</string>
     <string name="settings_exclusions">Never restart these apps</string>
     <string name="restart_scope_all">Every app</string>
     <string name="restart_scope_recent">The %1$d most recent</string>
@@ -62,11 +68,13 @@
     <string name="settings_redo_setup_confirm_action">Redo setup</string>
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version</string>
-    <string name="settings_source">Source code</string>
+    <string name="settings_star">Star on GitHub</string>
     <string name="settings_licence">Licence</string>
-    <string name="settings_licence_text">Burkan is free software under the GNU General Public License, version 3 or later. It comes with no warranty.</string>
     <string name="settings_licences">Open-source licences</string>
-    <string name="settings_licences_text">The libraries Burkan is built with.</string>
+    <string name="licences_item_detail">%1$s · %2$s</string>
+    <string name="licences_no_licence">No licence named</string>
+    <string name="licences_open_website">Open website</string>
+    <string name="licences_open_licence">Read the licence</string>
     <string name="licences_empty_title">No libraries listed</string>
     <string name="licences_empty_text">This build of Burkan carries no list of the libraries it is built with. The source code lists them.</string>
     <string name="licences_failed_title">Licences could not be shown</string>
@@ -228,6 +236,8 @@
     <string name="home_no_runs">No runs yet.</string>
     <string name="home_apply_now">Apply now</string>
     <string name="home_restart_all">Restart all apps</string>
+    <string name="home_status_expand">Show each surface</string>
+    <string name="home_status_collapse">Hide each surface</string>
     <string name="home_retry">Try again</string>
     <string name="home_cancel_run">Cancel</string>
     <string name="home_confirm_apply_title">The screen will lock for a moment</string>
@@ -241,6 +251,8 @@
     <string name="home_confirm_dismiss">Not now</string>
 
     <string name="log_share">Share</string>
+    <string name="log_expand">Show the steps</string>
+    <string name="log_collapse">Hide the steps</string>
     <string name="log_empty_title">No runs yet</string>
     <string name="log_empty_text">Each time Burkan applies Vulkan, by hand or after a restart, the run appears here with each of its steps.</string>
     <string name="log_empty_action">Back to apply</string>

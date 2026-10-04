@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
@@ -51,9 +52,11 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
+import io.github.barqallayl.burkan.designsystem.component.noticeColors
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
 import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
@@ -123,21 +126,30 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
                     LoadingIndicator()
                 }
             } else {
-                // The steps are one group: the checklist the user works down.
-                SegmentedColumn {
-                    SetupStep.entries.forEachIndexed { index, step ->
-                        StepItem(
-                            index = index,
-                            step = step,
-                            status = when (step) {
-                                in done -> StepStatus.Done
-                                state.current -> StepStatus.Current
-                                else -> StepStatus.Waiting
-                            },
-                            state = state,
-                            onAction = { onAction(step) },
-                            onSkipBattery = onSkipBattery,
+                // The steps are one group, the checklist the user works down. What is done shrinks to one quiet row,
+                // so the step to do now is at the top with the ones still to come under it.
+                val finished = SetupStep.entries.filter { it in done }
+                val remaining = SetupStep.entries.filter { it !in done }
+                val rows = remaining.size + if (finished.isEmpty()) 0 else 1
+                Column {
+                    state.current?.let { current ->
+                        BurkanSectionTitle(
+                            stringResource(R.string.setup_progress, current.ordinal + 1, SetupStep.entries.size),
                         )
+                    }
+                    SegmentedColumn {
+                        if (finished.isNotEmpty()) DoneItem(finished, rows)
+                        remaining.forEachIndexed { index, step ->
+                            StepItem(
+                                index = index + rows - remaining.size,
+                                count = rows,
+                                step = step,
+                                status = if (step == state.current) StepStatus.Current else StepStatus.Waiting,
+                                state = state,
+                                onAction = { onAction(step) },
+                                onSkipBattery = onSkipBattery,
+                            )
+                        }
                     }
                 }
             }
@@ -147,9 +159,23 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
 
 private enum class StepStatus { Done, Current, Waiting }
 
+/** Every finished step in one row: how many, and which. */
+@Composable
+private fun DoneItem(finished: List<SetupStep>, count: Int) {
+    val names = finished.map { stringResource(it.title) }
+    BurkanSegmentItem(
+        index = 0,
+        count = count,
+        headline = pluralStringResource(R.plurals.setup_steps_done, finished.size, finished.size),
+        supporting = names.joinToString(separator = stringResource(R.string.list_separator)),
+        leading = { StatusIcon(StepStatus.Done) },
+    )
+}
+
 @Composable
 private fun UntestedModelNotice() {
-    BurkanSegment(index = 0, count = 1, containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+    val colors = noticeColors
+    BurkanSegment(index = 0, count = 1, containerColor = colors.container, contentColor = colors.content) {
         Row(
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -165,6 +191,7 @@ private fun UntestedModelNotice() {
 @Composable
 private fun StepItem(
     index: Int,
+    count: Int,
     step: SetupStep,
     status: StepStatus,
     state: SetupState,
@@ -174,10 +201,9 @@ private fun StepItem(
     val isCurrent = status == StepStatus.Current
     BurkanSegmentItem(
         index = index,
-        count = SetupStep.entries.size,
+        count = count,
         headline = stringResource(step.title),
         containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else segmentContainerColor,
-        verticalAlignment = Alignment.Top,
         leading = { StatusIcon(status) },
         content = if (isCurrent) ({ CurrentStepDetail(step, state, onAction, onSkipBattery) }) else null,
     )

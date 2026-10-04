@@ -15,12 +15,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,6 +45,25 @@ fun segmentedShape(index: Int, count: Int): Shape {
         bottomEnd = if (isBottom) outer.bottomEnd else inner.bottomEnd,
     )
 }
+
+/**
+ * The fill and the text colour of a notice: something being waited for, or a caution. Amber, in a pair for each
+ * theme, because the scheme has no colour that means it: under the expressive palette the secondary and tertiary
+ * colours are greens, which read as good news.
+ */
+@Immutable
+data class NoticeColors(val container: Color, val content: Color)
+
+val noticeColors: NoticeColors
+    @Composable
+    @ReadOnlyComposable
+    get() = if (MaterialTheme.colorScheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+        NoticeColors(container = Color(0xFF4A3B10), content = Color(0xFFFFE9B0))
+    } else {
+        NoticeColors(container = Color(0xFFFFEBB8), content = Color(0xFF3A2C00))
+    }
+
+private const val DARK_SURFACE_LUMINANCE = 0.5f
 
 /** The space between segments of one group. */
 val SegmentGap: Dp = 2.dp
@@ -70,12 +91,12 @@ fun BurkanSegment(
     count: Int,
     modifier: Modifier = Modifier,
     containerColor: Color = segmentContainerColor,
+    contentColor: Color = contentColorFor(containerColor),
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = segmentedShape(index, count)
     val fill = modifier.fillMaxWidth()
-    val contentColor = contentColorFor(containerColor)
     if (onClick != null) {
         Surface(onClick = onClick, modifier = fill, shape = shape, color = containerColor, contentColor = contentColor) {
             Column(content = content)
@@ -114,8 +135,8 @@ fun BurkanSegmentItem(
     modifier: Modifier = Modifier,
     supporting: String? = null,
     containerColor: Color = segmentContainerColor,
+    contentColor: Color = contentColorFor(containerColor),
     headlineStyle: TextStyle = MaterialTheme.typography.titleMedium,
-    verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
     selected: Boolean? = null,
     checked: Boolean? = null,
     onCheckedChange: ((Boolean) -> Unit)? = null,
@@ -124,20 +145,24 @@ fun BurkanSegmentItem(
     trailing: (@Composable () -> Unit)? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    val contentColor = contentColorFor(containerColor)
-    val selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    // Selection is the primary colour's tint, like the app's other marks of "this one": under the expressive palette
+    // the secondary colour is another hue altogether, and reads as a different meaning.
+    val selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val colors = ListItemDefaults.segmentedColors(
         containerColor = containerColor,
         contentColor = contentColor,
         leadingContentColor = contentColor,
         trailingContentColor = contentColor,
         supportingContentColor = contentColor.copy(alpha = SUPPORTING_ALPHA),
-        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
         selectedContentColor = selectedContentColor,
         selectedLeadingContentColor = selectedContentColor,
         selectedTrailingContentColor = selectedContentColor,
         selectedSupportingContentColor = selectedContentColor.copy(alpha = SUPPORTING_ALPHA),
     )
+    // A row's icon and control sit level with the middle of its text. A row that carries more under its text keeps
+    // them at the top, beside the text they belong to.
+    val verticalAlignment = if (content == null) Alignment.CenterVertically else Alignment.Top
     val shapes = ListItemDefaults.segmentedShapes(index, count)
     val fill = modifier.fillMaxWidth()
     val supportingContent: (@Composable () -> Unit)? = if (supporting == null && content == null) {

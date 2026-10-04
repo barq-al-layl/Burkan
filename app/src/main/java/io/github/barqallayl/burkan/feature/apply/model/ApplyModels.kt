@@ -17,10 +17,8 @@ enum class ApplyKind {
  */
 enum class RestartScope(val limit: Int?) {
     All(null),
-    Recent25(25),
-    Recent50(50),
-    Recent100(100),
-    Recent200(200),
+    Recent30(30),
+    Recent70(70),
 }
 
 /** What started a run. */

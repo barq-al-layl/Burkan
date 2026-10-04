@@ -88,8 +88,8 @@ The status, and the two actions.
   first that the screen will lock for a moment.
 - **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app, takes
   about a minute, the screen will flash, and it locks for a moment at the end.
-  The confirmation also asks how far to go: every app, which it starts from each time, or only the 25, 50, 100 or
-  200 used most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
+  The confirmation also asks how far to go: every app, which it starts from each time, or only the 30 or 70 used
+  most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
   says which apps are recent only to an app with usage access, which the app allows itself over its own connection
   the first time a limited run needs it. If Android still names none, the run fails rather than restart
   everything.
@@ -103,8 +103,8 @@ The status, and the two actions.
 
 ### Settings (`SettingsRoute`)
 
-- Apply automatically after restart (on by default).
-- Turn wireless debugging off after applying (on by default).
+- Apply after restart (on by default).
+- Turn off wireless debugging after applying (on by default).
 - Never restart these apps: the user's own exclusions for the full apply, chosen from the installed apps on their
   own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
   apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
@@ -113,7 +113,7 @@ The status, and the two actions.
   applies at once, except text size, which is tried on a sample and applied on Save.
   The options and defaults are in `CONTRIBUTING.md`.
 - Redo setup: forgets the pairing and returns to Setup, after a confirmation.
-- About: version, source link, the app's licence (GPL-3.0-or-later, with its no-warranty notice), and the
+- About: version, a link to the source on GitHub, the app's licence (Apache-2.0), and the
   libraries' licences on their own screen (`LicencesRoute`). That list is generated at build time from the
   dependencies (AboutLibraries) and read from the app's resources: no network at run time.
 
@@ -252,6 +252,8 @@ reachable through it.
 - **`minSdk` 33.** The S23 shipped with Android 13, and it removes every pre-13 branch.
 - **English only.** Material 3 Expressive components in segmented groups, with the colours, the font and the text
   size chosen in Settings.
-- **GPL-3.0-or-later.** `libadb-android` is used under its GPL-3.0-or-later option.
+- **Apache-2.0.** `libadb-android`, offered under Apache-2.0 or GPL-3.0-or-later, is used under Apache-2.0. Its
+  pairing helper `spake2-java` is LGPL-3.0, which a differently licensed app may link to as long as the library
+  can be replaced; the app being open source, anyone can rebuild it with their own copy.
 - **Distributed outside the Play Store.** `QUERY_ALL_PACKAGES`, the `specialUse` foreground service and a
   permission granted over ADB are a poor fit for it.

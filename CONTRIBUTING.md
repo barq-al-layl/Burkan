@@ -73,7 +73,7 @@ One UI cannot be tested without the device.
 | ADB client | `libadb-android` with Conscrypt |
 | Serialization | kotlinx-serialization (routes, stored models) |
 | Screenshots | Roborazzi through the Compose preview scanner, on Robolectric |
-| Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-compose-m3` |
+| Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-core`, shown in the app's own list |
 | Tests | JUnit 4, `kotlin-test`, `kotlinx-coroutines-test`, `orbit-test` |
 
 Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpdate` refreshes them.
@@ -192,11 +192,9 @@ Navigation 3, used directly:
 - One `entryProvider` maps every route to its screen.
 - **Every route round-trips through serialization in a test**, so a route that cannot be saved fails a test
   instead of crashing on the first rotation.
-- **Destination changes use the two transitions** in `core/navigation/ScreenTransition.kt`, passed to
-  `NavDisplay`. Going to a screen, and going back with the back button, is `slideTransition`: both screens slide
-  the full width, nothing fades or scales. Going back with the back gesture is `predictiveBackTransition`: the
-  screens slide a fifth of the width while the one being left shrinks to 90 % and fades, and the one underneath
-  grows and fades in. Every part of both rides one spring. A screen does not set its own transition.
+- **Every destination change uses `slideTransition`** in `core/navigation/ScreenTransition.kt`, passed to
+  `NavDisplay` for going forward, going back and the back gesture alike: both screens slide the full width on one
+  spring, and nothing fades or scales. A screen does not set its own transition.
 - **A Settings screen opens as Settings' own window** (`Context.openSettings`), not inside the app's entry under
   recent apps.
 
@@ -311,12 +309,14 @@ Metro, one graph:
 
   `SettingsStorage.appearance()` combines their flows into one `Appearance`; `App.kt` collects it through
   `AppViewModel` and passes the values to `BurkanTheme`. The scheme is always generated under Material's 2026
-  colour spec, and a change of theme or colour animates from the old scheme to the new. `App` reports whether the
+  colour spec. A change of theme or colour is revealed in a circle growing from where the user tapped
+  (`ThemeReveal`); a sheet, being a window of its own, fades its colours instead. `App` reports whether the
   app is dark through `onThemeChange`, and `MainActivity` colours the system bars' icons to match. Text size multiplies the system font scale and is applied once, in `App.kt`. Defaults live in one
   `Defaults` object in the storage class, so a preview and a fresh install agree.
 - **A list row is `BurkanSegmentItem`**, Material's segmented list item: a pressed row and a selected or ticked one
   change shape as well as colour. A setting that is switched on is not a selected row; only its switch shows it.
-- **A choice is made in a bottom sheet** (`BurkanBottomSheet`), which is open in full or closed, never half open.
+- **A choice is made in a bottom sheet** (`BurkanBottomSheet`): a card floating above the bottom of the screen,
+  open in full or closed, never half open.
   One option out of several is a `BurkanChoiceList` of radio segments and applies at once with the sheet left
   open; text size is chosen on a sample and applied on Save.
 - **Fonts are bundled, not downloaded**: the files are in `res/font`, each under the SIL Open Font License, and

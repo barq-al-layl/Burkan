@@ -1,38 +1,54 @@
 package io.github.barqallayl.burkan.feature.settings.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewWrapper
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.License
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.entity.License
-import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
-import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
-import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
-import com.mikepenz.aboutlibraries.ui.compose.style.LicenseHueResolver
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
+import io.github.barqallayl.burkan.designsystem.component.GroupGap
+import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
+import io.github.barqallayl.burkan.designsystem.component.SegmentGap
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.settings.model.SettingsError
@@ -87,18 +103,71 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
-            // Each library opens its licence in a dialog of the library's own. Its licence chips take the theme's
-            // colours rather than a colour per licence: the app's colours come from the scheme alone.
-            LibrariesContainer(
-                libraries,
-                Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
-                variantColors = LibraryDefaults.m3VariantColors(
-                    licenseHueResolver = LicenseHueResolver.None,
-                    licenseBadgeContainer = MaterialTheme.colorScheme.secondaryContainer,
-                    licenseBadgeContent = MaterialTheme.colorScheme.onSecondaryContainer,
+            var opened by remember { mutableStateOf<Library?>(null) }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = ScreenMargin),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding() + GroupGap,
                 ),
-            )
+                verticalArrangement = Arrangement.spacedBy(SegmentGap),
+            ) {
+                itemsIndexed(libraries.libraries, key = { _, library -> library.uniqueId }) { index, library ->
+                    BurkanSegmentItem(
+                        index = index,
+                        count = libraries.libraries.size,
+                        headline = library.name,
+                        supporting = library.detail(),
+                        onClick = { opened = library },
+                    )
+                }
+            }
+            opened?.let { library ->
+                BurkanBottomSheet(onDismiss = { opened = null }) { LibrarySheet(library) }
+            }
+        }
+    }
+}
+
+/** A library's version and the licences it is under, as one line. */
+@Composable
+private fun Library.detail(): String {
+    val names = licenses.joinToString(separator = stringResource(R.string.list_separator)) { it.name }
+        .ifEmpty { stringResource(R.string.licences_no_licence) }
+    val version = artifactVersion ?: return names
+    return stringResource(R.string.licences_item_detail, version, names)
+}
+
+/** What a library is, and the ways out to its website and to the text of its licence. */
+@Composable
+private fun LibrarySheet(library: Library) {
+    val uriHandler = LocalUriHandler.current
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(library.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(
+            library.detail(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        library.description?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        val website = library.website?.takeIf { it.isNotBlank() }
+        val licence = library.licenses.firstNotNullOfOrNull { it.url?.takeIf(String::isNotBlank) }
+        if (website != null || licence != null) {
+            Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (website != null) {
+                    OutlinedButton(onClick = { uriHandler.openUri(website) }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.licences_open_website))
+                    }
+                }
+                if (licence != null) {
+                    Button(onClick = { uriHandler.openUri(licence) }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.licences_open_licence))
+                    }
+                }
+            }
         }
     }
 }
@@ -141,6 +210,11 @@ private val sampleLibraries = Libs(
 @BurkanPreview
 @Composable
 private fun LicencesPreview() = LicencesContent(LicencesState(sampleLibraries), onBack = {})
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun LicencesLibrarySheetPreview() = LibrarySheet(sampleLibraries.libraries.first())
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

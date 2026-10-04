@@ -21,9 +21,11 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -259,6 +261,11 @@ private fun Filters(selected: AppFilter, onSelect: (AppFilter) -> Unit) {
                 selected = filter == selected,
                 onClick = { onSelect(filter) },
                 label = { Text(stringResource(filter.label)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
                 leadingIcon = if (filter == selected) {
                     { Icon(Tabler.Outline.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 } else {

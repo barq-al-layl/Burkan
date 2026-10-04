@@ -2,9 +2,11 @@ package io.github.barqallayl.burkan.designsystem.preview
 
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
+import io.github.barqallayl.burkan.core.ui.LocalCurrentYear
 import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
@@ -41,14 +43,19 @@ fun BurkanPreviewTheme(
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     content: @Composable () -> Unit,
 ) {
-    ProvideTextScale(textScalePercent) {
-        BurkanTheme(
-            isDarkTheme = themeMode.isDark(),
-            seedColor = seedColor.color,
-            paletteStyle = paletteStyle.style,
-            appFont = appFont,
-        ) {
-            Surface(content = content)
+    // The sample runs are from this year, and stay written that way whenever the screenshots are recorded.
+    CompositionLocalProvider(LocalCurrentYear provides PREVIEW_YEAR) {
+        ProvideTextScale(textScalePercent) {
+            BurkanTheme(
+                isDarkTheme = themeMode.isDark(),
+                seedColor = seedColor.color,
+                paletteStyle = paletteStyle.style,
+                appFont = appFont,
+            ) {
+                Surface(content = content)
+            }
         }
     }
 }
+
+private const val PREVIEW_YEAR = 2026

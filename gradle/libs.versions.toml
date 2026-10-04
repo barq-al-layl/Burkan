@@ -33,7 +33,7 @@ tablerIcons = "2.2.1"
 versionCatalogUpdate = "1.1.1"
 
 [libraries]
-aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
+aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutLibraries" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }

@@ -261,24 +261,23 @@ private fun AboutItems(version: String, actions: SettingsActions) {
     BurkanSegmentItem(
         index = 1,
         count = ABOUT_ITEMS,
-        headline = stringResource(R.string.settings_source),
-        supporting = About.SOURCE_URL,
+        headline = stringResource(R.string.settings_star),
         onClick = actions.onOpenSource,
         leading = { Icon(Tabler.Outline.BrandGithub, contentDescription = null) },
+        trailing = { Chevron() },
     )
     BurkanSegmentItem(
         index = 2,
         count = ABOUT_ITEMS,
         headline = stringResource(R.string.settings_licence),
-        supporting = stringResource(R.string.settings_licence_text),
         onClick = actions.onOpenLicence,
         leading = { Icon(Tabler.Outline.Scale, contentDescription = null) },
+        trailing = { Chevron() },
     )
     BurkanSegmentItem(
         index = 3,
         count = ABOUT_ITEMS,
         headline = stringResource(R.string.settings_licences),
-        supporting = stringResource(R.string.settings_licences_text),
         onClick = actions.onOpenLicences,
         leading = { Icon(Tabler.Outline.License, contentDescription = null) },
         trailing = { Chevron() },
@@ -406,7 +405,7 @@ private fun ChoiceItem(index: Int, icon: ImageVector, title: Int, value: String,
     )
 }
 
-/** Marks a row that opens another screen. */
+/** Marks a row that opens something: another screen, or a page in the browser. */
 @Composable
 private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
@@ -431,7 +430,7 @@ private fun sample(
         appearance = sampleAppearance(textScalePercent, appFont),
     ),
     dialog = dialog,
-    version = "1.0",
+    version = "1.0.0",
 )
 
 private fun sampleAppearance(

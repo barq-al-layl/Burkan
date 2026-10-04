@@ -2,11 +2,21 @@ package io.github.barqallayl.burkan.feature.status.ui
 
 import android.content.Intent
 import android.provider.Settings as SystemSettings
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -27,8 +38,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -38,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CircleCheck
 import com.composables.icons.tabler.outline.CircleX
 import com.composables.icons.tabler.outline.HelpCircle
@@ -51,9 +67,11 @@ import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.messageRes
+import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.LogRoute
 import io.github.barqallayl.burkan.core.navigation.SettingsRoute
+import io.github.barqallayl.burkan.core.ui.LocalCurrentYear
 import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.core.ui.formatDateTime
 import io.github.barqallayl.burkan.core.ui.openSettings
@@ -68,6 +86,7 @@ import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
+import io.github.barqallayl.burkan.designsystem.component.noticeColors
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -163,6 +182,25 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 },
             )
         },
+        // The two actions stay at the bottom, in reach of the thumb, and never move as cards come and go above.
+        bottomBar = {
+            val idle = state.run == ApplyRunState.Idle
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = ScreenMargin)
+                    .padding(top = 8.dp, bottom = GroupGap),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(onClick = actions.onApplyNow, enabled = idle, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.home_apply_now))
+                }
+                OutlinedButton(onClick = actions.onRestartAll, enabled = idle, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.home_restart_all))
+                }
+            }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -179,16 +217,9 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             // The run first: it is what is happening, and the status below says it is about to change.
             if (run is ApplyRunState.Running) RunningSegment(run, actions.onCancelRun)
             StatusGroup(state, actions.onRetry)
-            LastRun(state.lastRun, zone, actions.onOpenLog)
-            val idle = run == ApplyRunState.Idle
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = actions.onApplyNow, enabled = idle, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.home_apply_now))
-                }
-                OutlinedButton(onClick = actions.onRestartAll, enabled = idle, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.home_restart_all))
-                }
-            }
+            // The status card already gives this reason when it is why the status cannot be read either.
+            val shownAbove = (state.status as? StatusState.Failed)?.error?.type()
+            LastRun(state.lastRun, zone, actions.onOpenLog, showError = state.lastRun?.error != shownAbove)
         }
     }
     if (state.isConfirmingApply) {
@@ -297,8 +328,19 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
     }
     // Null while the status is read: the rows stay in place with placeholders, so nothing moves when it arrives.
     val renderers = (status as? StatusState.Loaded)?.status
+    val running = state.run is ApplyRunState.Running
+    // With everything on Vulkan the four rows only repeat the headline, so they wait behind a tap on it. In any
+    // other state they are the answer to "which one is not?", and stay in view.
+    val allVulkan = renderers != null && !running && renderers.headline() == Headline.VulkanActive
+    var detailsOpen by rememberSaveable { mutableStateOf(false) }
+    val showRows = !allVulkan || detailsOpen
     SegmentedColumn {
-        BurkanSegment(index = 0, count = STATUS_SEGMENTS, containerColor = MaterialTheme.colorScheme.primaryContainer) {
+        BurkanSegment(
+            index = 0,
+            count = if (showRows) STATUS_SEGMENTS else 1,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            onClick = if (allVulkan) ({ detailsOpen = !detailsOpen }) else null,
+        ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     renderers == null -> Row(
@@ -315,7 +357,7 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                     }
                     else -> {
                         val headline = renderers.headline()
-                        HeadlineRow(headline)
+                        HeadlineRow(headline, expanded = detailsOpen.takeIf { allVulkan })
                         if (headline == Headline.VulkanActive && state.lastRun.isManualLightApply()) {
                             Text(stringResource(R.string.home_open_apps_note))
                         }
@@ -323,10 +365,18 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                 }
             }
         }
-        RendererSegment(1, R.string.home_row_new_apps, renderers?.newApps)
-        RendererSegment(2, R.string.home_row_system_ui, renderers?.systemUi)
-        RendererSegment(3, R.string.home_row_launcher, renderers?.launcher)
-        RendererSegment(4, R.string.home_row_keyboard, renderers?.keyboard)
+        AnimatedVisibility(
+            visible = showRows,
+            enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+            exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(),
+        ) {
+            SegmentedColumn {
+                RendererSegment(1, R.string.home_row_new_apps, renderers?.newApps)
+                RendererSegment(2, R.string.home_row_system_ui, renderers?.systemUi)
+                RendererSegment(3, R.string.home_row_launcher, renderers?.launcher)
+                RendererSegment(4, R.string.home_row_keyboard, renderers?.keyboard)
+            }
+        }
     }
 }
 
@@ -338,21 +388,32 @@ private fun RunLogEntry?.isManualLightApply(): Boolean =
     this != null && kind == ApplyKind.Light && trigger == RunTrigger.Manual && result == RunResult.Succeeded
 
 @Composable
-private fun HeadlineRow(headline: Headline) {
+private fun HeadlineRow(headline: Headline, expanded: Boolean? = null) {
     // An icon and words for each: never colour alone.
     when (headline) {
-        Headline.VulkanActive -> HeadlineRow(Tabler.Outline.CircleCheck, R.string.home_headline_active)
+        Headline.VulkanActive -> HeadlineRow(Tabler.Outline.CircleCheck, R.string.home_headline_active, expanded)
         Headline.NotApplied -> HeadlineRow(Tabler.Outline.CircleX, R.string.home_headline_not_applied)
         Headline.PartlyApplied -> HeadlineRow(Tabler.Outline.AlertTriangle, R.string.home_headline_partly)
         Headline.Unknown -> HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
     }
 }
 
+/** [expanded] non-null marks a headline that opens the rows under it, and says whether they are open. */
 @Composable
-private fun HeadlineRow(icon: ImageVector, text: Int) {
+private fun HeadlineRow(icon: ImageVector, text: Int, expanded: Boolean? = null) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null)
-        Text(stringResource(text), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(text), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (expanded != null) {
+            val turn by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
+            Icon(
+                Tabler.Outline.ChevronDown,
+                contentDescription = stringResource(
+                    if (expanded) R.string.home_status_collapse else R.string.home_status_expand,
+                ),
+                modifier = Modifier.rotate(turn),
+            )
+        }
     }
 }
 
@@ -383,7 +444,7 @@ private fun RendererSegment(index: Int, label: Int, renderer: Renderer?) {
     }
 }
 
-/** Something the automatic apply is waiting for. It stands apart from the status in the scheme's secondary colour. */
+/** Something the automatic apply is waiting for. It stands apart from the status in the notice's amber. */
 @Composable
 private fun Notice(icon: ImageVector, title: Int, text: Int, action: (@Composable () -> Unit)? = null) {
     BurkanSegmentItem(
@@ -391,8 +452,8 @@ private fun Notice(icon: ImageVector, title: Int, text: Int, action: (@Composabl
         count = 1,
         headline = stringResource(title),
         supporting = stringResource(text),
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        verticalAlignment = Alignment.Top,
+        containerColor = noticeColors.container,
+        contentColor = noticeColors.content,
         leading = { Icon(icon, contentDescription = null) },
         content = action?.let { { it() } },
     )
@@ -408,7 +469,12 @@ private fun WaitingNotice(reason: WaitReason, onOpenDeveloperOptions: () -> Unit
             R.string.home_waiting_network_title,
             R.string.home_waiting_network_text,
         ) {
-            TextButton(onClick = onOpenDeveloperOptions) {
+            // Outlined in the notice's own text colour: the scheme's button colours are not made to sit on amber.
+            OutlinedButton(
+                onClick = onOpenDeveloperOptions,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = noticeColors.content),
+                border = BorderStroke(1.dp, noticeColors.content.copy(alpha = 0.5f)),
+            ) {
                 Text(stringResource(R.string.home_waiting_open_developer_options))
             }
         }
@@ -434,7 +500,7 @@ private fun RunningSegment(run: ApplyRunState.Running, onCancel: () -> Unit) {
 
 /** The newest run, as the log shows it. It opens the log. */
 @Composable
-private fun LastRun(run: RunLogEntry?, zone: ZoneId, onOpenLog: () -> Unit) {
+private fun LastRun(run: RunLogEntry?, zone: ZoneId, onOpenLog: () -> Unit, showError: Boolean = true) {
     Column {
         BurkanSectionTitle(stringResource(R.string.home_last_run))
         if (run == null) {
@@ -456,16 +522,18 @@ private fun LastRun(run: RunLogEntry?, zone: ZoneId, onOpenLog: () -> Unit) {
             ),
             supporting = stringResource(
                 R.string.log_run_detail,
-                formatDateTime(run.startedAt, zone),
+                formatDateTime(run.startedAt, zone, LocalCurrentYear.current),
                 stringResource(run.trigger.label),
                 durationText(run.duration),
             ),
             onClick = onOpenLog,
             leading = { RunResultIcon(failed = run.result == RunResult.Failed) },
             trailing = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
-        ) {
-            run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
-        }
+            // Only a run that failed has more to say; without it the row stays two lines, centred.
+            content = run.error?.takeIf { showError }?.let { error ->
+                { Text(stringResource(error.resource), color = MaterialTheme.colorScheme.error) }
+            },
+        )
     }
 }
 
@@ -511,7 +579,7 @@ private fun HomeRestartAllSheetPreview() =
 @BurkanPreview
 @Composable
 private fun HomeRestartAllSheetLimitedPreview() =
-    RestartAllSheet(scope = RestartScope.Recent50, onScope = {}, onConfirm = {}, onDismiss = {})
+    RestartAllSheet(scope = RestartScope.Recent30, onScope = {}, onConfirm = {}, onDismiss = {})
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

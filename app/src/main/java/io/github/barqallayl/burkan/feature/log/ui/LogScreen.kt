@@ -1,12 +1,22 @@
 package io.github.barqallayl.burkan.feature.log.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -15,6 +25,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
@@ -24,12 +35,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CircleCheck
 import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Share
@@ -37,6 +50,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.core.ui.LocalCurrentYear
 import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.core.ui.formatDateTime
 import io.github.barqallayl.burkan.designsystem.MonoFontFamily
@@ -44,6 +58,7 @@ import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
@@ -60,10 +75,10 @@ import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
-import org.orbitmvi.orbit.compose.collectAsState
-import org.orbitmvi.orbit.compose.collectSideEffect
 import java.time.ZoneId
 import java.time.ZoneOffset
+import org.orbitmvi.orbit.compose.collectAsState
+import org.orbitmvi.orbit.compose.collectSideEffect
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -159,38 +174,73 @@ private fun LogContent(
     }
 }
 
+/**
+ * One run. Its header is the result, then when and how it ran, with the result's icon level with the two lines. A
+ * run that recorded steps or an error opens on a tap to show them, and says so with a chevron; a run that changed
+ * nothing has nothing to open and does not react.
+ */
 @Composable
 private fun RunItem(run: RunLogEntry, index: Int, count: Int, expanded: Boolean, zone: ZoneId, onClick: () -> Unit) {
-    BurkanSegmentItem(
-        index = index,
-        count = count,
-        headline = stringResource(
-            R.string.log_run_title,
-            stringResource(run.kind.label),
-            stringResource(run.result.label),
-        ),
-        supporting = stringResource(
-            R.string.log_run_detail,
-            formatDateTime(run.startedAt, zone),
-            stringResource(run.trigger.label),
-            durationText(run.duration),
-        ),
-        verticalAlignment = Alignment.Top,
-        onClick = onClick,
-        leading = { RunResultIcon(failed = run.result == RunResult.Failed) },
-        content = if (expanded) ({ RunSteps(run) }) else null,
-    )
+    val hasDetail = run.steps.isNotEmpty() || run.error != null
+    BurkanSegment(index = index, count = count, onClick = onClick.takeIf { hasDetail }) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RunResultIcon(failed = run.result == RunResult.Failed)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(
+                        R.string.log_run_title,
+                        stringResource(run.kind.label),
+                        stringResource(run.result.label),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(
+                        R.string.log_run_detail,
+                        formatDateTime(run.startedAt, zone, LocalCurrentYear.current),
+                        stringResource(run.trigger.label),
+                        durationText(run.duration),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LocalContentColor.current.copy(alpha = DETAIL_ALPHA),
+                )
+            }
+            if (hasDetail) {
+                val turn by animateFloatAsState(if (expanded) HALF_TURN else 0f, label = "chevron")
+                Icon(
+                    Tabler.Outline.ChevronDown,
+                    contentDescription = stringResource(if (expanded) R.string.log_collapse else R.string.log_expand),
+                    modifier = Modifier.rotate(turn),
+                )
+            }
+        }
+        // Under the header, so opening a run moves nothing in it: the card only grows.
+        AnimatedVisibility(
+            visible = expanded && hasDetail,
+            enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+            exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(),
+        ) {
+            RunSteps(run)
+        }
+    }
 }
 
 @Composable
 private fun RunSteps(run: RunLogEntry) {
-    // The steps are the log proper, so they are set in the fixed-width face.
+    // The steps are the log proper, so they are set in the fixed-width face. They line up under the header's text.
     ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily)) {
-        Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(start = 56.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
             run.steps.forEach { step ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    RunResultIcon(failed = step.error != null)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                    RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
                     Column {
                         Text(step.kind.label().text())
                         step.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
@@ -201,17 +251,21 @@ private fun RunSteps(run: RunLogEntry) {
     }
 }
 
+private const val DETAIL_ALPHA = 0.74f
+private const val HALF_TURN = 180f
+
 /** A run's or a step's result. The words beside it carry the result too: never colour alone. */
 @Composable
-fun RunResultIcon(failed: Boolean) {
+fun RunResultIcon(failed: Boolean, modifier: Modifier = Modifier) {
     if (failed) {
         Icon(
             Tabler.Outline.AlertCircle,
             contentDescription = stringResource(R.string.result_failed),
+            modifier = modifier,
             tint = MaterialTheme.colorScheme.error,
         )
     } else {
-        Icon(Tabler.Outline.CircleCheck, contentDescription = null)
+        Icon(Tabler.Outline.CircleCheck, contentDescription = null, modifier = modifier)
     }
 }
 

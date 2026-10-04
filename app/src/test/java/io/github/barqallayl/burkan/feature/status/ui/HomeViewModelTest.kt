@@ -126,8 +126,8 @@ class HomeViewModelTest {
             val creating = runOnCreate()
 
             containerHost.requestRestartAll()
-            containerHost.chooseRestartScope(RestartScope.Recent50)
-            awaitState { it.restartScope == RestartScope.Recent50 }
+            containerHost.chooseRestartScope(RestartScope.Recent70)
+            awaitState { it.restartScope == RestartScope.Recent70 }
             containerHost.confirmRestartAll()
             awaitState { !it.isConfirmingFullApply }
 
@@ -137,7 +137,7 @@ class HomeViewModelTest {
             containerHost.confirmRestartAll()
             awaitState { !it.isConfirmingFullApply }
 
-            assertEquals(listOf(RestartScope.Recent50, RestartScope.All), launcher.scopes)
+            assertEquals(listOf(RestartScope.Recent70, RestartScope.All), launcher.scopes)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

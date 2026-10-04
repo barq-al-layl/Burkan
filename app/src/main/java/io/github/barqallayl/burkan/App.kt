@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -16,11 +17,14 @@ import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.SetupRoute
 import io.github.barqallayl.burkan.core.navigation.appEntryProvider
 import io.github.barqallayl.burkan.core.navigation.rememberNavigator
-import io.github.barqallayl.burkan.core.navigation.predictiveBackTransition
 import io.github.barqallayl.burkan.core.navigation.slideTransition
-import io.github.barqallayl.burkan.designsystem.ProvideTextScale
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
+import io.github.barqallayl.burkan.designsystem.PaletteStyles
+import io.github.barqallayl.burkan.designsystem.ProvideTextScale
+import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.ThemeReveal
 import io.github.barqallayl.burkan.designsystem.isDark
+import io.github.barqallayl.burkan.designsystem.recordsRevealOrigin
 import org.orbitmvi.orbit.compose.collectAsState
 
 /**
@@ -39,17 +43,23 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
         // The system bars' icons are the activity's to colour, and it only knows the system's own theme.
         LaunchedEffect(isDarkTheme) { onThemeChange(isDarkTheme) }
         ProvideTextScale(appearance.textScalePercent) {
-            BurkanTheme(
-                isDarkTheme = isDarkTheme,
-                seedColor = appearance.seedColor.color,
-                paletteStyle = appearance.paletteStyle.style,
-                appFont = appearance.appFont,
-            ) {
-                Surface { AppNavigation(isSetupComplete) }
+            // The colours change in a circle spreading from the tap; the font and the text size simply change.
+            ThemeReveal(ThemeColours(isDarkTheme, appearance.seedColor, appearance.paletteStyle)) { colours ->
+                BurkanTheme(
+                    isDarkTheme = colours.isDark,
+                    seedColor = colours.seedColor.color,
+                    paletteStyle = colours.paletteStyle.style,
+                    appFont = appearance.appFont,
+                ) {
+                    Surface(modifier = Modifier.recordsRevealOrigin()) { AppNavigation(isSetupComplete) }
+                }
             }
         }
     }
 }
+
+/** What the colour scheme is generated from. */
+private data class ThemeColours(val isDark: Boolean, val seedColor: SeedColors, val paletteStyle: PaletteStyles)
 
 /** The one place that decides between setup and home. No screen navigates on finishing or losing setup. */
 @Composable
@@ -65,7 +75,7 @@ private fun AppNavigation(isSetupComplete: Boolean) {
             ),
             transitionSpec = { slideTransition(forward = true) },
             popTransitionSpec = { slideTransition(forward = false) },
-            predictivePopTransitionSpec = { predictiveBackTransition() },
+            predictivePopTransitionSpec = { slideTransition(forward = false) },
             entryProvider = ::appEntryProvider,
         )
     }

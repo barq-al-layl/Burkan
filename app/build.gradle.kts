@@ -31,7 +31,7 @@ android {
         minSdk = 33
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
     }
 
     signingConfigs {
@@ -123,7 +123,7 @@ aboutLibraries {
     offlineMode = true
     collect {
         // libadb-android's published metadata calls its licence "Other". It is Apache-2.0 or GPL-3.0-or-later, at the
-        // user's choice; aboutlibraries/licenses/ names it, under the hash the plugin gives that entry.
+        // user's choice, and Burkan takes it under Apache-2.0; aboutlibraries/licenses/ names it, under the hash the plugin gives that entry.
         configPath = file("aboutlibraries")
     }
     library {
@@ -136,7 +136,7 @@ aboutLibraries {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.aboutlibraries.compose.m3)
+    implementation(libs.aboutlibraries.core)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3)

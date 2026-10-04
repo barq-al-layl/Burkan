@@ -29,8 +29,6 @@ fun BurkanTheme(
         style = paletteStyle,
         specVersion = ColorSpec.SpecVersion.SPEC_2026,
         typography = typography,
-        // A change of theme or colour fades from the old scheme to the new one rather than cutting to it.
-        animate = true,
         content = content,
     )
 }

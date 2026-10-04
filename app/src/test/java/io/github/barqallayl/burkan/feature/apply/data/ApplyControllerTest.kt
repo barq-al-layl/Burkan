@@ -182,7 +182,7 @@ class ApplyControllerTest {
         val allow = ShellCommands.allowUsageAccess(FixtureDevice.Self)
         shell.beforeEach = { if (it == allow) recentApps.allowed = true }
 
-        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)?.result)
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)?.result)
 
         assertTrue(allow.line in shell.lines)
         // The most recent first; one that is never stopped and one no longer installed are left out.
@@ -195,7 +195,7 @@ class ApplyControllerTest {
         recentApps.allowed = true
         recentApps.recent = listOf(PackageName.known("org.example.chat"))
 
-        controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)
+        controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)
 
         assertFalse(ShellCommands.allowUsageAccess(FixtureDevice.Self).line in shell.lines)
     }
@@ -205,7 +205,7 @@ class ApplyControllerTest {
 
         assertEquals(
             RunOutcome(RunResult.Failed, ApplyError.RecentAppsUnknown),
-            controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)?.copy(status = null),
+            controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)?.copy(status = null),
         )
         assertTrue(shell.lines.none { it.startsWith("am force-stop") })
     }
