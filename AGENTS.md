@@ -16,7 +16,7 @@ read them first, in this order:
 chosen by the system property `debug.hwui.renderer`, which resets on every reboot and can only be set by the
 `shell` user. The app pairs once with the phone's own wireless debugging, and from then on re-applies `skiavk`
 after each restart by connecting to the ADB daemon on the phone itself. One Gradle module, `:app`; package root
-`io.github.barqallayl.burkan`; licensed GPL-3.0-or-later.
+`io.github.barqallayl.burkan`; licensed Apache-2.0.
 
 ## On top of the contributing guide
 

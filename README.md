@@ -103,10 +103,11 @@ Burkan applies it again.
 
 ## Licence
 
-Burkan is free software: you can redistribute it and/or modify it under the terms of the
-[GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version. It is distributed WITHOUT ANY WARRANTY; see the licence for
-details.
+Copyright 2026 Mohammed Barq AL Layl.
+
+Burkan is licensed under the [Apache License, Version 2.0](LICENSE). It is distributed on an "as is" basis,
+without warranties or conditions of any kind; see the licence for details.
 
 The libraries it is built with keep their own licences, listed in the app under Settings › Open-source
-licences. `libadb-android` is used under its GPL-3.0-or-later option.
+licences. `libadb-android` is used under its Apache-2.0 option, and its pairing helper `spake2-java` under the
+LGPL-3.0.
