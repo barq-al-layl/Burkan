@@ -1,4 +1,6 @@
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import com.mikepenz.aboutlibraries.plugin.DuplicateMode
+import com.mikepenz.aboutlibraries.plugin.DuplicateRule
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.Properties
@@ -123,6 +125,12 @@ aboutLibraries {
         // libadb-android's published metadata calls its licence "Other". It is Apache-2.0 or GPL-3.0-or-later, at the
         // user's choice; aboutlibraries/licenses/ names it, under the hash the plugin gives that entry.
         configPath = file("aboutlibraries")
+    }
+    library {
+        // One entry for each project rather than one for each artifact: artifacts of the same group and licence
+        // are merged.
+        duplicationMode = DuplicateMode.MERGE
+        duplicationRule = DuplicateRule.GROUP
     }
 }
 

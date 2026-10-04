@@ -4,7 +4,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 
 /**
  * The choices behind the appearance preferences. Each is stored by its entry name, so renaming an entry resets
@@ -51,12 +50,9 @@ enum class PaletteStyles(val style: PaletteStyle) {
     Monochrome(PaletteStyle.Monochrome),
     Fidelity(PaletteStyle.Fidelity),
     Content(PaletteStyle.Content),
-}
 
-/** The Material colour specs MaterialKolor can generate a scheme with. */
-enum class ColorSpecs(val version: ColorSpec.SpecVersion) {
-    Spec2025(ColorSpec.SpecVersion.SPEC_2025),
-    Spec2021(ColorSpec.SpecVersion.SPEC_2021),
+    /** The variant the 2026 spec added. */
+    Cmf(PaletteStyle.Cmf()),
 }
 
 /** Text size, as a percentage of the system font scale. */

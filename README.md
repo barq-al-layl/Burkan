@@ -28,7 +28,7 @@ The pictures are the app's screenshot tests, rendered from its previews with sam
 - **Apply now** does the same as the restart run. **Restart all apps** also restarts every other app so each one
   comes back on Vulkan, then puts back what that disturbs (auto-rotation, accessibility services, Edge panels).
   Apps you choose in Settings are never restarted.
-- **Keeps a log** of the last 50 runs, step by step. It can be shared as text and never contains package names
+- **Keeps a log** of the last 50 runs, step by step. It can be shared as a `.log` file and never contains package names
   or the app's key.
 
 ## Requirements

@@ -6,12 +6,18 @@ import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.awaitStateMatching
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.apply.data.FullApplyPlan
 import io.github.barqallayl.burkan.feature.settings.data.AppIcons
 import io.github.barqallayl.burkan.feature.settings.data.InstalledApps
+import io.github.barqallayl.burkan.feature.settings.data.InstalledAppsStore
+import io.github.barqallayl.burkan.feature.settings.model.AppList
 import io.github.barqallayl.burkan.feature.settings.model.ExcludableApp
 import io.github.barqallayl.burkan.feature.settings.model.SettingsError
+import io.github.barqallayl.burkan.feature.settings.model.matching
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.orbitmvi.orbit.test.testWithInternalState
@@ -27,10 +33,17 @@ class ExclusionsViewModelTest {
     private val settings = FakeSettingsStorage()
     private val installedApps = FakeInstalledApps()
     private val icons = object : AppIcons {
+        override fun cached(packageName: PackageName): ImageBitmap? = null
+
         override suspend fun icon(packageName: PackageName): ImageBitmap? = null
     }
 
-    private fun viewModel() = ExclusionsViewModel(settings, installedApps, icons)
+    private fun TestScope.viewModel() = ExclusionsViewModel(
+        settings,
+        SettingsStore(settings, FakeDeviceStateStorage(), backgroundScope),
+        InstalledAppsStore(installedApps, settings, backgroundScope),
+        icons,
+    )
 
     @Test
     fun `apps are listed by name, with an excluded app since uninstalled kept so it can be removed`() = runTest {
@@ -101,6 +114,31 @@ class ExclusionsViewModelTest {
             reading.cancel()
             cancelAndIgnoreRemainingItems()
         }
+    }
+
+    @Test
+    fun `a search finds apps by name or by package name, whatever the case`() {
+        val apps = listOf(ExcludableApp(chat, "Chat"), ExcludableApp(maps, "Maps"), ExcludableApp(gone, label = null))
+
+        assertEquals(apps, apps.matching("  "))
+        assertEquals(listOf(ExcludableApp(maps, "Maps")), apps.matching("mAp"))
+        assertEquals(listOf(ExcludableApp(chat, "Chat")), apps.matching("org.example"))
+        assertEquals(listOf(ExcludableApp(gone, label = null)), apps.matching(" gone "))
+        assertEquals(emptyList(), apps.matching("zebra"))
+    }
+
+    @Test
+    fun `a list already at hand stays on screen while it is listed again`() = runTest {
+        val store = InstalledAppsStore(installedApps, settings, backgroundScope)
+        store.refresh().join()
+        val listed = store.apps.value
+
+        installedApps.result = listOf(ExcludableApp(maps, "Maps")).right()
+        val refreshing = store.refresh()
+
+        assertEquals(listed, store.apps.value)
+        refreshing.join()
+        assertEquals(AppList.Loaded(listOf(ExcludableApp(maps, "Maps"))), store.apps.value)
     }
 
     private inner class FakeInstalledApps : InstalledApps {

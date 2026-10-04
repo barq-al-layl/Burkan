@@ -10,9 +10,12 @@ import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
+import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
+import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
@@ -55,7 +58,9 @@ class ApplyControllerTest {
     private val clock = SteppingClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
     private val lockEvents = FakeLockEvents()
-    private val controller = ApplyController(access, log, settings, cooldown, lockEvents, clock, FixtureDevice.Self)
+    private val recentApps = FakeRecentApps()
+    private val controller =
+        ApplyController(access, log, settings, cooldown, lockEvents, recentApps, clock, FixtureDevice.Self)
 
     @Test
     fun `a light run is logged with its steps`() = runTest {
@@ -168,6 +173,41 @@ class ApplyControllerTest {
         val stopAll = shell.lines.single { it.startsWith("am force-stop com.android.systemui;") }
         assertFalse("org.example.weather" in stopAll)
         assertTrue("com.example.notes;" in stopAll)
+    }
+
+    @Test
+    fun `a run limited to recent apps gives itself usage access, then restarts only those`() = runTest {
+        recentApps.recent = listOf("org.example.chat", "com.sec.imsservice", "com.example.notes", "com.gone.app")
+            .map(PackageName::known)
+        val allow = ShellCommands.allowUsageAccess(FixtureDevice.Self)
+        shell.beforeEach = { if (it == allow) recentApps.allowed = true }
+
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)?.result)
+
+        assertTrue(allow.line in shell.lines)
+        // The most recent first; one that is never stopped and one no longer installed are left out.
+        assertTrue("am force-stop org.example.chat; am force-stop com.example.notes; true" in shell.lines)
+        assertEquals(StepKind.StopApps(2), log.runs.value.single().steps[1].kind)
+    }
+
+    @Test
+    fun `usage access already held is not asked for again`() = runTest {
+        recentApps.allowed = true
+        recentApps.recent = listOf(PackageName.known("org.example.chat"))
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)
+
+        assertFalse(ShellCommands.allowUsageAccess(FixtureDevice.Self).line in shell.lines)
+    }
+
+    @Test
+    fun `a limited run stops nothing when Android will not say which apps are recent`() = runTest {
+
+        assertEquals(
+            RunOutcome(RunResult.Failed, ApplyError.RecentAppsUnknown),
+            controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent25)?.copy(status = null),
+        )
+        assertTrue(shell.lines.none { it.startsWith("am force-stop") })
     }
 
     @Test

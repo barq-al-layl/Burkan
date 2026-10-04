@@ -2,30 +2,35 @@ package io.github.barqallayl.burkan.designsystem
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import com.materialkolor.DynamicMaterialExpressiveTheme
+import com.materialkolor.material3.DynamicMaterialExpressiveTheme
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 
 /**
- * Stock Material 3 Expressive with a scheme generated from [seedColor]. Every appearance choice arrives as a
- * parameter; shapes and typography are Material's own.
+ * Material 3 Expressive with a scheme generated from [seedColor] under Material's 2026 colour spec, and Material's
+ * type scale set in [appFont]. Every appearance choice arrives as a parameter; shapes are Material's own.
  */
 @Composable
 fun BurkanTheme(
     isDarkTheme: Boolean,
     seedColor: Color,
     paletteStyle: PaletteStyle,
-    specVersion: ColorSpec.SpecVersion,
+    appFont: AppFont,
     content: @Composable () -> Unit,
 ) {
+    val typography = remember(appFont) { burkanTypography(appFont) }
     DynamicMaterialExpressiveTheme(
         seedColor = seedColor,
         isDark = isDarkTheme,
         style = paletteStyle,
-        specVersion = specVersion,
+        specVersion = ColorSpec.SpecVersion.SPEC_2026,
+        typography = typography,
+        // A change of theme or colour fades from the old scheme to the new one rather than cutting to it.
+        animate = true,
         content = content,
     )
 }

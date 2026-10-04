@@ -9,6 +9,7 @@ import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
+import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
@@ -17,12 +18,15 @@ import io.github.barqallayl.burkan.feature.apply.data.SystemUiCooldown
 import io.github.barqallayl.burkan.feature.apply.data.TestClock
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
+import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -50,12 +54,18 @@ class HomeViewModelTest {
     private val clock = TestClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
     private val controller =
-        ApplyController(access, log, settings, cooldown, FakeLockEvents(), clock, FixtureDevice.Self)
+        ApplyController(access, log, settings, cooldown, FakeLockEvents(), FakeRecentApps(), clock, FixtureDevice.Self)
     private val launcher = FakeApplyLauncher()
     private val autoApply = FakeAutoApplyStorage()
 
-    private fun viewModel() =
-        HomeViewModel(StatusRepository(access), controller, launcher, log, autoApply, clock)
+    private fun TestScope.viewModel() = HomeViewModel(
+        StatusRepository(access),
+        controller,
+        launcher,
+        RunLogStore(log, backgroundScope),
+        autoApply,
+        clock,
+    )
 
     private val notApplied = StatusState.Loaded(
         RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
@@ -105,6 +115,29 @@ class HomeViewModelTest {
             awaitState { !it.isConfirmingFullApply }
             assertEquals(listOf(ApplyKind.Full), launcher.started)
 
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `restart all goes for every app each time, unless fewer are picked for that run`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.requestRestartAll()
+            containerHost.chooseRestartScope(RestartScope.Recent50)
+            awaitState { it.restartScope == RestartScope.Recent50 }
+            containerHost.confirmRestartAll()
+            awaitState { !it.isConfirmingFullApply }
+
+            // The next time starts from every app again.
+            containerHost.requestRestartAll()
+            assertEquals(RestartScope.All, awaitState { it.isConfirmingFullApply }.restartScope)
+            containerHost.confirmRestartAll()
+            awaitState { !it.isConfirmingFullApply }
+
+            assertEquals(listOf(RestartScope.Recent50, RestartScope.All), launcher.scopes)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

@@ -3,14 +3,15 @@ package io.github.barqallayl.burkan.feature.apply.data
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellCommands
-import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.shell.ShellError
+import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
-import io.github.barqallayl.burkan.feature.apply.FakeBootCount
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeBootCount
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
+import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
@@ -323,7 +324,7 @@ class AutoApplyTest {
         val access = FakeShellAccess(shell)
         val log = FakeRunLogStorage()
         val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
-        val controller = ApplyController(access, log, settings, cooldown, lockEvents, FixedClock, FixtureDevice.Self)
+        val controller = ApplyController(access, log, settings, cooldown, lockEvents, FakeRecentApps(), FixedClock, FixtureDevice.Self)
         storage.state.value = AutoApplyState(systemUiAtNextLock = true)
 
         val waiting = async {

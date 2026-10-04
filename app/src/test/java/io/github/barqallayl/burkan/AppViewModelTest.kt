@@ -3,7 +3,8 @@ package io.github.barqallayl.burkan
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
+import io.github.barqallayl.burkan.core.store.SettingsStore
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -20,13 +21,13 @@ class AppViewModelTest {
         themeMode = SettingsStorage.Defaults.themeMode,
         seedColor = SettingsStorage.Defaults.seedColor,
         paletteStyle = SettingsStorage.Defaults.paletteStyle,
-        colorSpec = SettingsStorage.Defaults.colorSpec,
+        appFont = SettingsStorage.Defaults.appFont,
         textScalePercent = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     )
 
     @Test
     fun `finishing setup reaches the app, which then starts at Home`() = runTest {
-        AppViewModel(settings, deviceState).testWithInternalState(this) {
+        AppViewModel(SettingsStore(settings, deviceState, backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(AppState(appearance = defaultAppearance, isSetupComplete = false))
 
@@ -39,7 +40,7 @@ class AppViewModelTest {
 
     @Test
     fun `appearance and setup are unknown until read`() = runTest {
-        AppViewModel(settings, deviceState).testWithInternalState(this) {
+        AppViewModel(SettingsStore(settings, deviceState, backgroundScope)).testWithInternalState(this) {
             // The initial state, with no appearance, is checked on entry.
             val reading = runOnCreate()
 
@@ -50,7 +51,7 @@ class AppViewModelTest {
 
     @Test
     fun `a change to any preference reaches the appearance`() = runTest {
-        AppViewModel(settings, deviceState).testWithInternalState(this) {
+        AppViewModel(SettingsStore(settings, deviceState, backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(AppState(appearance = defaultAppearance, isSetupComplete = false))
 
@@ -67,8 +68,8 @@ class AppViewModelTest {
             expected = expected.copy(paletteStyle = PaletteStyles.Vibrant)
             expectInternalState(AppState(expected, isSetupComplete = false))
 
-            settings.colorSpec.value = ColorSpecs.Spec2021
-            expected = expected.copy(colorSpec = ColorSpecs.Spec2021)
+            settings.appFont.value = AppFont.Poppins
+            expected = expected.copy(appFont = AppFont.Poppins)
             expectInternalState(AppState(expected, isSetupComplete = false))
 
             settings.textScalePercent.value = 120

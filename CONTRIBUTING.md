@@ -192,11 +192,13 @@ Navigation 3, used directly:
 - One `entryProvider` maps every route to its screen.
 - **Every route round-trips through serialization in a test**, so a route that cannot be saved fails a test
   instead of crashing on the first rotation.
-- **Every destination change uses the shared-axis X transition** in `core/navigation/SharedAxisTransition.kt`,
-  passed to `NavDisplay` as `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` (the same as
-  pop). Both screens move 30 dp along the direction of travel on a spring (`DampingRatioMediumBouncy`,
-  `StiffnessMediumLow`); the old one fades out over 105 ms, then the new one fades in over 195 ms from alpha 0.8,
-  so the background never shows between them. A screen does not set its own transition.
+- **Destination changes use the two transitions** in `core/navigation/ScreenTransition.kt`, passed to
+  `NavDisplay`. Going to a screen, and going back with the back button, is `slideTransition`: both screens slide
+  the full width, nothing fades or scales. Going back with the back gesture is `predictiveBackTransition`: the
+  screens slide a fifth of the width while the one being left shrinks to 90 % and fades, and the one underneath
+  grows and fades in. Every part of both rides one spring. A screen does not set its own transition.
+- **A Settings screen opens as Settings' own window** (`Context.openSettings`), not inside the app's entry under
+  recent apps.
 
 ---
 
@@ -262,33 +264,41 @@ Metro, one graph:
 
 - **DataStore holds settings**: apply on boot, the user's exclusions, the appearance preferences, the run log.
 - **KSafe holds secrets**: the ADB private key and certificate. Encrypted, excluded from backup.
-- **Reads that touch disk are flows**, collected in a ViewModel. Never a blocking read in a composition or in a
+- **Reads that touch disk are flows**, collected by a store or a ViewModel. Never a blocking read in a composition or in a
   ViewModel constructor.
 
 ---
 
+## Stores
+
+- **What a screen shows on opening is already in memory.** A store is an app-scoped class that reads its data
+  ahead of the screens and keeps it current in a `StateFlow`: `SettingsStore` (the settings and the phone's
+  state), `RunLogStore`, `InstalledAppsStore` and `LibraryStore`. `StoreWarmUp`, called when the activity is
+  created, starts them; the services do not.
+- **A ViewModel takes the store's value as its first state** and then collects the store, so a screen opens with
+  its content. Its state is nullable or `Loading` only for the case the store has nothing yet, which a screen
+  still draws as loading.
+- **A store only reads.** Writes go through the storage interface; the store sees the change like anyone else.
+- **Data that can go stale is refreshed without being withdrawn**: the list of installed apps is listed again each
+  time its screen opens, and the old list stays on screen until the new one replaces it.
+
 ## UI
 
-- **Stock Material 3 Expressive.** Use the Material components as they come, Expressive variants where one
-  exists (buttons, loading and progress indicators, app bars, button groups). No custom shapes, colours,
-  typography or elevation, and no styling passed at call sites. `ExperimentalMaterial3ExpressiveApi` is opted in
-  module-wide.
+- **Material 3 Expressive components**, Expressive variants where one exists (buttons, loading and progress
+  indicators, app bars). Colours come from the scheme and type from the theme; nothing is styled at a call site.
+  `ExperimentalMaterial3ExpressiveApi` is opted in module-wide.
+- **Content sits in segmented groups.** Related rows form one group whose outer corners are large and whose inner
+  corners are small, with a 2 dp gap between segments (`designsystem/component/BurkanSegment.kt`). A row of a list
+  is a `BurkanSegmentItem`; anything else goes in a `BurkanSegment`. Pass each its index and the group's count.
+  There is no free-standing card and no divider: a group of one is still a segment.
+  - A group has a `BurkanSectionTitle` when the screen has more than one kind of group.
+  - A segment that needs to stand out takes a container colour from the scheme: `primaryContainer` for the status
+    headline and the current setup step, `secondaryContainer` for a notice.
+  - A click or a toggle goes inside the segment (`onClick`, `interaction`), so its ripple follows the corners.
 - **The look is tuned through preferences, not code.** `BurkanTheme` takes every appearance choice as a
-  parameter and passes it to MaterialKolor:
-
-  ```kotlin
-  @Composable
-  fun BurkanTheme(
-      isDarkTheme: Boolean,
-      seedColor: Color,
-      paletteStyle: PaletteStyle,
-      specVersion: ColorSpec.SpecVersion,
-      content: @Composable () -> Unit,
-  )
-  ```
-
-  It wraps MaterialKolor's `DynamicMaterialExpressiveTheme`. The parameters have no defaults, so the only
-  defaults are those in `SettingsStorage.Defaults`.
+  parameter: the scheme's inputs go to MaterialKolor's `DynamicMaterialExpressiveTheme`, and the font sets
+  Material's own type scale (`burkanTypography`), leaving its sizes and weights alone. The parameters have no
+  defaults, so the only defaults are those in `SettingsStorage.Defaults`.
 - **The appearance preferences** are stored in `SettingsStorage` and edited in Settings:
 
   | Preference | Options | Default |
@@ -296,14 +306,23 @@ Metro, one graph:
   | Dark theme | Follow system, light, dark | Follow system |
   | Seed colour | The list in `SeedColors` | `SeedColors.Default` |
   | Palette style | The list in `PaletteStyles` (every MaterialKolor style) | Expressive |
-  | Colour spec | 2025, 2021 | 2025 |
+  | Font | The phone's own, or one of the bundled typefaces in `AppFont` | Space Grotesk |
   | Text size | 85–130 %, in fives | 100 % |
 
-  `AppViewModel` combines their flows into one `AppState`; `App.kt` collects it and passes the values to
-  `BurkanTheme`. Text size multiplies the system font scale and is applied once, in `App.kt`. Defaults live in
-  one `Defaults` object in the storage class, so a preview and a fresh install agree.
-- **A wrapper component exists only when it adds behaviour** more than one screen shares — not to restyle a
-  Material component. When a design is settled later, it lands in the theme and in wrappers, in one place.
+  `SettingsStorage.appearance()` combines their flows into one `Appearance`; `App.kt` collects it through
+  `AppViewModel` and passes the values to `BurkanTheme`. The scheme is always generated under Material's 2026
+  colour spec, and a change of theme or colour animates from the old scheme to the new. `App` reports whether the
+  app is dark through `onThemeChange`, and `MainActivity` colours the system bars' icons to match. Text size multiplies the system font scale and is applied once, in `App.kt`. Defaults live in one
+  `Defaults` object in the storage class, so a preview and a fresh install agree.
+- **A list row is `BurkanSegmentItem`**, Material's segmented list item: a pressed row and a selected or ticked one
+  change shape as well as colour. A setting that is switched on is not a selected row; only its switch shows it.
+- **A choice is made in a bottom sheet** (`BurkanBottomSheet`), which is open in full or closed, never half open.
+  One option out of several is a `BurkanChoiceList` of radio segments and applies at once with the sheet left
+  open; text size is chosen on a sample and applied on Save.
+- **Fonts are bundled, not downloaded**: the files are in `res/font`, each under the SIL Open Font License, and
+  each has an entry in `app/aboutlibraries/libraries/` so it appears on the licences screen. Adding one means the
+  file, an `AppFont` entry and that licence entry, with a group of its own in `uniqueId` so the fonts are not
+  merged into one.
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
 - Use `start`/`end`, never `left`/`right`.
@@ -391,7 +410,8 @@ Metro, one graph:
   `res/raw/keep.xml`.
 - **The licences list is generated at build time** by the AboutLibraries Android plugin, in offline mode, into
   `R.raw.aboutlibraries`; nothing is fetched at run time. Corrections to what a library's metadata says go in
-  `app/aboutlibraries/`. The plugin resolves the release classpaths while configuring, which Gradle reports as a
+  `app/aboutlibraries/`. Artifacts of one group under one licence are merged into one entry; the plugin is pinned
+  to 15.1.0 because later versions stopped merging them. The plugin resolves the release classpaths while configuring, which Gradle reports as a
   performance note on a configuration cache miss; the cache entry is still stored and reused.
 - JitPack is declared with a content filter so only `com.github.MuntashirAkon` (and its `spake2-java` group)
   resolves from it.

@@ -16,6 +16,7 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
+import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.PairingRepository
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
@@ -37,7 +38,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * [done] is null until the first check has run. [failure] belongs to the automatic steps, Connect and Permission;
+ * [done] is null until the first check has run, which is before the screen opens once the store has the phone's state. [failure] belongs to the automatic steps, Connect and Permission;
  * pairing failures arrive in [pairing].
  */
 @Immutable
@@ -65,6 +66,7 @@ class SetupViewModel(
     private val checks: SetupChecks,
     private val wirelessDebugging: WirelessDebugging,
     private val deviceState: DeviceStateStorage,
+    private val store: SettingsStore,
     private val pairing: PairingRepository,
     private val pairingLauncher: PairingLauncher,
     private val shellAccess: ShellAccess,
@@ -77,7 +79,10 @@ class SetupViewModel(
     private val connecting = AtomicBoolean(false)
 
     override val container = orbitContainer<SetupState, SetupSideEffect>(
-        SetupState(isUntestedModel = !isTestedModel(checks.deviceModel)),
+        SetupState(
+            done = store.device.value?.let { facts(it.isPaired, it.isBatteryStepSkipped).doneSteps() },
+            isUntestedModel = !isTestedModel(checks.deviceModel),
+        ),
     ) {
         // Pairing finishes in the notification, often while the app is in the background.
         combine(pairing.status, deviceState.isPaired, deviceState.isBatteryStepSkipped) { status, _, _ -> status }
@@ -89,17 +94,7 @@ class SetupViewModel(
 
     /** Re-reads what the system says. Called on every resume, since the user changes most of it in Settings. */
     fun refresh(): Job = intent {
-        val facts = SetupFacts(
-            notificationsAllowed = checks.notificationsAllowed(),
-            developerOptionsEnabled = checks.developerOptionsEnabled(),
-            wirelessDebuggingOn = wirelessDebugging.isOn(),
-            paired = deviceState.isPaired.first(),
-            connected = connected,
-            permissionHeld = wirelessDebugging.canSwitch(),
-            batteryExempt = checks.batteryExempt(),
-            batteryStepSkipped = deviceState.isBatteryStepSkipped.first(),
-        )
-        val done = facts.doneSteps()
+        val done = facts(deviceState.isPaired.first(), deviceState.isBatteryStepSkipped.first()).doneSteps()
         when (done.currentStep()) {
             null -> {
                 reduce { state.copy(done = done) }
@@ -114,6 +109,18 @@ class SetupViewModel(
             else -> reduce { state.copy(done = done, failure = null) }
         }
     }
+
+    /** What the system says now, with the two answers only the stored state has. */
+    private fun facts(paired: Boolean, batteryStepSkipped: Boolean) = SetupFacts(
+        notificationsAllowed = checks.notificationsAllowed(),
+        developerOptionsEnabled = checks.developerOptionsEnabled(),
+        wirelessDebuggingOn = wirelessDebugging.isOn(),
+        paired = paired,
+        connected = connected,
+        permissionHeld = wirelessDebugging.canSwitch(),
+        batteryExempt = checks.batteryExempt(),
+        batteryStepSkipped = batteryStepSkipped,
+    )
 
     /** The current step's action. */
     fun onAction(step: SetupStep) = intent {

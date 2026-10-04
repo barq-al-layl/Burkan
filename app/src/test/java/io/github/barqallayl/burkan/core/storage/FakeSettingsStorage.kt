@@ -1,7 +1,7 @@
 package io.github.barqallayl.burkan.core.storage
 
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -12,7 +12,7 @@ class FakeSettingsStorage : SettingsStorage {
     override val themeMode = MutableStateFlow(SettingsStorage.Defaults.themeMode)
     override val seedColor = MutableStateFlow(SettingsStorage.Defaults.seedColor)
     override val paletteStyle = MutableStateFlow(SettingsStorage.Defaults.paletteStyle)
-    override val colorSpec = MutableStateFlow(SettingsStorage.Defaults.colorSpec)
+    override val appFont = MutableStateFlow(SettingsStorage.Defaults.appFont)
     override val textScalePercent = MutableStateFlow(SettingsStorage.Defaults.TEXT_SCALE_PERCENT)
     override val applyOnBoot = MutableStateFlow(SettingsStorage.Defaults.APPLY_ON_BOOT)
     override val turnOffWirelessDebugging = MutableStateFlow(SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING)
@@ -30,8 +30,8 @@ class FakeSettingsStorage : SettingsStorage {
         paletteStyle.value = style
     }
 
-    override suspend fun setColorSpec(spec: ColorSpecs) {
-        colorSpec.value = spec
+    override suspend fun setAppFont(font: AppFont) {
+        appFont.value = font
     }
 
     override suspend fun setTextScalePercent(percent: Int) {

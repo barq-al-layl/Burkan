@@ -11,6 +11,18 @@ enum class ApplyKind {
     Full,
 }
 
+/**
+ * How many apps a full apply restarts, chosen each time one is started: every app unless the user picks fewer.
+ * [limit] is the number of most recently used apps to restart; null restarts every app.
+ */
+enum class RestartScope(val limit: Int?) {
+    All(null),
+    Recent25(25),
+    Recent50(50),
+    Recent100(100),
+    Recent200(200),
+}
+
 /** What started a run. */
 enum class RunTrigger {
     Manual,
@@ -50,6 +62,9 @@ sealed interface ApplyError : AppError {
 
     /** `pm list packages` listed nothing, so a full apply has nothing to work from. */
     data object NoPackagesListed : ApplyError
+
+    /** Android would not say which apps were used lately, so a run limited to those had nothing to go by. */
+    data object RecentAppsUnknown : ApplyError
 
     /** The value was written but did not read back the same after every retry. */
     data class SettingNotRestored(val setting: RestoredSetting) : ApplyError

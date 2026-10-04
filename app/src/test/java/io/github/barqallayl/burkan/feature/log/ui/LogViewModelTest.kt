@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.log.ui
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
+import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import kotlinx.coroutines.test.runTest
@@ -24,7 +25,7 @@ class LogViewModelTest {
 
     @Test
     fun `a run opens and closes`() = runTest {
-        LogViewModel(FakeRunLogStorage(listOf(run))).testWithInternalState(this) {
+        LogViewModel(RunLogStore(FakeRunLogStorage(listOf(run)), backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(LogState(runs = listOf(run)))
 
@@ -39,7 +40,7 @@ class LogViewModelTest {
 
     @Test
     fun `share hands the runs to the screen`() = runTest {
-        LogViewModel(FakeRunLogStorage(listOf(run))).testWithInternalState(this) {
+        LogViewModel(RunLogStore(FakeRunLogStorage(listOf(run)), backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(LogState(runs = listOf(run)))
 
@@ -52,7 +53,7 @@ class LogViewModelTest {
 
     @Test
     fun `an empty log has nothing to share`() = runTest {
-        LogViewModel(FakeRunLogStorage()).testWithInternalState(this) {
+        LogViewModel(RunLogStore(FakeRunLogStorage(), backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(LogState(runs = emptyList()))
 
@@ -67,7 +68,7 @@ class LogViewModelTest {
     fun `an unreadable log is shown as such`() = runTest {
         val log = FakeRunLogStorage().apply { unreadable.value = true }
 
-        LogViewModel(log).testWithInternalState(this) {
+        LogViewModel(RunLogStore(log, backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
             expectInternalState(LogState(runs = emptyList(), isUnreadable = true))
 

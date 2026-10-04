@@ -51,12 +51,16 @@ object FullApplyPlan {
      * @param self Burkan's own package, which has to survive to report the result.
      * @param before what the system surfaces ran with when the run started, and the home app. One already on Vulkan
      * is not restarted.
+     * @param recent the apps used lately, most recent first, when the run is limited to [limit] of them; null
+     * restarts every app. An app that may not be stopped does not count towards the limit.
      */
     fun create(
         inputs: FullApplyInputs,
         userExclusions: Set<PackageName>,
         self: PackageName,
         before: Surfaces,
+        recent: List<PackageName>? = null,
+        limit: Int? = null,
     ): ApplyPlan {
         val launcher = before.launcher
         val restartLauncher = launcher != null && before.status.launcher != Renderer.Vulkan
@@ -70,7 +74,13 @@ object FullApplyPlan {
             add(self)
             if (!restartLauncher && launcher != null) add(launcher)
         }
-        val stopped = inputs.installed.filter { it !in excluded && MEDIA_PROVIDER_MODULE !in it.value }
+        val stoppable = inputs.installed.filter { it !in excluded && MEDIA_PROVIDER_MODULE !in it.value }
+        val stopped = if (recent == null || limit == null) {
+            stoppable
+        } else {
+            val stoppableSet = stoppable.toSet()
+            recent.filter { it in stoppableSet }.distinct().take(limit)
+        }
         val wanted = inputs.running + inputs.widgets.providers + inputs.widgets.hosts
         // Bring back what was running or backs a widget, if it was stopped. SystemUI and the launcher have their own
         // steps.

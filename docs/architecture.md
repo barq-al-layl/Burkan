@@ -88,6 +88,11 @@ The status, and the two actions.
   first that the screen will lock for a moment.
 - **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app, takes
   about a minute, the screen will flash, and it locks for a moment at the end.
+  The confirmation also asks how far to go: every app, which it starts from each time, or only the 25, 50, 100 or
+  200 used most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
+  says which apps are recent only to an app with usage access, which the app allows itself over its own connection
+  the first time a limited run needs it. If Android still names none, the run fails rather than restart
+  everything.
 - While a run is in progress: a progress indicator, the current step in words, a Cancel button, and both apply
   buttons disabled. The run's notification carries Cancel too.
 - If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for.
@@ -101,9 +106,11 @@ The status, and the two actions.
 - Apply automatically after restart (on by default).
 - Turn wireless debugging off after applying (on by default).
 - Never restart these apps: the user's own exclusions for the full apply, chosen from the installed apps on their
-  own screen (`ExclusionsRoute`). The fixed exclusions are listed read-only beneath, with the app's label and icon
+  own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
+  apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
   where it is installed. Listing the apps has its own loading, empty and failed states.
-- Appearance: dark theme, seed colour, palette style, colour spec and text size. Each change applies at once.
+- Appearance: dark theme, seed colour, palette style, font and text size, each chosen in a bottom sheet. A change
+  applies at once, except text size, which is tried on a sample and applied on Save.
   The options and defaults are in `CONTRIBUTING.md`.
 - Redo setup: forgets the pairing and returns to Setup, after a confirmation.
 - About: version, source link, the app's licence (GPL-3.0-or-later, with its no-warranty notice), and the
@@ -115,8 +122,10 @@ The status, and the two actions.
 - The last 50 runs, newest first: time, trigger, result, duration. With no runs, a centred message says what will
   appear and leads back to apply; a stored log that cannot be read says so.
 - Opening a run shows its steps in words, each with success or the error.
-- **Share** exports the log as text. It never contains the ADB key, and no package names: steps are recorded with
-  counts ("Stop 612 apps"), so there is nothing to warn about before sharing.
+- **Share** exports the log as a `.log` file: a header with the app version, the phone's model and Android
+  version, then each run on a line with its steps marked done or failed beneath. It never contains the ADB key,
+  and no package names: steps are recorded with counts ("Stop 612 apps"), so there is nothing to warn about
+  before sharing.
 
 ## How it is built
 
@@ -227,8 +236,12 @@ force-stop cancelled the network callback. An unknown count is taken as a restar
 
 `INTERNET` (loopback sockets), `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE` (mDNS),
 `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` (System UI's restart once the screen is off), `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`,
-`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `QUERY_ALL_PACKAGES` (the exclusions picker), and
-`WRITE_SECURE_SETTINGS` (declared; granted over ADB).
+`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `QUERY_ALL_PACKAGES` (the exclusions picker),
+`WRITE_SECURE_SETTINGS` (declared; granted over ADB) and `PACKAGE_USAGE_STATS` (declared; allowed over ADB when a
+run is limited to recent apps).
+
+A `FileProvider` hands the exported log, written to the cache, to the app it is shared with; nothing else is
+reachable through it.
 
 - `minSdk` 33: the S23 shipped with Android 13, and it removes every pre-13 branch. `targetSdk` and `compileSdk`
   37.
@@ -237,8 +250,8 @@ force-stop cancelled the network callback. An unknown count is taken as a restar
 ## Decisions
 
 - **`minSdk` 33.** The S23 shipped with Android 13, and it removes every pre-13 branch.
-- **English only**, and stock Material 3 Expressive, tuned through the appearance preferences rather than custom
-  styling.
+- **English only.** Material 3 Expressive components in segmented groups, with the colours, the font and the text
+  size chosen in Settings.
 - **GPL-3.0-or-later.** `libadb-android` is used under its GPL-3.0-or-later option.
 - **Distributed outside the Play Store.** `QUERY_ALL_PACKAGES`, the `specialUse` foreground service and a
   permission granted over ADB are a poor fit for it.

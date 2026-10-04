@@ -13,7 +13,7 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
@@ -30,7 +30,7 @@ interface SettingsStorage {
     val themeMode: Flow<ThemeMode>
     val seedColor: Flow<SeedColors>
     val paletteStyle: Flow<PaletteStyles>
-    val colorSpec: Flow<ColorSpecs>
+    val appFont: Flow<AppFont>
     val textScalePercent: Flow<Int>
 
     /** Apply Vulkan by itself after every restart. */
@@ -45,7 +45,7 @@ interface SettingsStorage {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setSeedColor(color: SeedColors)
     suspend fun setPaletteStyle(style: PaletteStyles)
-    suspend fun setColorSpec(spec: ColorSpecs)
+    suspend fun setAppFont(font: AppFont)
 
     /** One of [TextScale.percentages]; anything else is refused. */
     suspend fun setTextScalePercent(percent: Int)
@@ -58,7 +58,7 @@ interface SettingsStorage {
         val themeMode: ThemeMode = ThemeMode.FollowSystem
         val seedColor: SeedColors = SeedColors.Default
         val paletteStyle: PaletteStyles = PaletteStyles.Expressive
-        val colorSpec: ColorSpecs = ColorSpecs.Spec2025
+        val appFont: AppFont = AppFont.SpaceGrotesk
         const val TEXT_SCALE_PERCENT: Int = 100
         const val APPLY_ON_BOOT: Boolean = true
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
@@ -84,8 +84,8 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override val paletteStyle: Flow<PaletteStyles> =
         read { it.enumValue(Keys.paletteStyle) ?: SettingsStorage.Defaults.paletteStyle }
 
-    override val colorSpec: Flow<ColorSpecs> =
-        read { it.enumValue(Keys.colorSpec) ?: SettingsStorage.Defaults.colorSpec }
+    override val appFont: Flow<AppFont> =
+        read { it.enumValue(Keys.appFont) ?: SettingsStorage.Defaults.appFont }
 
     override val textScalePercent: Flow<Int> = read { preferences ->
         preferences[Keys.textScalePercent]?.takeIf { it in TextScale.percentages }
@@ -108,7 +108,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
 
     override suspend fun setPaletteStyle(style: PaletteStyles) = write(Keys.paletteStyle, style.name)
 
-    override suspend fun setColorSpec(spec: ColorSpecs) = write(Keys.colorSpec, spec.name)
+    override suspend fun setAppFont(font: AppFont) = write(Keys.appFont, font.name)
 
     override suspend fun setTextScalePercent(percent: Int) {
         require(percent in TextScale.percentages) { "Not a text size: $percent" }
@@ -135,7 +135,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         val themeMode = stringPreferencesKey("theme_mode")
         val seedColor = stringPreferencesKey("seed_color")
         val paletteStyle = stringPreferencesKey("palette_style")
-        val colorSpec = stringPreferencesKey("color_spec")
+        val appFont = stringPreferencesKey("app_font")
         val textScalePercent = intPreferencesKey("text_scale_percent")
         val applyOnBoot = booleanPreferencesKey("apply_on_boot")
         val turnOffWirelessDebugging = booleanPreferencesKey("turn_off_wireless_debugging")

@@ -10,11 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -58,12 +60,21 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentChoice
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
+import io.github.barqallayl.burkan.designsystem.component.GroupGap
+import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
+import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.RunPhase
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
@@ -72,13 +83,14 @@ import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
+import io.github.barqallayl.burkan.feature.log.ui.RunResultIcon
 import io.github.barqallayl.burkan.feature.log.ui.label
 import io.github.barqallayl.burkan.feature.status.model.Headline
 import io.github.barqallayl.burkan.feature.status.model.headline
-import org.orbitmvi.orbit.compose.collectAsState
-import org.orbitmvi.orbit.compose.collectSideEffect
 import java.time.ZoneId
 import java.time.ZoneOffset
+import org.orbitmvi.orbit.compose.collectAsState
+import org.orbitmvi.orbit.compose.collectSideEffect
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -109,6 +121,7 @@ fun HomeScreen() {
             onConfirmApply = viewModel::confirmApply,
             onDismissApply = viewModel::dismissApply,
             onRestartAll = viewModel::requestRestartAll,
+            onRestartScope = viewModel::chooseRestartScope,
             onConfirmRestartAll = viewModel::confirmRestartAll,
             onDismissRestartAll = viewModel::dismissRestartAll,
             onCancelRun = viewModel::cancelRun,
@@ -125,6 +138,7 @@ private class HomeActions(
     val onConfirmApply: () -> Unit = {},
     val onDismissApply: () -> Unit = {},
     val onRestartAll: () -> Unit = {},
+    val onRestartScope: (RestartScope) -> Unit = {},
     val onConfirmRestartAll: () -> Unit = {},
     val onDismissRestartAll: () -> Unit = {},
     val onCancelRun: () -> Unit = {},
@@ -155,22 +169,25 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = ScreenMargin)
+                .padding(bottom = GroupGap),
+            verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            state.waitingFor?.let { WaitingCard(it, actions.onOpenDeveloperOptions) }
-            if (state.systemUiAtNextLock) NextLockCard()
+            state.waitingFor?.let { WaitingNotice(it, actions.onOpenDeveloperOptions) }
+            if (state.systemUiAtNextLock) NextLockNotice()
             val run = state.run
             // The run first: it is what is happening, and the status below says it is about to change.
-            if (run is ApplyRunState.Running) RunningCard(run, actions.onCancelRun)
-            StatusCard(state, actions.onRetry)
-            LastRun(state.lastRun, zone)
+            if (run is ApplyRunState.Running) RunningSegment(run, actions.onCancelRun)
+            StatusGroup(state, actions.onRetry)
+            LastRun(state.lastRun, zone, actions.onOpenLog)
             val idle = run == ApplyRunState.Idle
-            Button(onClick = actions.onApplyNow, enabled = idle, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.home_apply_now))
-            }
-            OutlinedButton(onClick = actions.onRestartAll, enabled = idle, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.home_restart_all))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = actions.onApplyNow, enabled = idle, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.home_apply_now))
+                }
+                OutlinedButton(onClick = actions.onRestartAll, enabled = idle, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.home_restart_all))
+                }
             }
         }
     }
@@ -190,76 +207,131 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
         )
     }
     if (state.isConfirmingFullApply) {
-        AlertDialog(
-            onDismissRequest = actions.onDismissRestartAll,
-            title = { Text(stringResource(R.string.home_confirm_title)) },
-            text = { Text(stringResource(R.string.home_confirm_text)) },
-            confirmButton = {
-                TextButton(onClick = actions.onConfirmRestartAll) {
-                    Text(stringResource(R.string.home_confirm_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = actions.onDismissRestartAll) {
-                    Text(stringResource(R.string.home_confirm_dismiss))
-                }
-            },
-        )
+        BurkanBottomSheet(onDismiss = actions.onDismissRestartAll) { hide ->
+            RestartAllSheet(
+                scope = state.restartScope,
+                onScope = actions.onRestartScope,
+                onConfirm = { hide(actions.onConfirmRestartAll) },
+                onDismiss = { hide(actions.onDismissRestartAll) },
+            )
+        }
     }
 }
 
+/**
+ * Asks before the full apply, and how far it should go: every app, as it opens, or only the most recent few.
+ */
 @Composable
-private fun StatusCard(state: HomeState, onRetry: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            when (val status = state.status) {
-                // The rows stay in place with placeholders, so nothing moves when the status arrives.
-                StatusState.Loading -> {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        LoadingIndicator(modifier = Modifier.size(24.dp))
-                        Text(stringResource(R.string.home_checking), style = MaterialTheme.typography.titleLarge)
-                    }
-                    HorizontalDivider()
-                    RendererRows(status = null)
+private fun RestartAllSheet(
+    scope: RestartScope,
+    onScope: (RestartScope) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text(
+            stringResource(R.string.home_confirm_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+        Text(
+            stringResource(R.string.home_confirm_text),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp),
+        )
+        Column(modifier = Modifier.padding(ScreenMargin)) {
+            BurkanSectionTitle(stringResource(R.string.home_confirm_scope))
+            SegmentedColumn(modifier = Modifier.selectableGroup()) {
+                RestartScope.entries.forEachIndexed { index, option ->
+                    BurkanSegmentChoice(
+                        index = index,
+                        count = RestartScope.entries.size,
+                        text = option.label(),
+                        selected = option == scope,
+                        onClick = { onScope(option) },
+                    )
                 }
-                is StatusState.Failed -> {
-                    HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
-                    Text(stringResource(status.error.messageRes()))
-                    Button(onClick = onRetry, enabled = !state.isRefreshing) {
-                        Text(stringResource(R.string.home_retry))
-                    }
+            }
+            Text(
+                stringResource(R.string.home_confirm_scope_text),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 8.dp),
+            )
+            Row(modifier = Modifier.padding(top = GroupGap), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.home_confirm_dismiss))
                 }
-                is StatusState.Loaded -> {
-                    if (state.run is ApplyRunState.Running) {
-                        // What is shown was read before the run, which is changing it now.
-                        HeadlineRow(Tabler.Outline.Hourglass, R.string.home_headline_changing)
-                        Text(stringResource(R.string.home_changing_note))
-                    } else {
-                        val headline = status.status.headline()
-                        HeadlineRow(headline)
-                        if (headline == Headline.VulkanActive && state.lastRun.isManualLightApply()) {
-                            Text(stringResource(R.string.home_open_apps_note))
-                        }
-                    }
-                    HorizontalDivider()
-                    RendererRows(status.status)
+                Button(onClick = onConfirm, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.home_confirm_action))
                 }
             }
         }
     }
 }
 
-/** The four rows; [status] null shows placeholders while it is read. */
 @Composable
-private fun RendererRows(status: RendererStatus?) {
-    RendererRow(R.string.home_row_new_apps, status?.newApps)
-    RendererRow(R.string.home_row_system_ui, status?.systemUi)
-    RendererRow(R.string.home_row_launcher, status?.launcher)
-    RendererRow(R.string.home_row_keyboard, status?.keyboard)
+private fun RestartScope.label(): String {
+    val limit = limit ?: return stringResource(R.string.restart_scope_all)
+    return stringResource(R.string.restart_scope_recent, limit)
 }
+
+/**
+ * The status as one group: a headline segment, then a segment per surface. A status that could not be read is a
+ * single segment saying why, with a way to try again.
+ */
+@Composable
+private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
+    val status = state.status
+    if (status is StatusState.Failed) {
+        BurkanSegment(index = 0, count = 1) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
+                Text(stringResource(status.error.messageRes()))
+                Button(onClick = onRetry, enabled = !state.isRefreshing) {
+                    Text(stringResource(R.string.home_retry))
+                }
+            }
+        }
+        return
+    }
+    // Null while the status is read: the rows stay in place with placeholders, so nothing moves when it arrives.
+    val renderers = (status as? StatusState.Loaded)?.status
+    SegmentedColumn {
+        BurkanSegment(index = 0, count = STATUS_SEGMENTS, containerColor = MaterialTheme.colorScheme.primaryContainer) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when {
+                    renderers == null -> Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LoadingIndicator(modifier = Modifier.size(24.dp))
+                        Text(stringResource(R.string.home_checking), style = MaterialTheme.typography.titleLarge)
+                    }
+                    state.run is ApplyRunState.Running -> {
+                        // What is shown was read before the run, which is changing it now.
+                        HeadlineRow(Tabler.Outline.Hourglass, R.string.home_headline_changing)
+                        Text(stringResource(R.string.home_changing_note))
+                    }
+                    else -> {
+                        val headline = renderers.headline()
+                        HeadlineRow(headline)
+                        if (headline == Headline.VulkanActive && state.lastRun.isManualLightApply()) {
+                            Text(stringResource(R.string.home_open_apps_note))
+                        }
+                    }
+                }
+            }
+        }
+        RendererSegment(1, R.string.home_row_new_apps, renderers?.newApps)
+        RendererSegment(2, R.string.home_row_system_ui, renderers?.systemUi)
+        RendererSegment(3, R.string.home_row_launcher, renderers?.launcher)
+        RendererSegment(4, R.string.home_row_keyboard, renderers?.keyboard)
+    }
+}
+
+/** The headline, then one segment for each of the four surfaces. */
+private const val STATUS_SEGMENTS = 5
 
 /** After a manual light apply, apps that were already open are still on OpenGL; the status must not hide that. */
 private fun RunLogEntry?.isManualLightApply(): Boolean =
@@ -284,98 +356,115 @@ private fun HeadlineRow(icon: ImageVector, text: Int) {
     }
 }
 
-/** A surface and its renderer, with an icon as well as the word so the three differ at a glance. */
+/**
+ * A surface and its renderer, with an icon as well as the word so the three differ at a glance. [renderer] null is
+ * a placeholder while the status is read.
+ */
 @Composable
-private fun RendererRow(label: Int, renderer: Renderer?) {
+private fun RendererSegment(index: Int, label: Int, renderer: Renderer?) {
     val (icon, value) = when (renderer) {
         Renderer.Vulkan -> Tabler.Outline.CircleCheck to R.string.renderer_vulkan
         Renderer.OpenGL -> Tabler.Outline.CircleX to R.string.renderer_opengl
         Renderer.Unknown -> Tabler.Outline.HelpCircle to R.string.renderer_unknown
         null -> Tabler.Outline.Hourglass to R.string.home_value_checking
     }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(label))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(stringResource(value))
-        }
-    }
-}
-
-@Composable
-private fun WaitingCard(reason: WaitReason, onOpenDeveloperOptions: () -> Unit) {
-    val (title, text) = when (reason) {
-        WaitReason.Wifi -> R.string.home_waiting_wifi_title to R.string.home_waiting_wifi_text
-        WaitReason.TrustedNetwork -> R.string.home_waiting_network_title to R.string.home_waiting_network_text
-    }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Tabler.Outline.Hourglass, contentDescription = null)
-                Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
-            }
-            Text(stringResource(text))
-            if (reason == WaitReason.TrustedNetwork) {
-                TextButton(onClick = onOpenDeveloperOptions) {
-                    Text(stringResource(R.string.home_waiting_open_developer_options))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NextLockCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Tabler.Outline.Lock, contentDescription = null)
-                Text(stringResource(R.string.home_next_lock_title), style = MaterialTheme.typography.titleMedium)
-            }
-            Text(stringResource(R.string.home_next_lock_text))
-        }
-    }
-}
-
-@Composable
-private fun RunningCard(run: ApplyRunState.Running, onCancel: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    BurkanSegment(index = index, count = STATUS_SEGMENTS) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LoadingIndicator(modifier = Modifier.size(40.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(run.kind.label), style = MaterialTheme.typography.titleMedium)
-                Text(run.phase.label().text())
+            Text(stringResource(label), style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(stringResource(value))
             }
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.home_cancel_run)) }
+        }
+    }
+}
+
+/** Something the automatic apply is waiting for. It stands apart from the status in the scheme's secondary colour. */
+@Composable
+private fun Notice(icon: ImageVector, title: Int, text: Int, action: (@Composable () -> Unit)? = null) {
+    BurkanSegmentItem(
+        index = 0,
+        count = 1,
+        headline = stringResource(title),
+        supporting = stringResource(text),
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        verticalAlignment = Alignment.Top,
+        leading = { Icon(icon, contentDescription = null) },
+        content = action?.let { { it() } },
+    )
+}
+
+@Composable
+private fun WaitingNotice(reason: WaitReason, onOpenDeveloperOptions: () -> Unit) {
+    when (reason) {
+        WaitReason.Wifi ->
+            Notice(Tabler.Outline.Hourglass, R.string.home_waiting_wifi_title, R.string.home_waiting_wifi_text)
+        WaitReason.TrustedNetwork -> Notice(
+            Tabler.Outline.Hourglass,
+            R.string.home_waiting_network_title,
+            R.string.home_waiting_network_text,
+        ) {
+            TextButton(onClick = onOpenDeveloperOptions) {
+                Text(stringResource(R.string.home_waiting_open_developer_options))
+            }
         }
     }
 }
 
 @Composable
-private fun LastRun(run: RunLogEntry?, zone: ZoneId) {
+private fun NextLockNotice() {
+    Notice(Tabler.Outline.Lock, R.string.home_next_lock_title, R.string.home_next_lock_text)
+}
+
+@Composable
+private fun RunningSegment(run: ApplyRunState.Running, onCancel: () -> Unit) {
+    BurkanSegmentItem(
+        index = 0,
+        count = 1,
+        headline = stringResource(run.kind.label),
+        supporting = run.phase.label().text(),
+        leading = { LoadingIndicator(modifier = Modifier.size(40.dp)) },
+        trailing = { TextButton(onClick = onCancel) { Text(stringResource(R.string.home_cancel_run)) } },
+    )
+}
+
+/** The newest run, as the log shows it. It opens the log. */
+@Composable
+private fun LastRun(run: RunLogEntry?, zone: ZoneId, onOpenLog: () -> Unit) {
     Column {
-        Text(stringResource(R.string.home_last_run), style = MaterialTheme.typography.titleMedium)
+        BurkanSectionTitle(stringResource(R.string.home_last_run))
         if (run == null) {
-            Text(stringResource(R.string.home_no_runs))
-        } else {
-            Text(
-                stringResource(
-                    R.string.home_last_run_value,
-                    formatDateTime(run.startedAt, zone),
-                    stringResource(run.trigger.label),
-                    stringResource(run.result.label),
-                ),
+            BurkanSegmentItem(
+                index = 0,
+                count = 1,
+                headline = stringResource(R.string.home_no_runs),
+                leading = { Icon(Tabler.Outline.History, contentDescription = null) },
             )
-            run.error?.let { Text(stringResource(it.resource)) }
-            Text(durationText(run.duration))
+            return@Column
+        }
+        BurkanSegmentItem(
+            index = 0,
+            count = 1,
+            headline = stringResource(
+                R.string.log_run_title,
+                stringResource(run.kind.label),
+                stringResource(run.result.label),
+            ),
+            supporting = stringResource(
+                R.string.log_run_detail,
+                formatDateTime(run.startedAt, zone),
+                stringResource(run.trigger.label),
+                durationText(run.duration),
+            ),
+            onClick = onOpenLog,
+            leading = { RunResultIcon(failed = run.result == RunResult.Failed) },
+            trailing = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+        ) {
+            run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -411,6 +500,18 @@ private fun sample(
 private fun HomePreviewContent(state: HomeState) {
     HomeContent(state = state, zone = ZoneOffset.UTC, actions = HomeActions())
 }
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeRestartAllSheetPreview() =
+    RestartAllSheet(scope = RestartScope.All, onScope = {}, onConfirm = {}, onDismiss = {})
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeRestartAllSheetLimitedPreview() =
+    RestartAllSheet(scope = RestartScope.Recent50, onScope = {}, onConfirm = {}, onDismiss = {})
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

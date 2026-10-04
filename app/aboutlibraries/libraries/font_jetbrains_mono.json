@@ -1,0 +1,9 @@
+{
+  "uniqueId": "font.jetbrains_mono:jetbrains_mono",
+  "name": "JetBrains Mono (font)",
+  "description": "The JetBrains Mono typeface, which the log's steps are set in.",
+  "website": "https://fonts.google.com/specimen/JetBrains+Mono",
+  "licenses": [
+    "OFL-1.1"
+  ]
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- The exported run log: written to the cache, so Android clears it away by itself. -->
+    <cache-path name="logs" path="logs/" />
+</paths>

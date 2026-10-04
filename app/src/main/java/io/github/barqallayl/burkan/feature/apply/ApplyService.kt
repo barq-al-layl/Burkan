@@ -28,6 +28,7 @@ import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.RunOutcome
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
@@ -85,7 +86,10 @@ class ApplyService(
             else -> {
                 // A run started by hand replaces the wait for the lock; it restarts System UI itself.
                 lockWait?.cancel()
-                start(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual)
+                val scope = intent?.getStringExtra(EXTRA_SCOPE)
+                    ?.let { name -> RestartScope.entries.firstOrNull { it.name == name } }
+                    ?: RestartScope.All
+                start(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual, scope)
             }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
@@ -93,10 +97,10 @@ class ApplyService(
         return START_NOT_STICKY
     }
 
-    private fun start(kind: ApplyKind, trigger: RunTrigger) {
+    private fun start(kind: ApplyKind, trigger: RunTrigger, restartScope: RestartScope) {
         run = scope.launch {
             // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
-            execute(kind, trigger)?.let { autoApply.onRunFinished(trigger, it) }
+            execute(kind, trigger, restartScope)?.let { autoApply.onRunFinished(trigger, it) }
             if (autoApply.isWaitingForLock()) awaitLock()
         }.also { it.invokeOnCompletion { stopIfIdle() } }
     }
@@ -121,14 +125,18 @@ class ApplyService(
     }
 
     /** Runs the apply, with its progress in the notification. Null when another run held the app. */
-    private suspend fun execute(kind: ApplyKind, trigger: RunTrigger): RunOutcome? {
+    private suspend fun execute(
+        kind: ApplyKind,
+        trigger: RunTrigger,
+        restartScope: RestartScope = RestartScope.All,
+    ): RunOutcome? {
         val progress = scope.launch {
             controller.state.collect { state ->
                 if (state is ApplyRunState.Running) notifications.update(notifications.progress(kind, state))
             }
         }
         try {
-            return controller.run(kind, trigger)
+            return controller.run(kind, trigger, restartScope)
         } finally {
             withContext(NonCancellable) { progress.cancel() }
         }
@@ -170,6 +178,7 @@ class ApplyService(
 
     companion object {
         const val EXTRA_KIND = "kind"
+        const val EXTRA_SCOPE = "scope"
         const val ACTION_CANCEL = "io.github.barqallayl.burkan.action.CANCEL_RUN"
 
         /** The light apply after a restart, which skips itself when Vulkan is already in place. */
@@ -289,7 +298,8 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
 
 /** Starts and cancels runs. */
 interface ApplyLauncher {
-    fun start(kind: ApplyKind)
+    /** [scope] is how many apps a full apply restarts. */
+    fun start(kind: ApplyKind, scope: RestartScope = RestartScope.All)
 
     /** Waits for the next lock to restart System UI, if a run after a restart left it for then. */
     fun awaitLock()
@@ -307,9 +317,11 @@ interface ApplyLauncher {
 @ContributesBinding(AppScope::class)
 class ServiceApplyLauncher(private val application: Application) : ApplyLauncher {
 
-    override fun start(kind: ApplyKind) {
+    override fun start(kind: ApplyKind, scope: RestartScope) {
         application.startForegroundService(
-            Intent(application, ApplyService::class.java).putExtra(ApplyService.EXTRA_KIND, kind.name),
+            Intent(application, ApplyService::class.java)
+                .putExtra(ApplyService.EXTRA_KIND, kind.name)
+                .putExtra(ApplyService.EXTRA_SCOPE, scope.name),
         )
     }
 

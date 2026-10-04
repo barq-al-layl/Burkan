@@ -1,8 +1,15 @@
 package io.github.barqallayl.burkan.feature.settings.ui
 
 import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Moon
+import com.composables.icons.tabler.outline.Palette
+import com.composables.icons.tabler.outline.Sun
 import io.github.barqallayl.burkan.R
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -13,6 +20,13 @@ val ThemeMode.label: Int
         ThemeMode.FollowSystem -> R.string.theme_follow_system
         ThemeMode.Light -> R.string.theme_light
         ThemeMode.Dark -> R.string.theme_dark
+    }
+
+val ThemeMode.icon: ImageVector
+    get() = when (this) {
+        ThemeMode.FollowSystem -> Tabler.Outline.Palette
+        ThemeMode.Light -> Tabler.Outline.Sun
+        ThemeMode.Dark -> Tabler.Outline.Moon
     }
 
 @get:StringRes
@@ -40,11 +54,9 @@ val PaletteStyles.label: Int
         PaletteStyles.Monochrome -> R.string.palette_monochrome
         PaletteStyles.Fidelity -> R.string.palette_fidelity
         PaletteStyles.Content -> R.string.palette_content
+        PaletteStyles.Cmf -> R.string.palette_cmf
     }
 
-@get:StringRes
-val ColorSpecs.label: Int
-    get() = when (this) {
-        ColorSpecs.Spec2025 -> R.string.color_spec_2025
-        ColorSpecs.Spec2021 -> R.string.color_spec_2021
-    }
+/** A typeface is called by its own name; only the phone's own font needs words. */
+@Composable
+fun AppFont.label(): String = displayName ?: stringResource(R.string.font_system)

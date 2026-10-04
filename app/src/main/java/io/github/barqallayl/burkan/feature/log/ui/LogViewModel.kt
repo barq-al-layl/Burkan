@@ -7,15 +7,15 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
-import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
+import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 import kotlin.time.Instant
 
 /**
- * [runs] is null until the log has been read. [isUnreadable] says the stored log could not be read. A run is
+ * [runs] is null until the log has been read, which the store has usually done before the screen opens. [isUnreadable] says the stored log could not be read. A run is
  * identified by when it started.
  */
 @Immutable
@@ -35,12 +35,14 @@ sealed interface LogSideEffect {
 @ViewModelKey
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class LogViewModel(
-    private val runLog: RunLogStorage,
+    private val runLog: RunLogStore,
 ) : OrbitContainerHost<LogState, LogState, LogSideEffect>, ViewModel() {
 
-    override val container = orbitContainer<LogState, LogSideEffect>(LogState()) {
-        combine(runLog.runs, runLog.unreadable, ::Pair).collect { (runs, unreadable) ->
-            reduce { state.copy(runs = runs, isUnreadable = unreadable) }
+    override val container = orbitContainer<LogState, LogSideEffect>(
+        LogState(runs = runLog.log.value?.runs, isUnreadable = runLog.log.value?.isUnreadable == true),
+    ) {
+        runLog.log.filterNotNull().collect { log ->
+            reduce { state.copy(runs = log.runs, isUnreadable = log.isUnreadable) }
         }
     }
 

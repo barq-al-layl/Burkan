@@ -9,7 +9,10 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.AppError
-import io.github.barqallayl.burkan.feature.settings.data.LibraryCatalogue
+import arrow.core.Either
+import io.github.barqallayl.burkan.feature.settings.data.LibraryStore
+import io.github.barqallayl.burkan.feature.settings.model.SettingsError
+import kotlinx.coroutines.flow.filterNotNull
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
@@ -25,13 +28,15 @@ sealed interface LicencesSideEffect {
 @ViewModelKey
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class LicencesViewModel(
-    private val catalogue: LibraryCatalogue,
+    private val store: LibraryStore,
 ) : OrbitContainerHost<LicencesState, LicencesState, LicencesSideEffect>, ViewModel() {
 
-    override val container = orbitContainer<LicencesState, LicencesSideEffect>(LicencesState()) {
-        val read = catalogue.read()
-        reduce { state.copy(libraries = read.getOrNull(), error = read.leftOrNull()) }
+    override val container = orbitContainer<LicencesState, LicencesSideEffect>(store.libraries.value.toState()) {
+        store.load()
+        store.libraries.filterNotNull().collect { read -> reduce { read.toState() } }
     }
+
+    private fun Either<SettingsError, Libs>?.toState() = LicencesState(this?.getOrNull(), this?.leftOrNull())
 
     fun back() = intent { postSideEffect(LicencesSideEffect.Back) }
 }

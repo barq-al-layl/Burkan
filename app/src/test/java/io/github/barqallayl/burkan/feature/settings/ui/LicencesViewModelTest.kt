@@ -6,6 +6,7 @@ import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
 import io.github.barqallayl.burkan.awaitStateMatching
 import io.github.barqallayl.burkan.feature.settings.data.LibraryCatalogue
+import io.github.barqallayl.burkan.feature.settings.data.LibraryStore
 import io.github.barqallayl.burkan.feature.settings.model.SettingsError
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -36,7 +37,7 @@ class LicencesViewModelTest {
             override suspend fun read() = libraries.right()
         }
 
-        LicencesViewModel(catalogue).testWithInternalState(this) {
+        LicencesViewModel(LibraryStore(catalogue, backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
 
             assertEquals(libraries, awaitStateMatching { it.libraries != null }.libraries)
@@ -51,7 +52,7 @@ class LicencesViewModelTest {
             override suspend fun read() = SettingsError.LicencesUnreadable.left()
         }
 
-        LicencesViewModel(catalogue).testWithInternalState(this) {
+        LicencesViewModel(LibraryStore(catalogue, backgroundScope)).testWithInternalState(this) {
             val reading = runOnCreate()
 
             assertEquals(SettingsError.LicencesUnreadable, awaitStateMatching { it.error != null }.error)
@@ -66,7 +67,7 @@ class LicencesViewModelTest {
             override suspend fun read() = libraries.right()
         }
 
-        LicencesViewModel(catalogue).testWithInternalState(this) {
+        LicencesViewModel(LibraryStore(catalogue, backgroundScope)).testWithInternalState(this) {
             containerHost.back()
             expectSideEffect(LicencesSideEffect.Back)
         }

@@ -15,12 +15,14 @@ import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
-import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
+import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 import kotlin.time.Clock
@@ -44,6 +46,8 @@ data class HomeState(
     val run: ApplyRunState = ApplyRunState.Idle,
     val isConfirmingApply: Boolean = false,
     val isConfirmingFullApply: Boolean = false,
+    /** How many apps the full apply being confirmed restarts. Every app, each time, until the user picks fewer. */
+    val restartScope: RestartScope = RestartScope.All,
     /** What the automatic apply after a restart is waiting for, if anything. */
     val waitingFor: WaitReason? = null,
     /** The run after a restart left System UI for the next time the phone locks. */
@@ -63,16 +67,18 @@ class HomeViewModel(
     private val statusRepository: StatusRepository,
     private val controller: ApplyController,
     private val launcher: ApplyLauncher,
-    private val runLog: RunLogStorage,
+    private val runLog: RunLogStore,
     private val autoApply: AutoApplyStorage,
     private val clock: Clock,
 ) : OrbitContainerHost<HomeState, HomeState, HomeSideEffect>, ViewModel() {
 
-    override val container = orbitContainer<HomeState, HomeSideEffect>(HomeState()) {
+    override val container = orbitContainer<HomeState, HomeSideEffect>(
+        HomeState(lastRun = runLog.log.value?.runs?.firstOrNull()),
+    ) {
         var logRead = false
         var lockWaitArmed = false
-        combine(runLog.runs, controller.state, autoApply.state) { runs, run, auto ->
-            Triple(runs.firstOrNull(), run, auto)
+        combine(runLog.log.filterNotNull(), controller.state, autoApply.state) { log, run, auto ->
+            Triple(log.runs.firstOrNull(), run, auto)
         }.collect { (lastRun, run, auto) ->
             // Every run that ends adds to the log, so a new entry means a run has finished.
             val runFinished = logRead && lastRun != state.lastRun
@@ -127,11 +133,16 @@ class HomeViewModel(
 
     fun dismissApply() = intent { reduce { state.copy(isConfirmingApply = false) } }
 
-    fun requestRestartAll() = intent { reduce { state.copy(isConfirmingFullApply = true) } }
+    fun requestRestartAll() = intent {
+        reduce { state.copy(isConfirmingFullApply = true, restartScope = RestartScope.All) }
+    }
+
+    fun chooseRestartScope(scope: RestartScope) = intent { reduce { state.copy(restartScope = scope) } }
 
     fun confirmRestartAll() = intent {
+        val scope = state.restartScope
         reduce { state.copy(isConfirmingFullApply = false) }
-        launcher.start(ApplyKind.Full)
+        launcher.start(ApplyKind.Full, scope)
     }
 
     fun dismissRestartAll() = intent { reduce { state.copy(isConfirmingFullApply = false) } }

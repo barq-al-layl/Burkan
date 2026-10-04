@@ -8,17 +8,16 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -33,7 +32,6 @@ class DataStoreSettingsStorageTest {
     private val themeModeKey = stringPreferencesKey("theme_mode")
     private val seedColorKey = stringPreferencesKey("seed_color")
     private val paletteStyleKey = stringPreferencesKey("palette_style")
-    private val colorSpecKey = stringPreferencesKey("color_spec")
     private val textScaleKey = intPreferencesKey("text_scale_percent")
 
     @Test
@@ -43,7 +41,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(SettingsStorage.Defaults.themeMode, storage.themeMode.first())
         assertEquals(SettingsStorage.Defaults.seedColor, storage.seedColor.first())
         assertEquals(SettingsStorage.Defaults.paletteStyle, storage.paletteStyle.first())
-        assertEquals(SettingsStorage.Defaults.colorSpec, storage.colorSpec.first())
         assertEquals(SettingsStorage.Defaults.TEXT_SCALE_PERCENT, storage.textScalePercent.first())
     }
 
@@ -54,7 +51,6 @@ class DataStoreSettingsStorageTest {
             it[themeModeKey] = "Dark"
             it[seedColorKey] = "Teal"
             it[paletteStyleKey] = "Monochrome"
-            it[colorSpecKey] = "Spec2021"
             it[textScaleKey] = 115
         }
         val storage = DataStoreSettingsStorage(dataStore)
@@ -62,7 +58,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(ThemeMode.Dark, storage.themeMode.first())
         assertEquals(SeedColors.Teal, storage.seedColor.first())
         assertEquals(PaletteStyles.Monochrome, storage.paletteStyle.first())
-        assertEquals(ColorSpecs.Spec2021, storage.colorSpec.first())
         assertEquals(115, storage.textScalePercent.first())
     }
 
@@ -73,7 +68,6 @@ class DataStoreSettingsStorageTest {
             it[themeModeKey] = "Sepia"
             it[seedColorKey] = "dark"
             it[paletteStyleKey] = ""
-            it[colorSpecKey] = "SPEC_2025"
             it[textScaleKey] = 112
         }
         val storage = DataStoreSettingsStorage(dataStore)
@@ -81,7 +75,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(SettingsStorage.Defaults.themeMode, storage.themeMode.first())
         assertEquals(SettingsStorage.Defaults.seedColor, storage.seedColor.first())
         assertEquals(SettingsStorage.Defaults.paletteStyle, storage.paletteStyle.first())
-        assertEquals(SettingsStorage.Defaults.colorSpec, storage.colorSpec.first())
         assertEquals(SettingsStorage.Defaults.TEXT_SCALE_PERCENT, storage.textScalePercent.first())
     }
 
@@ -119,7 +112,6 @@ class DataStoreSettingsStorageTest {
         storage.setThemeMode(ThemeMode.Light)
         storage.setSeedColor(SeedColors.Purple)
         storage.setPaletteStyle(PaletteStyles.Rainbow)
-        storage.setColorSpec(ColorSpecs.Spec2021)
         storage.setTextScalePercent(125)
         storage.setApplyOnBoot(false)
         storage.setTurnOffWirelessDebugging(false)
@@ -128,7 +120,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(ThemeMode.Light, storage.themeMode.first())
         assertEquals(SeedColors.Purple, storage.seedColor.first())
         assertEquals(PaletteStyles.Rainbow, storage.paletteStyle.first())
-        assertEquals(ColorSpecs.Spec2021, storage.colorSpec.first())
         assertEquals(125, storage.textScalePercent.first())
         assertFalse(storage.applyOnBoot.first())
         assertFalse(storage.turnOffWirelessDebugging.first())

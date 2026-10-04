@@ -214,6 +214,28 @@ class ApplyPlanTest {
         assertTrue(plan.restartSystemUi)
     }
 
+    @Test
+    fun `a limit restarts that many of the most recent apps, and reopens only those`() {
+        val plan = fullPlan(
+            installed = names("com.a", "com.b", "com.c", "com.d", "com.keep"),
+            running = names("com.a", "com.c", "com.d").toSet(),
+            userExclusions = names("com.keep").toSet(),
+            recent = names("com.d", "com.keep", "com.gone", "com.b", "com.d", "com.a"),
+            limit = 2,
+        )
+
+        // In order of use; an excluded app and an uninstalled one do not use up the limit.
+        assertEquals(names("com.d", "com.b"), stopped(plan))
+        assertEquals(StepKind.RelaunchApps(1), plan.steps.single { it.kind is StepKind.RelaunchApps }.kind)
+    }
+
+    @Test
+    fun `a limit larger than what was used restarts only what was used`() {
+        val plan = fullPlan(installed = names("com.a", "com.b", "com.c"), recent = names("com.b"), limit = 50)
+
+        assertEquals(names("com.b"), stopped(plan))
+    }
+
     private fun fullPlan(
         installed: List<PackageName>,
         inputMethods: Set<PackageName> = emptySet(),
@@ -224,11 +246,15 @@ class ApplyPlanTest {
         captured: Map<RestoredSetting, String?> = emptyMap(),
         userExclusions: Set<PackageName> = emptySet(),
         before: RendererStatus = RendererStatus(OpenGL, OpenGL, OpenGL, OpenGL),
+        recent: List<PackageName>? = null,
+        limit: Int? = null,
     ): ApplyPlan = FullApplyPlan.create(
         inputs = FullApplyInputs(installed, inputMethods, wallpaper, running, widgets, keyboard, captured),
         userExclusions = userExclusions,
         self = FixtureDevice.Self,
         before = Surfaces(before, FixtureDevice.Launcher, keyboard),
+        recent = recent,
+        limit = limit,
     )
 
     private fun surfaces(

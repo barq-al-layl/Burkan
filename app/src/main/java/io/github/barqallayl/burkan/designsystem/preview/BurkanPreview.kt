@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.ProvideTextScale
 import io.github.barqallayl.burkan.designsystem.SeedColors
@@ -37,7 +37,7 @@ fun BurkanPreviewTheme(
     themeMode: ThemeMode = SettingsStorage.Defaults.themeMode,
     seedColor: SeedColors = SettingsStorage.Defaults.seedColor,
     paletteStyle: PaletteStyles = SettingsStorage.Defaults.paletteStyle,
-    colorSpec: ColorSpecs = SettingsStorage.Defaults.colorSpec,
+    appFont: AppFont = SettingsStorage.Defaults.appFont,
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     content: @Composable () -> Unit,
 ) {
@@ -46,7 +46,7 @@ fun BurkanPreviewTheme(
             isDarkTheme = themeMode.isDark(),
             seedColor = seedColor.color,
             paletteStyle = paletteStyle.style,
-            specVersion = colorSpec.version,
+            appFont = appFont,
         ) {
             Surface(content = content)
         }

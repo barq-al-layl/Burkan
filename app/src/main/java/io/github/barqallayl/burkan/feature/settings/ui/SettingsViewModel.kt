@@ -12,13 +12,15 @@ import io.github.barqallayl.burkan.Appearance
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
-import io.github.barqallayl.burkan.designsystem.ColorSpecs
+import io.github.barqallayl.burkan.core.store.SettingsStore
+import io.github.barqallayl.burkan.core.store.UserSettings
+import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.settings.model.About
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
@@ -30,16 +32,17 @@ data class SettingsValues(
     val appearance: Appearance,
 )
 
-/** The dialogs Settings can show; one at a time. */
+/** The sheets and the dialog Settings can show; one at a time. */
 enum class SettingsDialog {
     ThemeMode,
     SeedColor,
     PaletteStyle,
-    ColorSpec,
+    Font,
+    TextSize,
     RedoSetup,
 }
 
-/** [values] is null until the settings have been read. */
+/** [values] is null until the settings have been read, which the store has usually done before the screen opens. */
 @Immutable
 data class SettingsState(
     val values: SettingsValues? = null,
@@ -59,29 +62,20 @@ sealed interface SettingsSideEffect {
 @ContributesIntoMap(AppScope::class, binding = binding<ViewModel>())
 class SettingsViewModel(
     private val settings: SettingsStorage,
+    private val store: SettingsStore,
     private val deviceState: DeviceStateStorage,
     private val autoApply: AutoApply,
     @Named(AppBindings.APP_VERSION) version: String,
 ) : OrbitContainerHost<SettingsState, SettingsState, SettingsSideEffect>, ViewModel() {
 
-    override val container = orbitContainer<SettingsState, SettingsSideEffect>(SettingsState(version = version)) {
-        val appearance = combine(
-            settings.themeMode,
-            settings.seedColor,
-            settings.paletteStyle,
-            settings.colorSpec,
-            settings.textScalePercent,
-            ::Appearance,
-        )
-        combine(
-            settings.applyOnBoot,
-            settings.turnOffWirelessDebugging,
-            settings.userExclusions,
-            appearance,
-        ) { applyOnBoot, turnOff, exclusions, look ->
-            SettingsValues(applyOnBoot, turnOff, exclusions.size, look)
-        }.collect { values -> reduce { state.copy(values = values) } }
+    override val container = orbitContainer<SettingsState, SettingsSideEffect>(
+        SettingsState(values = store.settings.value?.toValues(), version = version),
+    ) {
+        store.settings.filterNotNull().collect { settings -> reduce { state.copy(values = settings.toValues()) } }
     }
+
+    private fun UserSettings.toValues() =
+        SettingsValues(applyOnBoot, turnOffWirelessDebugging, exclusions.size, appearance)
 
     fun setApplyOnBoot(enabled: Boolean) = intent {
         settings.setApplyOnBoot(enabled)
@@ -97,27 +91,21 @@ class SettingsViewModel(
 
     fun dismissDialog() = intent { reduce { state.copy(dialog = null) } }
 
-    fun setThemeMode(mode: ThemeMode) = intent {
-        reduce { state.copy(dialog = null) }
-        settings.setThemeMode(mode)
-    }
+    // The appearance sheets stay open after a choice: the app changes behind them, so the choice can be compared.
 
-    fun setSeedColor(color: SeedColors) = intent {
-        reduce { state.copy(dialog = null) }
-        settings.setSeedColor(color)
-    }
+    fun setThemeMode(mode: ThemeMode) = intent { settings.setThemeMode(mode) }
 
-    fun setPaletteStyle(style: PaletteStyles) = intent {
-        reduce { state.copy(dialog = null) }
-        settings.setPaletteStyle(style)
-    }
+    fun setSeedColor(color: SeedColors) = intent { settings.setSeedColor(color) }
 
-    fun setColorSpec(spec: ColorSpecs) = intent {
-        reduce { state.copy(dialog = null) }
-        settings.setColorSpec(spec)
-    }
+    fun setPaletteStyle(style: PaletteStyles) = intent { settings.setPaletteStyle(style) }
 
-    fun setTextScalePercent(percent: Int) = intent { settings.setTextScalePercent(percent) }
+    fun setAppFont(font: AppFont) = intent { settings.setAppFont(font) }
+
+    /** The text size is chosen on a sample and saved from its sheet, which then closes. */
+    fun setTextScalePercent(percent: Int) = intent {
+        reduce { state.copy(dialog = null) }
+        settings.setTextScalePercent(percent)
+    }
 
     /** Forgets the pairing and leaves setup unfinished; `App.kt` then shows Setup. */
     fun confirmRedoSetup() = intent {

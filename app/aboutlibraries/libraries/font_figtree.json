@@ -1,0 +1,9 @@
+{
+  "uniqueId": "font.figtree:figtree",
+  "name": "Figtree (font)",
+  "description": "The Figtree typeface, one of the fonts the app can be set in.",
+  "website": "https://fonts.google.com/specimen/Figtree",
+  "licenses": [
+    "OFL-1.1"
+  ]
+}

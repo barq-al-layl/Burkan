@@ -1,14 +1,17 @@
 package io.github.barqallayl.burkan.feature.apply
 
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.BootCount
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
+import io.github.barqallayl.burkan.feature.apply.data.RecentApps
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.SystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.WifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +19,7 @@ import kotlin.time.Instant
 
 class FakeApplyLauncher : ApplyLauncher {
     val started = mutableListOf<ApplyKind>()
+    val scopes = mutableListOf<RestartScope>()
     var automaticStarts = 0
     var lockWaits = 0
     var cancels = 0
@@ -23,8 +27,9 @@ class FakeApplyLauncher : ApplyLauncher {
     /** False plays Android refusing a foreground service started from the background. */
     var backgroundStartAllowed = true
 
-    override fun start(kind: ApplyKind) {
+    override fun start(kind: ApplyKind, scope: RestartScope) {
         started += kind
+        scopes += scope
     }
 
     override fun awaitLock() {
@@ -90,6 +95,13 @@ class FakeRunAlerts : RunAlerts {
 }
 
 /** The phone locks when a test says so, and stays locked until [locked] is set back to false: the user unlocked. */
+/** Usage access as the phone would have it: refused until [allowed], then [recent], most recent first. */
+class FakeRecentApps(var allowed: Boolean = false, var recent: List<PackageName> = emptyList()) : RecentApps {
+    override fun isAllowed(): Boolean = allowed
+
+    override suspend fun byRecency(): List<PackageName> = if (allowed) recent else emptyList()
+}
+
 class FakeLockEvents : LockEvents {
     private val mutableLocks = MutableSharedFlow<Unit>()
     override val locks: Flow<Unit> = mutableLocks

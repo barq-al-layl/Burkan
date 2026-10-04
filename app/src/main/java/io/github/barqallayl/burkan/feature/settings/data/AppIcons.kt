@@ -16,6 +16,9 @@ import kotlinx.coroutines.withContext
 
 /** App icons, loaded one at a time as rows come into view: a few hundred at once would not fit in memory. */
 interface AppIcons {
+    /** The icon of [packageName] if it has been loaded lately, so a row can draw it in its first frame. */
+    fun cached(packageName: PackageName): ImageBitmap?
+
     /** The icon of [packageName], or null when it is not installed. */
     suspend fun icon(packageName: PackageName): ImageBitmap?
 }
@@ -29,6 +32,8 @@ class PackageManagerAppIcons(private val application: Application) : AppIcons {
 
     /** The size a list row draws them at, in pixels. */
     private val size: Int get() = (ICON_DP * application.resources.displayMetrics.density).toInt()
+
+    override fun cached(packageName: PackageName): ImageBitmap? = cache[packageName]
 
     override suspend fun icon(packageName: PackageName): ImageBitmap? = cache[packageName]
         ?: withContext(Dispatchers.IO) {

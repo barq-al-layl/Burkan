@@ -23,6 +23,10 @@
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Allowed to the app over its own adb connection, the first time a run is limited to the most recent apps. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".BurkanApplication"
@@ -35,6 +39,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Burkan"
         tools:replace="android:appComponentFactory">
+        <!-- Hands the exported log file to the app the user shares it with. Nothing else is reachable through it. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.settings.data
 
 import android.app.Application
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import arrow.core.Either
 import arrow.core.left
@@ -44,8 +45,9 @@ class PackageManagerInstalledApps(private val application: Application) : Instal
         activities
             .filter { it.activityInfo.packageName != application.packageName }
             .mapNotNull { info ->
+                val isSystem = info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
                 PackageName.parse(info.activityInfo.packageName)
-                    ?.let { ExcludableApp(it, info.loadLabel(packageManager).toString()) }
+                    ?.let { ExcludableApp(it, info.loadLabel(packageManager).toString(), isSystem) }
             }
             .distinctBy { it.packageName }
             .right()

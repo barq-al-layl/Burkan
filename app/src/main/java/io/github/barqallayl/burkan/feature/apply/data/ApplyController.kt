@@ -1,7 +1,9 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import arrow.core.Either
 import arrow.core.flatten
 import arrow.core.raise.either
+import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
@@ -13,8 +15,12 @@ import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.RendererReader
+import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
+import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
@@ -23,6 +29,7 @@ import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +37,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -76,6 +82,7 @@ class ApplyController(
     private val settings: SettingsStorage,
     private val cooldown: SystemUiCooldown,
     private val lockEvents: LockEvents,
+    private val recentApps: RecentApps,
     private val clock: Clock,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) {
@@ -93,12 +100,14 @@ class ApplyController(
      * Returns how the run ended, or null without running when another run is in progress. A light apply restarts only
      * the surfaces not on Vulkan yet, and changes nothing when all of them are.
      *
+     * [scope] says how many apps a full apply restarts; a light apply restarts none, whatever it is.
+     *
      * The [trigger] decides System UI. After a restart ([RunTrigger.Boot]) it is left alone, and the outcome says so:
      * the user has just unlocked. At the lock ([RunTrigger.AtLock]) the run connects only once adbd has had
      * [ADBD_SETTLE] to restart, reads no more than System UI needs, and crashes System UI only if the phone is still
      * locked just before; otherwise it is left for the next lock again.
      */
-    suspend fun run(kind: ApplyKind, trigger: RunTrigger): RunOutcome? {
+    suspend fun run(kind: ApplyKind, trigger: RunTrigger, scope: RestartScope = RestartScope.All): RunOutcome? {
         if (!running.compareAndSet(false, true)) return null
         val deferSystemUi = trigger == RunTrigger.Boot
         val atLock = trigger == RunTrigger.AtLock
@@ -123,12 +132,17 @@ class ApplyController(
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
-                        ApplyKind.Full -> FullApplyPlan.create(
-                            inputs = ApplyInputsReader(shell).readFull().bind(),
-                            userExclusions = settings.userExclusions.first(),
-                            self = ownPackage,
-                            before = before,
-                        )
+                        ApplyKind.Full -> {
+                            val limit = scope.limit
+                            FullApplyPlan.create(
+                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                userExclusions = settings.userExclusions.first(),
+                                self = ownPackage,
+                                before = before,
+                                recent = if (limit == null) null else readRecentApps(shell).bind(),
+                                limit = limit,
+                            )
+                        }
                     }
                     systemUiDeferred = deferSystemUi && before.status.systemUi != Renderer.Vulkan
                     if (kind == ApplyKind.Light && plan.changesNothing && !systemUiDeferred) {
@@ -179,6 +193,20 @@ class ApplyController(
                 )
             }
         }
+    }
+
+    /**
+     * The apps used lately, most recent first. Android answers that only to an app allowed to ask, which Burkan allows
+     * itself over the connection the first time it needs to.
+     */
+    private suspend fun readRecentApps(shell: ShellExecutor): Either<AppError, List<PackageName>> = either {
+        if (!recentApps.isAllowed()) {
+            val allowed = shell.run(ShellCommands.allowUsageAccess(ownPackage)).bind()
+            ensure(allowed.exitCode == 0) { ApplyError.CommandFailed(allowed.exitCode, allowed.stderr) }
+        }
+        val recent = recentApps.byRecency()
+        ensure(recent.isNotEmpty()) { ApplyError.RecentAppsUnknown }
+        recent
     }
 
     companion object {

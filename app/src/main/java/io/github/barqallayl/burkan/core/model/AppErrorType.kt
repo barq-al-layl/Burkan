@@ -27,6 +27,7 @@ enum class AppErrorType(@StringRes val resource: Int) {
     GrantFailed(R.string.error_grant_failed),
     CommandFailed(R.string.error_command_failed),
     NoPackagesListed(R.string.error_no_packages_listed),
+    RecentAppsUnknown(R.string.error_recent_apps_unknown),
     SettingNotRestored(R.string.error_setting_not_restored),
     SystemUiRestartedRecently(R.string.error_system_ui_restarted_recently),
     SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
@@ -53,6 +54,7 @@ fun AppError.type(): AppErrorType = when (this) {
     SetupError.GrantFailed -> AppErrorType.GrantFailed
     is ApplyError.CommandFailed -> AppErrorType.CommandFailed
     ApplyError.NoPackagesListed -> AppErrorType.NoPackagesListed
+    ApplyError.RecentAppsUnknown -> AppErrorType.RecentAppsUnknown
     is ApplyError.SettingNotRestored -> AppErrorType.SettingNotRestored
     ApplyError.SystemUiRestartedRecently -> AppErrorType.SystemUiRestartedRecently
     ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan

@@ -37,6 +37,8 @@
     <string name="settings_turn_off_wireless_debugging">Turn wireless debugging off after applying</string>
     <string name="settings_turn_off_wireless_debugging_text">Only when Burkan was the one that switched it on.</string>
     <string name="settings_exclusions">Never restart these apps</string>
+    <string name="restart_scope_all">Every app</string>
+    <string name="restart_scope_recent">The %1$d most recent</string>
     <string name="settings_exclusions_none">None chosen. Restart all apps restarts every app it can.</string>
     <plurals name="settings_exclusions_count">
         <item quantity="one">%d app is kept running</item>
@@ -46,8 +48,12 @@
     <string name="settings_theme">Dark theme</string>
     <string name="settings_seed_color">Colour</string>
     <string name="settings_palette_style">Palette style</string>
-    <string name="settings_color_spec">Colour spec</string>
-    <string name="settings_text_size">Text size: %1$d%%</string>
+    <string name="settings_font">Font</string>
+    <string name="font_system">System default</string>
+    <string name="settings_text_size">Text size</string>
+    <string name="text_size_default">Default</string>
+    <string name="text_size_percent">%1$d%%</string>
+    <string name="text_size_reset">Reset</string>
     <string name="settings_section_setup">Setup</string>
     <string name="settings_redo_setup">Redo setup</string>
     <string name="settings_redo_setup_text">Forget the pairing and go through setup again.</string>
@@ -65,6 +71,7 @@
     <string name="licences_empty_text">This build of Burkan carries no list of the libraries it is built with. The source code lists them.</string>
     <string name="licences_failed_title">Licences could not be shown</string>
     <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_save">Save</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
@@ -85,10 +92,18 @@
     <string name="palette_monochrome">Monochrome</string>
     <string name="palette_fidelity">Fidelity</string>
     <string name="palette_content">Content</string>
-    <string name="color_spec_2025">2025</string>
-    <string name="color_spec_2021">2021</string>
+    <string name="palette_cmf">CMF</string>
     <string name="exclusions_title">Never restart these apps</string>
     <string name="exclusions_text">Restart all apps leaves the apps ticked here running. Apply now never restarts other apps.</string>
+    <string name="exclusions_search">Search apps</string>
+    <string name="exclusions_search_clear">Clear search</string>
+    <string name="exclusions_filter_all">All</string>
+    <string name="exclusions_filter_selected">Selected</string>
+    <string name="exclusions_filter_user">Your apps</string>
+    <string name="exclusions_filter_system">System apps</string>
+    <string name="exclusions_none_in_filter_text">No app is in this filter.</string>
+    <string name="exclusions_none_found_title">No app found</string>
+    <string name="exclusions_none_found_text">Nothing matches “%1$s”.</string>
     <string name="exclusions_loading">Listing installed apps…</string>
     <string name="exclusions_not_installed">Not installed</string>
     <string name="exclusions_empty_title">No apps to choose from</string>
@@ -115,6 +130,7 @@
     <string name="error_grant_failed">Burkan could not give itself the permission it needs. Try again.</string>
     <string name="error_command_failed">A command on the phone reported a failure.</string>
     <string name="error_no_packages_listed">The phone did not list its apps, so nothing was restarted.</string>
+    <string name="error_recent_apps_unknown">Android did not say which apps were used recently, so nothing was restarted. Try again, or restart every app.</string>
     <string name="error_setting_not_restored">The setting did not read back as it was. Check it in Settings.</string>
     <string name="error_system_ui_restarted_recently">System UI was restarted less than a minute ago, so it was left alone: restarting it again so soon makes One UI switch off its customisation add-ons. Try again in a minute.</string>
     <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
@@ -209,7 +225,6 @@
     <string name="home_row_launcher">Launcher</string>
     <string name="home_row_keyboard">Keyboard</string>
     <string name="home_last_run">Last run</string>
-    <string name="home_last_run_value">%1$s · %2$s · %3$s</string>
     <string name="home_no_runs">No runs yet.</string>
     <string name="home_apply_now">Apply now</string>
     <string name="home_restart_all">Restart all apps</string>
@@ -220,7 +235,9 @@
     <string name="home_confirm_apply_action">Apply</string>
     <string name="home_confirm_title">Restart all apps?</string>
     <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. At the end the screen locks for a moment while System UI restarts. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
-    <string name="home_confirm_action">Restart all apps</string>
+    <string name="home_confirm_action">Restart</string>
+    <string name="home_confirm_scope">Apps to restart</string>
+    <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts.</string>
     <string name="home_confirm_dismiss">Not now</string>
 
     <string name="log_share">Share</string>
@@ -233,4 +250,8 @@
     <string name="log_run_detail">%1$s · %2$s · %3$s</string>
     <string name="log_share_chooser">Share the log</string>
     <string name="log_share_subject">Burkan log</string>
+    <string name="log_file_title">Burkan %1$s run log</string>
+    <string name="log_file_device">Device: %1$s, Android %2$s</string>
+    <string name="log_file_exported">Exported: %1$s</string>
+    <string name="log_file_runs">Runs: %1$d, newest first</string>
 </resources>

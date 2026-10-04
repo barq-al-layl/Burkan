@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.setup.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -15,12 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,6 +51,12 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
+import io.github.barqallayl.burkan.designsystem.component.GroupGap
+import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
+import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
+import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -83,7 +88,12 @@ fun SetupScreen() {
             SetupSideEffect.OpenAboutPhone -> context.openSettings(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS))
             SetupSideEffect.OpenDeveloperOptions ->
                 context.openSettings(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-            SetupSideEffect.RequestBatteryExemption -> context.openSettings(batteryExemptionIntent(context))
+            // A dialog over this screen rather than a screen of Settings, so it stays in the app's own window.
+            SetupSideEffect.RequestBatteryExemption -> try {
+                context.startActivity(batteryExemptionIntent(context))
+            } catch (_: ActivityNotFoundException) {
+                context.openSettings(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            }
         }
     }
     SetupContent(state = state, onAction = viewModel::onAction, onSkipBattery = viewModel::skipBattery)
@@ -97,33 +107,38 @@ private fun batteryExemptionIntent(context: Context): Intent =
 @Composable
 private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSkipBattery: () -> Unit) {
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.setup_title)) }) }) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding,
+        val done = state.done
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = ScreenMargin)
+                .padding(bottom = GroupGap),
+            verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            if (state.isUntestedModel) {
-                item { UntestedModelNotice() }
-            }
-            val done = state.done
+            if (state.isUntestedModel) UntestedModelNotice()
             if (done == null) {
-                item {
-                    Box(Modifier.fillParentMaxWidth().fillParentMaxHeight(0.5f), contentAlignment = Alignment.Center) {
-                        LoadingIndicator()
-                    }
+                Box(Modifier.fillMaxWidth().padding(vertical = 96.dp), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
                 }
             } else {
-                items(SetupStep.entries) { step ->
-                    StepItem(
-                        step = step,
-                        status = when (step) {
-                            in done -> StepStatus.Done
-                            state.current -> StepStatus.Current
-                            else -> StepStatus.Waiting
-                        },
-                        state = state,
-                        onAction = { onAction(step) },
-                        onSkipBattery = onSkipBattery,
-                    )
+                // The steps are one group: the checklist the user works down.
+                SegmentedColumn {
+                    SetupStep.entries.forEachIndexed { index, step ->
+                        StepItem(
+                            index = index,
+                            step = step,
+                            status = when (step) {
+                                in done -> StepStatus.Done
+                                state.current -> StepStatus.Current
+                                else -> StepStatus.Waiting
+                            },
+                            state = state,
+                            onAction = { onAction(step) },
+                            onSkipBattery = onSkipBattery,
+                        )
+                    }
                 }
             }
         }
@@ -134,10 +149,10 @@ private enum class StepStatus { Done, Current, Waiting }
 
 @Composable
 private fun UntestedModelNotice() {
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    BurkanSegment(index = 0, count = 1, containerColor = MaterialTheme.colorScheme.secondaryContainer) {
         Row(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Tabler.Outline.InfoCircle, contentDescription = null)
@@ -146,25 +161,26 @@ private fun UntestedModelNotice() {
     }
 }
 
+/** The current step stands out in the scheme's primary colour and carries its instructions and action. */
 @Composable
 private fun StepItem(
+    index: Int,
     step: SetupStep,
     status: StepStatus,
     state: SetupState,
     onAction: () -> Unit,
     onSkipBattery: () -> Unit,
 ) {
-    ListItem(
-        leadingContent = { StatusIcon(status) },
-        supportingContent = if (status == StepStatus.Current) {
-            { CurrentStepDetail(step, state, onAction, onSkipBattery) }
-        } else {
-            null
-        },
+    val isCurrent = status == StepStatus.Current
+    BurkanSegmentItem(
+        index = index,
+        count = SetupStep.entries.size,
+        headline = stringResource(step.title),
+        containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else segmentContainerColor,
         verticalAlignment = Alignment.Top,
-    ) {
-        Text(stringResource(step.title))
-    }
+        leading = { StatusIcon(status) },
+        content = if (isCurrent) ({ CurrentStepDetail(step, state, onAction, onSkipBattery) }) else null,
+    )
 }
 
 @Composable

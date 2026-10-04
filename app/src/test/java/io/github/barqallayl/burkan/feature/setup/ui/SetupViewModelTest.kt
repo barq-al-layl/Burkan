@@ -4,6 +4,8 @@ import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbDiscovery
@@ -16,6 +18,7 @@ import io.github.barqallayl.burkan.feature.setup.data.SetupChecks
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.orbitmvi.orbit.test.Item
@@ -40,8 +43,16 @@ class SetupViewModelTest {
     private val ownPackage = PackageName.known("io.github.barqallayl.burkan")
     private val grant = ShellCommands.grantWriteSecureSettings(ownPackage)
 
-    private fun viewModel() =
-        SetupViewModel(checks, wirelessDebugging, deviceState, pairing, launcher, shellAccess, ownPackage)
+    private fun TestScope.viewModel() = SetupViewModel(
+        checks,
+        wirelessDebugging,
+        deviceState,
+        SettingsStore(FakeSettingsStorage(), deviceState, backgroundScope),
+        pairing,
+        launcher,
+        shellAccess,
+        ownPackage,
+    )
 
     /** Everything up to pairing done, so the next step is Connect. */
     private fun readyToConnect() {

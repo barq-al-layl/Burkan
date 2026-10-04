@@ -52,6 +52,10 @@ object ShellCommands {
     fun grantWriteSecureSettings(packageName: PackageName): ShellCommand =
         ShellCommand("pm grant $packageName android.permission.WRITE_SECURE_SETTINGS", ShortTimeout)
 
+    /** Lets [packageName] ask Android when each app was last used. Survives restarts; cleared when it is uninstalled. */
+    fun allowUsageAccess(packageName: PackageName): ShellCommand =
+        ShellCommand("appops set $packageName GET_USAGE_STATS allow", ShortTimeout)
+
     fun setVulkanRenderer(): ShellCommand = ShellCommand("setprop debug.hwui.renderer skiavk", ShortTimeout)
 
     /**
