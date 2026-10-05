@@ -59,24 +59,49 @@ fun TextSizeSheet(savedPercent: Int, onSave: (Int) -> Unit, onCancel: () -> Unit
     var pending by remember(savedPercent) { mutableIntStateOf(savedPercent) }
     val steps = remember { TextScale.percentages.toList() }
     val label = textSizeLabel(pending)
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenMargin), verticalArrangement = Arrangement.spacedBy(GroupGap)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ScreenMargin),
+        verticalArrangement = Arrangement.spacedBy(GroupGap),
+    ) {
         // The size as a number beside the title: it is the one thing the slider changes.
         BurkanSheetHeader(
             stringResource(R.string.settings_text_size),
             modifier = Modifier.padding(horizontal = 8.dp),
-            trailing = { BurkanPill(stringResource(R.string.text_size_percent, pending), tone = Tone.Good) },
+            trailing = {
+                BurkanPill(
+                    stringResource(R.string.text_size_percent, pending),
+                    tone = Tone.Good,
+                )
+            },
         )
         BurkanSegment(index = 0, count = 1) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 4.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 12.dp, bottom = 4.dp),
+            ) {
                 // A small letter and a large one at the ends: which way is which, without reading the numbers.
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(SAMPLE_LETTER, style = MaterialTheme.typography.bodySmall, modifier = Modifier.clearAndSetSemantics { })
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        SAMPLE_LETTER,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.clearAndSetSemantics { },
+                    )
                     Slider(
                         value = steps.indexOf(pending).toFloat(),
-                        onValueChange = { pending = steps[it.roundToInt().coerceIn(steps.indices)] },
+                        onValueChange = {
+                            pending = steps[it.roundToInt().coerceIn(steps.indices)]
+                        },
                         valueRange = 0f..steps.lastIndex.toFloat(),
                         steps = steps.size - 2,
-                        modifier = Modifier.weight(1f).semantics { stateDescription = label },
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { stateDescription = label },
                     )
                     Text(
                         SAMPLE_LETTER,
@@ -139,7 +164,11 @@ private fun TextSizeSample(percent: Int, savedPercent: Int) {
         Box(modifier = Modifier.padding(16.dp)) {
             // Laid out for its height only: never drawn, never read by a screen reader.
             ProvideSampleScale(TextScale.percentages.last, savedPercent) {
-                TextSizeSampleLines(modifier = Modifier.alpha(0f).clearAndSetSemantics { })
+                TextSizeSampleLines(
+                    modifier = Modifier
+                        .alpha(0f)
+                        .clearAndSetSemantics { },
+                )
             }
             ProvideSampleScale(percent, savedPercent) { TextSizeSampleLines() }
         }
@@ -164,7 +193,10 @@ private fun TextSizeSampleLines(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary,
         )
-        Text(stringResource(R.string.settings_apply_on_boot), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.settings_apply_on_boot),
+            style = MaterialTheme.typography.titleMedium,
+        )
         Text(
             stringResource(R.string.settings_apply_on_boot_text),
             style = MaterialTheme.typography.bodyMedium,
@@ -175,17 +207,22 @@ private fun TextSizeSampleLines(modifier: Modifier = Modifier) {
 
 /** "Default" at the default size, the percentage otherwise. */
 @Composable
-fun textSizeLabel(percent: Int): String = if (percent == SettingsStorage.Defaults.TEXT_SCALE_PERCENT) {
-    stringResource(R.string.text_size_default)
-} else {
-    stringResource(R.string.text_size_percent, percent)
-}
+fun textSizeLabel(percent: Int): String =
+    if (percent == SettingsStorage.Defaults.TEXT_SCALE_PERCENT) {
+        stringResource(R.string.text_size_default)
+    } else {
+        stringResource(R.string.text_size_percent, percent)
+    }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun TextSizeSheetPreview() =
-    TextSizeSheet(savedPercent = SettingsStorage.Defaults.TEXT_SCALE_PERCENT, onSave = {}, onCancel = {})
+    TextSizeSheet(
+        savedPercent = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
+        onSave = {},
+        onCancel = {},
+    )
 
 @BurkanPreview
 @Composable
