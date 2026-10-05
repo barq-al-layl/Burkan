@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.core.storage
 
+import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -56,7 +57,10 @@ interface SettingsStorage {
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
     suspend fun setUserExclusions(packages: Set<PackageName>)
 
-    /** What a fresh install gets, and what previews render with. */
+    /**
+     * What a fresh install gets, and what previews render with. The style is the exception: a Samsung phone starts
+     * in One UI, which the storage decides from the phone it is on, and [appStyle] is what any other gets.
+     */
     object Defaults {
         val appStyle: AppStyle = AppStyle.Material
         val themeMode: ThemeMode = ThemeMode.FollowSystem
@@ -80,7 +84,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     }
 
     override val appStyle: Flow<AppStyle> =
-        read { it.enumValue(Keys.appStyle) ?: SettingsStorage.Defaults.appStyle }
+        read { it.enumValue(Keys.appStyle) ?: AppStyle.defaultFor(Build.MANUFACTURER) }
 
     override val themeMode: Flow<ThemeMode> =
         read { it.enumValue(Keys.themeMode) ?: SettingsStorage.Defaults.themeMode }

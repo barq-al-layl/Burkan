@@ -33,6 +33,18 @@ fun ThemeMode.isDark(): Boolean = when (this) {
 enum class AppStyle {
     Material,
     OneUi,
+    ;
+
+    companion object {
+        /**
+         * The style a phone gets until its user chooses one: One UI on a Samsung, where it sits beside the phone's
+         * own apps, and Material anywhere else. [manufacturer] is the phone's own name for its maker.
+         */
+        fun defaultFor(manufacturer: String?): AppStyle =
+            if (manufacturer.equals(SAMSUNG, ignoreCase = true)) OneUi else Material
+
+        private const val SAMSUNG = "samsung"
+    }
 }
 
 /** The style the shared components draw themselves in. The theme provides it. */
