@@ -242,14 +242,14 @@
     <string name="home_headline_unknown">Unknown — cannot connect</string>
     <string name="home_checking">Checking…</string>
     <string name="home_value_checking">Checking</string>
-    <string name="home_headline_changing">Being changed</string>
-    <string name="home_changing_note">These were read before the run started. They are read again when it ends.</string>
-    <string name="home_open_apps_note">Apps that were already open stay on OpenGL until they restart. Restart all apps to switch them too.</string>
+    <string name="home_open_apps_note">Apps that were already open stay on OpenGL until they restart.</string>
     <string name="home_row_new_apps">New apps</string>
     <string name="home_row_system_ui">System UI</string>
     <string name="home_row_launcher">Launcher</string>
     <string name="home_row_keyboard">Keyboard</string>
     <string name="home_last_run">Last run</string>
+    <string name="home_section_surfaces">Surfaces</string>
+    <string name="home_section_runs">Runs</string>
     <string name="home_no_runs">No runs yet.</string>
     <string name="home_after_restart">After a restart</string>
     <string name="home_after_restart_on_text">Burkan applies Vulkan by itself.</string>

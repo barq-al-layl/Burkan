@@ -74,6 +74,19 @@ val noticeColors: NoticeColors
 
 private const val DARK_SURFACE_LUMINANCE = 0.5f
 
+/**
+ * Amber as a text colour on a plain card, for a title that says something is held up or needs care: deep on a light
+ * card, bright on a dark one, where the notice's own pair is made for sitting on its amber fill.
+ */
+val noticeAccentColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = if (MaterialTheme.colorScheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+        Color(0xFFFFB74D)
+    } else {
+        Color(0xFFA85F00)
+    }
+
 private val OneUiCardShape = RoundedCornerShape(27.dp)
 private val SquareCorners = RoundedCornerShape(0.dp)
 
