@@ -124,8 +124,10 @@ class ApplyFlowTest {
                     "org.example.weather",
                     "org.example.chat",
                 ).joinToString(separator = "") { packageName ->
-                    "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p $packageName " +
-                        ">/dev/null 2>&1; "
+                    "c=\$(cmd package resolve-activity --brief -a android.intent.action.MAIN " +
+                        "-c android.intent.category.LAUNCHER $packageName | tail -n 1); " +
+                        "case \"\$c\" in */*) am start -n \"\$c\" -a android.intent.action.MAIN " +
+                        "-c android.intent.category.LAUNCHER >/dev/null 2>&1;; esac; "
                 } + "true",
                 "settings get secure default_input_method",
                 "am crash com.samsung.android.honeyboard",

@@ -75,10 +75,12 @@ class ShellCommandsTest {
     }
 
     @Test
-    fun `launching starts the launcher activity and sends the output nowhere`() {
+    fun `launching looks the launcher activity up and starts it by name`() {
         assertEquals(
-            "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.example.a " +
-                ">/dev/null 2>&1; true",
+            "c=\$(cmd package resolve-activity --brief -a android.intent.action.MAIN " +
+                "-c android.intent.category.LAUNCHER com.example.a | tail -n 1); " +
+                "case \"\$c\" in */*) am start -n \"\$c\" -a android.intent.action.MAIN " +
+                "-c android.intent.category.LAUNCHER >/dev/null 2>&1;; esac; true",
             ShellCommands.launchAll(listOf(PackageName.known("com.example.a"))).line,
         )
     }

@@ -95,17 +95,22 @@ Starting home brings the home screen to the front. (Expected.)
 **Launching an app** (to bring a widget host or provider back):
 
 ```
-am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p <package>
+c=$(cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER <package> | tail -n 1)
+case "$c" in */*) am start -n "$c" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER;; esac
 ```
 
-Send its output to `/dev/null`: it prints a line per package, and an error for packages with no launcher activity,
-which is normal.
+The lookup answers `package/activity`, or a sentence when the package has no launcher activity, which the `case`
+passes over. Send `am`'s output to `/dev/null`: it prints a line per package.
+
+Not `am start -a … -c … -p <package>` on the bare intent. Starting an activity that way only matches launcher
+activities that also declare `android.intent.category.DEFAULT`, and most do not: on the S23 it started Settings
+and Chrome but answered "unable to resolve Intent" for Clock and for this app.
 
 Not `monkey -p <package> -c android.intent.category.LAUNCHER 1`, which the original scripts used. `monkey` unlocks
 the screen's rotation as it exits, and that writes `accelerometer_rotation=1`: auto-rotate comes on for a user who
-had it off. Confirmed on Android 17: with the setting at 0, one `monkey` launch leaves it at 1 and one `am start`
-leaves it at 0. The app restored the setting after its run, but a relaunch that outlived its time limit went on
-running `monkey` after the restore, and a run that lost its connection never restored at all.
+had it off. Confirmed on Android 17 and on the S23: with the setting at 0, one `monkey` launch leaves it at 1 and
+a start by name leaves it at 0. The app restored the setting after its run, but a relaunch that outlived its time
+limit went on running `monkey` after the restore, and a run that lost its connection never restored at all.
 
 ---
 

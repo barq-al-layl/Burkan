@@ -91,7 +91,7 @@ object ShellCommands {
     /** Makes [component] (`package/class`) the default keyboard. */
     fun setInputMethod(component: String): ShellCommand = ShellCommand("ime set ${quote(component)}", ShortTimeout)
 
-    /** Launches each package. A package with no launcher activity makes `am` complain; that is normal. */
+    /** Launches each package. A package with no launcher activity is passed over. */
     fun launchAll(packages: List<PackageName>): ShellCommand =
         ShellCommand(packages.joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
 
@@ -128,12 +128,18 @@ object ShellCommands {
     private const val CATEGORY_LAUNCHER = "android.intent.category.LAUNCHER"
 
     /**
-     * Starts the package's launcher activity, as tapping its icon would. Not with `monkey`, the usual shortcut for
-     * this: `monkey` unlocks the screen's rotation as it exits, which switches auto-rotate on for a user who had it
-     * off, once for every app it launches.
+     * Starts the package's launcher activity, as tapping its icon would: the activity is looked up, then started
+     * by name. A package without one answers the lookup with a sentence instead of `package/activity`, and is
+     * passed over.
+     *
+     * Not with `monkey`, the usual shortcut for this: `monkey` unlocks the screen's rotation as it exits, which
+     * switches auto-rotate on for a user who had it off, once for every app it launches. And not with `am start`
+     * on the bare intent either: starting an activity that way only finds launcher activities that also declare
+     * the default category, which most do not, so most apps would not come back.
      */
     private fun launch(packageName: PackageName): String =
-        "am start -a $ACTION_MAIN -c $CATEGORY_LAUNCHER -p $packageName >/dev/null 2>&1"
+        "c=\$(cmd package resolve-activity --brief -a $ACTION_MAIN -c $CATEGORY_LAUNCHER $packageName | tail -n 1); " +
+            "case \"\$c\" in */*) am start -n \"\$c\" -a $ACTION_MAIN -c $CATEGORY_LAUNCHER >/dev/null 2>&1;; esac"
 
     /** Single quotes keep `$`, `;`, spaces and the rest literal; an embedded quote closes, escapes and reopens. */
     private fun quote(value: String): String = "'" + value.replace("'", "'\\''") + "'"

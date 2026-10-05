@@ -1,0 +1,9 @@
+{
+  "uniqueId": "font.roboto:roboto",
+  "name": "Roboto (font)",
+  "description": "The Roboto typeface, which the Material style is set in.",
+  "website": "https://fonts.google.com/specimen/Roboto",
+  "licenses": [
+    "OFL-1.1"
+  ]
+}
