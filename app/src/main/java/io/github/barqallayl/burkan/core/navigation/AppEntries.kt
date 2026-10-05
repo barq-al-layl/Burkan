@@ -5,7 +5,6 @@ import io.github.barqallayl.burkan.feature.log.ui.LogScreen
 import io.github.barqallayl.burkan.feature.settings.ui.ExclusionsScreen
 import io.github.barqallayl.burkan.feature.settings.ui.LicencesScreen
 import io.github.barqallayl.burkan.feature.settings.ui.SettingsScreen
-import io.github.barqallayl.burkan.feature.settings.ui.TextSizeScreen
 import io.github.barqallayl.burkan.feature.setup.ui.SetupScreen
 import io.github.barqallayl.burkan.feature.status.ui.HomeScreen
 
@@ -18,6 +17,5 @@ fun appEntryProvider(route: Route): NavEntry<Route> = NavEntry(route) { key ->
         LogRoute -> LogScreen()
         ExclusionsRoute -> ExclusionsScreen()
         LicencesRoute -> LicencesScreen()
-        TextSizeRoute -> TextSizeScreen()
     }
 }

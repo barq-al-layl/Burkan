@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +28,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -152,9 +150,11 @@ private fun OneUiTopBar(
     ) {
         if (onBack != null) {
             val description = stringResource(R.string.navigate_back)
-            FloatingCard(scrolled, onClick = onBack, modifier = Modifier.size(OneUiButtonSize)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Tabler.Outline.ChevronLeft, description, modifier = Modifier.size(28.dp))
+            BurkanTooltip(description) {
+                FloatingCard(scrolled, onClick = onBack, modifier = Modifier.size(OneUiButtonSize)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Tabler.Outline.ChevronLeft, description, modifier = Modifier.size(28.dp))
+                    }
                 }
             }
         }
@@ -184,7 +184,8 @@ private fun OneUiTopBar(
 
 /**
  * A round card that a button of the bar floats on. With the content at its top there is nothing under the button
- * and the card is not seen; it comes in as content moves up beneath it.
+ * and the card is not seen; it comes in as content moves up beneath it, with a soft shadow that lifts it off that
+ * content.
  */
 @Composable
 private fun FloatingCard(
@@ -195,7 +196,11 @@ private fun FloatingCard(
 ) {
     val color = MaterialTheme.colorScheme.surfaceContainerHighest
     val card = modifier
-        .clip(CircleShape)
+        .graphicsLayer {
+            shadowElevation = FloatingShadow.toPx() * scrolled()
+            shape = CircleShape
+            clip = true
+        }
         .drawBehind { drawRect(color, alpha = scrolled()) }
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Box(
@@ -211,9 +216,12 @@ private fun FloatingCard(
 private val OneUiBarHeight = 76.dp
 private val OneUiButtonSize = 46.dp
 
+/** Soft, as One UI's are: enough to part the button from what passes under it, not to make it stand out. */
+private val FloatingShadow = 6.dp
+
 /** The way back, on a Material bar. */
 @Composable
 fun BurkanBackButton(onBack: () -> Unit) {
     val description = stringResource(R.string.navigate_back)
-    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, description) }
+    BurkanIconButton(Icons.AutoMirrored.Outlined.ArrowBack, description, onBack)
 }

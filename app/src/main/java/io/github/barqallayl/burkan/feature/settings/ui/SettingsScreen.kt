@@ -59,7 +59,6 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.navigation.ExclusionsRoute
 import io.github.barqallayl.burkan.core.navigation.LicencesRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
-import io.github.barqallayl.burkan.core.navigation.TextSizeRoute
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
@@ -103,7 +102,6 @@ fun SettingsScreen() {
             SettingsSideEffect.Back -> navigator.pop()
             SettingsSideEffect.OpenExclusions -> navigator.push(ExclusionsRoute)
             SettingsSideEffect.OpenLicences -> navigator.push(LicencesRoute)
-            SettingsSideEffect.OpenTextSize -> navigator.push(TextSizeRoute)
             is SettingsSideEffect.OpenUrl -> uriHandler.openUri(effect.url)
         }
     }
@@ -126,7 +124,6 @@ fun SettingsScreen() {
             onOpenSource = viewModel::openSource,
             onOpenLicence = viewModel::openLicence,
             onOpenLicences = viewModel::openLicences,
-            onOpenTextSize = viewModel::openTextSize,
         ),
     )
 }
@@ -148,7 +145,6 @@ private class SettingsActions(
     val onOpenSource: () -> Unit = {},
     val onOpenLicence: () -> Unit = {},
     val onOpenLicences: () -> Unit = {},
-    val onOpenTextSize: () -> Unit = {},
 )
 
 @Composable
@@ -250,7 +246,10 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         index = 2,
         count = RESTART_ITEMS,
         headline = stringResource(R.string.settings_exclusions),
-        supporting = if (values.exclusionCount == 0) {
+        // One UI leaves a row that opens a screen to that screen to explain itself; the count is in the pill.
+        supporting = if (LocalAppStyle.current == AppStyle.OneUi) {
+            null
+        } else if (values.exclusionCount == 0) {
             stringResource(R.string.settings_exclusions_none)
         } else {
             pluralStringResource(
@@ -342,14 +341,7 @@ private fun AppearanceItems(appearance: Appearance, actions: SettingsActions) {
         )
     }
     rows.forEachIndexed { index, row ->
-        ChoiceItem(index, rows.size, row.icon, row.title, row.value, row.swatch) {
-            // One UI sets the text size on a screen of its own, as the phone's Settings does; Material in a sheet.
-            if (row.dialog == SettingsDialog.TextSize && appearance.appStyle == AppStyle.OneUi) {
-                actions.onOpenTextSize()
-            } else {
-                actions.onShow(row.dialog)
-            }
-        }
+        ChoiceItem(index, rows.size, row.icon, row.title, row.value, row.swatch) { actions.onShow(row.dialog) }
     }
 }
 

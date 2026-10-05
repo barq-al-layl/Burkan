@@ -19,7 +19,6 @@ class RouteSerializationTest {
             LogRoute,
             ExclusionsRoute,
             LicencesRoute,
-            TextSizeRoute,
         )
 
     @Test

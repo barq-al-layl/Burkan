@@ -22,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +91,7 @@ import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
 import io.github.barqallayl.burkan.designsystem.component.BurkanConfirm
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
+import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetActions
@@ -199,18 +199,16 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 contentScroll = { scrollState.value },
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = actions.onOpenLog) {
-                        Icon(
-                            Tabler.Outline.History,
-                            contentDescription = stringResource(R.string.home_open_log),
-                        )
-                    }
-                    IconButton(onClick = actions.onOpenSettings) {
-                        Icon(
-                            Tabler.Outline.Settings,
-                            contentDescription = stringResource(R.string.home_open_settings),
-                        )
-                    }
+                    BurkanIconButton(
+                        icon = Tabler.Outline.History,
+                        label = stringResource(R.string.home_open_log),
+                        onClick = actions.onOpenLog,
+                    )
+                    BurkanIconButton(
+                        icon = Tabler.Outline.Settings,
+                        label = stringResource(R.string.home_open_settings),
+                        onClick = actions.onOpenSettings,
+                    )
                 },
             )
         },

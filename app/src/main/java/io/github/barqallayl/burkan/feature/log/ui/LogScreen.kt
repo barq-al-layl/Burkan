@@ -29,7 +29,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -73,6 +72,7 @@ import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
+import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
@@ -158,12 +158,11 @@ private fun LogContent(
                 },
                 actions = {
                     if (!state.runs.isNullOrEmpty()) {
-                        IconButton(onClick = onShare) {
-                            Icon(
-                                Tabler.Outline.Share,
-                                contentDescription = stringResource(R.string.log_share),
-                            )
-                        }
+                        BurkanIconButton(
+                            icon = Tabler.Outline.Share,
+                            label = stringResource(R.string.log_share),
+                            onClick = onShare,
+                        )
                     }
                 },
             )

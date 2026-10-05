@@ -56,7 +56,6 @@ sealed interface SettingsSideEffect {
     data object Back : SettingsSideEffect
     data object OpenExclusions : SettingsSideEffect
     data object OpenLicences : SettingsSideEffect
-    data object OpenTextSize : SettingsSideEffect
     data class OpenUrl(val url: String) : SettingsSideEffect
 }
 
@@ -127,8 +126,6 @@ class SettingsViewModel(
     fun openLicence() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.LICENCE_URL)) }
 
     fun openLicences() = intent { postSideEffect(SettingsSideEffect.OpenLicences) }
-
-    fun openTextSize() = intent { postSideEffect(SettingsSideEffect.OpenTextSize) }
 
     fun back() = intent { postSideEffect(SettingsSideEffect.Back) }
 }

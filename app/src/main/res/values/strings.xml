@@ -66,8 +66,6 @@
     <string name="text_size_percent">%1$d%%</string>
     <string name="text_size_reset">Reset</string>
     <string name="text_size_sample">Text in Burkan will look like this.\n1234567890</string>
-    <string name="text_size_current">Size</string>
-    <string name="text_size_tap_to_reset">%1$s · Tap to reset</string>
     <string name="settings_section_setup">Setup</string>
     <string name="settings_redo_setup">Redo setup</string>
     <string name="settings_redo_setup_text">Forget the pairing and go through setup again.</string>
