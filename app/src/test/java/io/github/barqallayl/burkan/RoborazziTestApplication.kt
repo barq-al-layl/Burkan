@@ -14,8 +14,8 @@ import io.github.barqallayl.burkan.feature.apply.NetworkReceiver
 import kotlin.reflect.KClass
 
 /**
- * The application screenshot tests run under. The manifest's `MetroAppComponentFactory` casts the application to
- * [MetroApplication], and Robolectric's plain `Application` would fail that cast before rendering anything.
+ * The application screenshot tests run under. Robolectric creates the manifest's receivers on start through the
+ * manifest's component factory, which asks the application for them: its plain `Application` has none to give.
  */
 class RoborazziTestApplication : Application(), MetroApplication {
     override val appComponentProviders: MetroAppComponentProviders = object : MetroAppComponentProviders {

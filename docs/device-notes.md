@@ -95,11 +95,17 @@ Starting home brings the home screen to the front. (Expected.)
 **Launching an app** (to bring a widget host or provider back):
 
 ```
-monkey -p <package> -c android.intent.category.LAUNCHER 1
+am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p <package>
 ```
 
-Send its output to `/dev/null`: it prints several lines per package, and an error for packages with no launcher
-activity, which is normal.
+Send its output to `/dev/null`: it prints a line per package, and an error for packages with no launcher activity,
+which is normal.
+
+Not `monkey -p <package> -c android.intent.category.LAUNCHER 1`, which the original scripts used. `monkey` unlocks
+the screen's rotation as it exits, and that writes `accelerometer_rotation=1`: auto-rotate comes on for a user who
+had it off. Confirmed on Android 17: with the setting at 0, one `monkey` launch leaves it at 1 and one `am start`
+leaves it at 0. The app restored the setting after its run, but a relaunch that outlived its time limit went on
+running `monkey` after the restore, and a run that lost its connection never restored at all.
 
 ---
 
@@ -150,7 +156,7 @@ The port of the script's full flow, for a phone that has been running on OpenGL 
 5. `setprop debug.hwui.renderer skiavk`.
 6. `am force-stop <package>` for each remaining package.
 7. `am force-stop com.sec.android.app.launcher`, wait about two seconds, launch it with `monkey`.
-8. Relaunch the remembered running apps and the widget packages with `monkey`.
+8. Relaunch the remembered running apps and the widget packages with `am start`.
 9. `am crash <current keyboard package>`.
 10. Restore the state from section 4.
 11. `am crash com.android.systemui`, last of all, as in the light apply.

@@ -91,7 +91,7 @@ object ShellCommands {
     /** Makes [component] (`package/class`) the default keyboard. */
     fun setInputMethod(component: String): ShellCommand = ShellCommand("ime set ${quote(component)}", ShortTimeout)
 
-    /** Launches each package. A package with no launcher activity makes `monkey` complain; that is normal. */
+    /** Launches each package. A package with no launcher activity makes `am` complain; that is normal. */
     fun launchAll(packages: List<PackageName>): ShellCommand =
         ShellCommand(packages.joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
 
@@ -125,9 +125,15 @@ object ShellCommands {
 
     private const val ACTION_MAIN = "android.intent.action.MAIN"
     private const val CATEGORY_HOME = "android.intent.category.HOME"
+    private const val CATEGORY_LAUNCHER = "android.intent.category.LAUNCHER"
 
+    /**
+     * Starts the package's launcher activity, as tapping its icon would. Not with `monkey`, the usual shortcut for
+     * this: `monkey` unlocks the screen's rotation as it exits, which switches auto-rotate on for a user who had it
+     * off, once for every app it launches.
+     */
     private fun launch(packageName: PackageName): String =
-        "monkey -p $packageName -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"
+        "am start -a $ACTION_MAIN -c $CATEGORY_LAUNCHER -p $packageName >/dev/null 2>&1"
 
     /** Single quotes keep `$`, `;`, spaces and the rest literal; an embedded quote closes, escapes and reopens. */
     private fun quote(value: String): String = "'" + value.replace("'", "'\\''") + "'"

@@ -6,6 +6,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -74,11 +75,19 @@ class ShellCommandsTest {
     }
 
     @Test
-    fun `launching sends monkey's output nowhere`() {
+    fun `launching starts the launcher activity and sends the output nowhere`() {
         assertEquals(
-            "monkey -p com.example.a -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; true",
+            "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.example.a " +
+                ">/dev/null 2>&1; true",
             ShellCommands.launchAll(listOf(PackageName.known("com.example.a"))).line,
         )
+    }
+
+    @Test
+    fun `launching never uses monkey, which switches auto-rotate on`() {
+        val line = ShellCommands.launchAll(listOf(PackageName.known("com.example.a"))).line
+
+        assertFalse("monkey" in line)
     }
 
     @Test

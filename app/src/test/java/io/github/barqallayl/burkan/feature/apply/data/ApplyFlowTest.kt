@@ -116,15 +116,17 @@ class ApplyFlowTest {
                 "am force-stop com.sec.android.app.launcher; sleep 2; " +
                     "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
                 // What was running or backs a widget, and was stopped.
-                "monkey -p com.google.android.googlequicksearchbox -c android.intent.category.LAUNCHER 1 " +
-                    ">/dev/null 2>&1; " +
-                    "monkey -p com.samsung.android.app.dressroom -c android.intent.category.LAUNCHER 1 " +
-                    ">/dev/null 2>&1; " +
-                    "monkey -p com.android.settings -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; " +
-                    "monkey -p com.example.notes.widget -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; " +
-                    "monkey -p org.example.weather -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; " +
-                    "monkey -p org.example.chat -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; " +
-                    "true",
+                listOf(
+                    "com.google.android.googlequicksearchbox",
+                    "com.samsung.android.app.dressroom",
+                    "com.android.settings",
+                    "com.example.notes.widget",
+                    "org.example.weather",
+                    "org.example.chat",
+                ).joinToString(separator = "") { packageName ->
+                    "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p $packageName " +
+                        ">/dev/null 2>&1; "
+                } + "true",
                 "settings get secure default_input_method",
                 "am crash com.samsung.android.honeyboard",
                 "settings get secure default_input_method",

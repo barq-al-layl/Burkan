@@ -31,7 +31,7 @@
     <application
         android:name=".BurkanApplication"
         android:allowBackup="true"
-        android:appComponentFactory="dev.zacsweers.metrox.android.MetroAppComponentFactory"
+        android:appComponentFactory="io.github.barqallayl.burkan.core.di.BurkanAppComponentFactory"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
