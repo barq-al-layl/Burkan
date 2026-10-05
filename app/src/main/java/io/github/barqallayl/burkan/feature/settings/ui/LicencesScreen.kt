@@ -7,18 +7,18 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +46,17 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.designsystem.component.FloatingSearchRoom
+import io.github.barqallayl.burkan.designsystem.component.BurkanFloatingSearch
+import io.github.barqallayl.burkan.designsystem.component.scrolledPx
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
@@ -78,9 +89,15 @@ fun LicencesScreen() {
 
 @Composable
 private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
+    val appBar = rememberBurkanAppBar()
+    val listState = rememberLazyListState()
     Scaffold(
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            TopAppBar(
+            BurkanTopBar(
+                onBack = onBack,
+                appBar = appBar,
+                contentScroll = { listState.scrolledPx() },
                 title = {
                     Column {
                         Text(stringResource(R.string.settings_licences))
@@ -92,11 +109,6 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.navigate_back))
                     }
                 },
             )
@@ -112,7 +124,12 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                 modifier = Modifier.padding(innerPadding),
             )
         } else if (libraries == null) {
-            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
                 LoadingIndicator()
             }
         } else if (libraries.libraries.isEmpty()) {
@@ -126,41 +143,75 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
             var opened by remember { mutableStateOf<Library?>(null) }
             var query by rememberSaveable { mutableStateOf("") }
             val found = remember(libraries, query) { libraries.libraries.matching(query) }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = ScreenMargin),
-                contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + GroupGap,
-                ),
-                verticalArrangement = Arrangement.spacedBy(SegmentGap),
-            ) {
-                // Part of the list, so it scrolls away with it.
-                item(key = "search") {
-                    BurkanSearchField(
+            val oneUi = LocalAppStyle.current == AppStyle.OneUi
+            Box(modifier = Modifier.fillMaxSize()) {
+                val barInset = innerPadding.listInset()
+                LazyColumn(
+                    // The bar's height is kept clear here, not in the content padding, so the fade starts under it.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = innerPadding.listTop())
+                        .oneUiScrollFade(listState)
+                        .padding(horizontal = ScreenMargin),
+                    state = listState,
+                    contentPadding = PaddingValues(
+                        bottom = innerPadding.calculateBottomPadding() + GroupGap + FloatingSearchRoom,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(SegmentGap),
+                ) {
+                    // In One UI the list runs under the bar: this keeps its start below it, and measures the scroll for it.
+                    if (barInset > 0.dp) item(key = "bar") { Spacer(Modifier.height(barInset)) }
+                    // Part of the list, so it scrolls away with it. One UI's floats over the foot of the list instead.
+                    if (!oneUi) item(key = "search") {
+                        BurkanSearchField(
+                            query = query,
+                            onSearch = { query = it },
+                            placeholder = stringResource(R.string.licences_search),
+                            clearLabel = stringResource(R.string.search_clear),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                    }
+                    if (found.isEmpty()) {
+                        item {
+                            BurkanMessage(
+                                icon = Tabler.Outline.Search,
+                                title = stringResource(R.string.exclusions_none_found_title),
+                                text = stringResource(
+                                    R.string.exclusions_none_found_text,
+                                    query.trim(),
+                                ),
+                            )
+                        }
+                    }
+                    itemsIndexed(
+                        found,
+                        key = { _, library -> library.uniqueId },
+                    ) { index, library ->
+                        BurkanSegmentItem(
+                            index = index,
+                            count = found.size,
+                            headline = library.name,
+                            supporting = library.detail(),
+                            onClick = { opened = library },
+                            trailing = {
+                                Icon(
+                                    Tabler.Outline.ChevronRight,
+                                    contentDescription = null,
+                                )
+                            },
+                        )
+                    }
+                }
+                if (oneUi) {
+                    BurkanFloatingSearch(
                         query = query,
                         onSearch = { query = it },
                         placeholder = stringResource(R.string.licences_search),
                         clearLabel = stringResource(R.string.search_clear),
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
-                if (found.isEmpty()) {
-                    item {
-                        BurkanMessage(
-                            icon = Tabler.Outline.Search,
-                            title = stringResource(R.string.exclusions_none_found_title),
-                            text = stringResource(R.string.exclusions_none_found_text, query.trim()),
-                        )
-                    }
-                }
-                itemsIndexed(found, key = { _, library -> library.uniqueId }) { index, library ->
-                    BurkanSegmentItem(
-                        index = index,
-                        count = found.size,
-                        headline = library.name,
-                        supporting = library.detail(),
-                        onClick = { opened = library },
-                        trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .imePadding()
+                            .padding(bottom = innerPadding.calculateBottomPadding() + 12.dp),
                     )
                 }
             }
@@ -184,8 +235,9 @@ private fun List<Library>.matching(query: String): List<Library> {
 /** A library's version and the licences it is under, as one line. */
 @Composable
 private fun Library.detail(): String {
-    val names = licenses.joinToString(separator = stringResource(R.string.list_separator)) { it.name }
-        .ifEmpty { stringResource(R.string.licences_no_licence) }
+    val names =
+        licenses.joinToString(separator = stringResource(R.string.list_separator)) { it.name }
+            .ifEmpty { stringResource(R.string.licences_no_licence) }
     val version = artifactVersion ?: return names
     return stringResource(R.string.licences_item_detail, version, names)
 }
@@ -195,19 +247,32 @@ private fun Library.detail(): String {
 private fun LibrarySheet(library: Library) {
     val uriHandler = LocalUriHandler.current
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenMargin).padding(bottom = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ScreenMargin)
+            .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             BurkanSheetHeader(library.name)
             // The version and each licence as pills: the two facts the sheet is opened for.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 library.artifactVersion?.let { BurkanPill(it) }
                 if (library.licenses.isEmpty()) BurkanPill(stringResource(R.string.licences_no_licence))
                 library.licenses.forEach { BurkanPill(it.name, tone = Tone.Good) }
             }
             library.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
         val website = library.website?.takeIf { it.isNotBlank() }
@@ -278,7 +343,8 @@ private fun LicencesLoadingPreview() = LicencesContent(LicencesState(), onBack =
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun LicencesEmptyPreview() = LicencesContent(LicencesState(Libs(emptyList(), emptySet())), onBack = {})
+private fun LicencesEmptyPreview() =
+    LicencesContent(LicencesState(Libs(emptyList(), emptySet())), onBack = {})
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

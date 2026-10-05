@@ -8,19 +8,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -33,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -54,7 +50,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Apps
-import com.composables.icons.tabler.outline.Bolt
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CircleCheck
@@ -84,17 +79,27 @@ import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.LogRoute
 import io.github.barqallayl.burkan.core.navigation.SettingsRoute
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.component.BurkanConfirm
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetActions
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetHeader
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentChoice
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
+import io.github.barqallayl.burkan.designsystem.component.ContentMargin
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
@@ -183,22 +188,28 @@ private class HomeActions(
 
 @Composable
 private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
+    // In One UI the name starts large, in the upper part of the screen, and shrinks into the bar on scrolling.
+    val appBar = rememberBurkanAppBar()
+    val scrollState = rememberScrollState()
     Scaffold(
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            TopAppBar(
-                // The mark and the name together, as the app's own header.
-                title = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Tabler.Outline.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
-                    }
-                },
+            BurkanTopBar(
+                appBar = appBar,
+                contentScroll = { scrollState.value },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = actions.onOpenLog) {
-                        Icon(Tabler.Outline.History, contentDescription = stringResource(R.string.home_open_log))
+                        Icon(
+                            Tabler.Outline.History,
+                            contentDescription = stringResource(R.string.home_open_log),
+                        )
                     }
                     IconButton(onClick = actions.onOpenSettings) {
-                        Icon(Tabler.Outline.Settings, contentDescription = stringResource(R.string.home_open_settings))
+                        Icon(
+                            Tabler.Outline.Settings,
+                            contentDescription = stringResource(R.string.home_open_settings),
+                        )
                     }
                 },
             )
@@ -206,6 +217,12 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
         // The two actions stay at the bottom, in reach of the thumb, and never move as cards come and go above.
         bottomBar = {
             val idle = state.run == ApplyRunState.Idle
+            // One UI sets a contained button's label heavier than a row's name.
+            val actionStyle = if (LocalAppStyle.current == AppStyle.OneUi) {
+                MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            } else {
+                MaterialTheme.typography.titleMedium
+            }
             // Solid behind the buttons, fading out above them: what scrolls under the bar dims away rather than
             // being cut off at a line.
             val surface = MaterialTheme.colorScheme.surface
@@ -215,13 +232,21 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                     .drawBehind {
                         val fade = BAR_FADE.toPx()
                         drawRect(
-                            Brush.verticalGradient(listOf(Color.Transparent, surface), startY = 0f, endY = fade),
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, surface),
+                                startY = 0f,
+                                endY = fade,
+                            ),
                             size = size.copy(height = fade),
                         )
-                        drawRect(surface, topLeft = Offset(0f, fade), size = size.copy(height = size.height - fade))
+                        drawRect(
+                            surface,
+                            topLeft = Offset(0f, fade),
+                            size = size.copy(height = size.height - fade),
+                        )
                     }
                     .navigationBarsPadding()
-                    .padding(horizontal = ScreenMargin)
+                    .padding(horizontal = ContentMargin)
                     .padding(top = BAR_FADE, bottom = GroupGap),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -229,24 +254,24 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 Button(
                     onClick = actions.onApplyNow,
                     enabled = idle,
-                    modifier = Modifier.fillMaxWidth().height(ACTION_HEIGHT),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ACTION_HEIGHT),
                 ) {
-                    Icon(Tabler.Outline.Bolt, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(stringResource(R.string.home_apply_now), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.home_apply_now), style = actionStyle)
                 }
                 FilledTonalButton(
                     onClick = actions.onRestartAll,
                     enabled = idle,
-                    modifier = Modifier.fillMaxWidth().height(ACTION_HEIGHT),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ACTION_HEIGHT),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 ) {
-                    Icon(Tabler.Outline.Refresh, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(stringResource(R.string.home_restart_all), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.home_restart_all), style = actionStyle)
                 }
             }
         },
@@ -256,8 +281,12 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             // brings the last of it up above the buttons.
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
-                .verticalScroll(rememberScrollState())
+                .padding(top = innerPadding.listTop())
+                // The bar over the buttons already fades the lower edge.
+                .oneUiScrollFade(scrollState, bottom = false)
+                .verticalScroll(scrollState)
+                .padding(top = innerPadding.listInset())
+
                 .padding(horizontal = ScreenMargin)
                 .padding(bottom = innerPadding.calculateBottomPadding()),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
@@ -275,18 +304,13 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
         }
     }
     if (state.isConfirmingApply) {
-        AlertDialog(
-            onDismissRequest = actions.onDismissApply,
-            title = { Text(stringResource(R.string.home_confirm_apply_title)) },
-            text = { Text(stringResource(R.string.home_confirm_apply_text)) },
-            confirmButton = {
-                TextButton(onClick = actions.onConfirmApply) {
-                    Text(stringResource(R.string.home_confirm_apply_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = actions.onDismissApply) { Text(stringResource(R.string.home_confirm_dismiss)) }
-            },
+        BurkanConfirm(
+            title = stringResource(R.string.home_confirm_apply_title),
+            text = stringResource(R.string.home_confirm_apply_text),
+            confirm = stringResource(R.string.home_confirm_apply_action),
+            dismiss = stringResource(R.string.home_confirm_dismiss),
+            onConfirm = actions.onConfirmApply,
+            onDismiss = actions.onDismissApply,
         )
     }
     if (state.isConfirmingFullApply) {
@@ -314,7 +338,10 @@ private fun RestartAllSheet(
     onDismiss: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = ScreenMargin),
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ScreenMargin),
         verticalArrangement = Arrangement.spacedBy(GroupGap),
     ) {
         BurkanSheetHeader(
@@ -354,7 +381,9 @@ private fun RestartAllSheet(
             Text(
                 stringResource(R.string.home_confirm_scope_text),
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 8.dp),
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
             )
         }
         BurkanSheetActions(
@@ -383,7 +412,10 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
     val status = state.status
     if (status is StatusState.Failed) {
         BurkanSegment(index = 0, count = 1) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 HeadlineRow(Tabler.Outline.HelpCircle, R.string.home_headline_unknown)
                 Text(stringResource(status.error.messageRes()))
                 Button(onClick = onRetry, enabled = !state.isRefreshing) {
@@ -399,7 +431,10 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
     val headline = renderers?.headline()
     BurkanSegment(index = 0, count = 1) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 28.dp, bottom = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 28.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -407,13 +442,22 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
             val tone = if (running) Tone.Neutral else headline?.tone ?: Tone.Neutral
             if (headline == null) {
                 Box(
-                    modifier = Modifier.size(BADGE_SIZE).background(tone.colors.container, CircleShape),
+                    modifier = Modifier
+                        .size(BADGE_SIZE)
+                        .background(tone.colors.container, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    LoadingIndicator(modifier = Modifier.size(BADGE_ICON_SIZE), color = tone.colors.content)
+                    LoadingIndicator(
+                        modifier = Modifier.size(BADGE_ICON_SIZE),
+                        color = tone.colors.content,
+                    )
                 }
             } else {
-                BurkanIconBadge(if (running) Tabler.Outline.Hourglass else headline.icon, tone = tone, size = BADGE_SIZE)
+                BurkanIconBadge(
+                    if (running) Tabler.Outline.Hourglass else headline.icon,
+                    tone = tone,
+                    size = BADGE_SIZE,
+                )
             }
             Text(
                 stringResource(
@@ -445,14 +489,37 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                 )
             }
             // Each surface by name, two to a row: which of them the headline is about.
-            Column(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SurfaceCell(Tabler.Outline.Apps, R.string.home_row_new_apps, renderers?.newApps, Modifier.weight(1f))
-                    SurfaceCell(Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi, Modifier.weight(1f))
+                    SurfaceCell(
+                        Tabler.Outline.Apps,
+                        R.string.home_row_new_apps,
+                        renderers?.newApps,
+                        Modifier.weight(1f),
+                    )
+                    SurfaceCell(
+                        Tabler.Outline.Stack2,
+                        R.string.home_row_system_ui,
+                        renderers?.systemUi,
+                        Modifier.weight(1f),
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SurfaceCell(Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher, Modifier.weight(1f))
-                    SurfaceCell(Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard, Modifier.weight(1f))
+                    SurfaceCell(
+                        Tabler.Outline.Home,
+                        R.string.home_row_launcher,
+                        renderers?.launcher,
+                        Modifier.weight(1f),
+                    )
+                    SurfaceCell(
+                        Tabler.Outline.Keyboard,
+                        R.string.home_row_keyboard,
+                        renderers?.keyboard,
+                        Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -504,7 +571,10 @@ private val Headline.text: Int
 
 @Composable
 private fun HeadlineRow(icon: ImageVector, text: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Icon(icon, contentDescription = null)
         Text(stringResource(text), style = MaterialTheme.typography.titleLarge)
     }
@@ -516,24 +586,57 @@ private fun HeadlineRow(icon: ImageVector, text: Int) {
  * read.
  */
 @Composable
-private fun SurfaceCell(icon: ImageVector, label: Int, renderer: Renderer?, modifier: Modifier = Modifier) {
+private fun SurfaceCell(
+    icon: ImageVector,
+    label: Int,
+    renderer: Renderer?,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
     val (mark, value, markColor) = when (renderer) {
-        Renderer.Vulkan -> Triple(Tabler.Outline.CircleCheck, R.string.renderer_vulkan, scheme.primary)
+        Renderer.Vulkan -> Triple(
+            Tabler.Outline.CircleCheck,
+            R.string.renderer_vulkan,
+            scheme.primary,
+        )
+
         Renderer.OpenGL -> Triple(Tabler.Outline.CircleX, R.string.renderer_opengl, scheme.error)
-        Renderer.Unknown -> Triple(Tabler.Outline.HelpCircle, R.string.renderer_unknown, scheme.onSurfaceVariant)
-        null -> Triple(Tabler.Outline.Hourglass, R.string.home_value_checking, scheme.onSurfaceVariant)
+        Renderer.Unknown -> Triple(
+            Tabler.Outline.HelpCircle,
+            R.string.renderer_unknown,
+            scheme.onSurfaceVariant,
+        )
+
+        null -> Triple(
+            Tabler.Outline.Hourglass,
+            R.string.home_value_checking,
+            scheme.onSurfaceVariant,
+        )
     }
     // The screen's own colour, so the cells read as set into the card.
-    Surface(modifier = modifier, shape = MaterialTheme.shapes.medium, color = scheme.surface, contentColor = scheme.onSurface) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = scheme.surface,
+        contentColor = scheme.onSurface,
+    ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = scheme.onSurfaceVariant)
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = scheme.onSurfaceVariant,
+            )
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+                Text(
+                    stringResource(label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
                 Text(stringResource(value), style = MaterialTheme.typography.titleSmall)
             }
             Icon(mark, contentDescription = null, modifier = Modifier.size(18.dp), tint = markColor)
@@ -546,21 +649,38 @@ private fun SurfaceCell(icon: ImageVector, label: Int, renderer: Renderer?, modi
  * apart from the status in the notice's amber.
  */
 @Composable
-private fun NoticeCard(icon: ImageVector, centred: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+private fun NoticeCard(
+    icon: ImageVector,
+    centred: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val colors = noticeColors
-    BurkanSegment(index = 0, count = 1, containerColor = colors.container, contentColor = colors.content) {
+    BurkanSegment(
+        index = 0,
+        count = 1,
+        containerColor = colors.container,
+        contentColor = colors.content,
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = if (centred) Alignment.CenterVertically else Alignment.Top,
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(colors.content.copy(alpha = BADGE_TINT), CircleShape),
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(colors.content.copy(alpha = BADGE_TINT), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                content = content,
+            )
         }
     }
 }
@@ -569,7 +689,12 @@ private const val BADGE_TINT = 0.14f
 
 /** Something the automatic apply is waiting for. */
 @Composable
-private fun Notice(icon: ImageVector, title: Int, text: Int, action: (@Composable () -> Unit)? = null) {
+private fun Notice(
+    icon: ImageVector,
+    title: Int,
+    text: Int,
+    action: (@Composable () -> Unit)? = null,
+) {
     NoticeCard(icon) {
         Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
         Text(
@@ -587,7 +712,12 @@ private const val NOTICE_TEXT_ALPHA = 0.8f
 private fun WaitingNotice(reason: WaitReason, onOpenDeveloperOptions: () -> Unit) {
     when (reason) {
         WaitReason.Wifi ->
-            Notice(Tabler.Outline.Hourglass, R.string.home_waiting_wifi_title, R.string.home_waiting_wifi_text)
+            Notice(
+                Tabler.Outline.Hourglass,
+                R.string.home_waiting_wifi_title,
+                R.string.home_waiting_wifi_text,
+            )
+
         WaitReason.TrustedNetwork -> Notice(
             Tabler.Outline.Hourglass,
             R.string.home_waiting_network_title,
@@ -621,7 +751,14 @@ private fun RunningSegment(run: ApplyRunState.Running, onCancel: () -> Unit) {
         headline = stringResource(run.kind.label),
         supporting = run.phase.label().text(),
         leading = { LoadingIndicator(modifier = Modifier.size(40.dp)) },
-        trailing = { TextButton(onClick = onCancel) { Text(stringResource(R.string.home_cancel_run)) } },
+        // One UI does not put a flat button on a screen that has contained ones.
+        trailing = {
+            if (LocalAppStyle.current == AppStyle.OneUi) {
+                FilledTonalButton(onClick = onCancel) { Text(stringResource(R.string.home_cancel_run)) }
+            } else {
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.home_cancel_run)) }
+            }
+        },
     )
 }
 
@@ -658,7 +795,13 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
 
 /** The newest run, as the log shows it. It opens the log. */
 @Composable
-private fun LastRun(run: RunLogEntry?, zone: ZoneId, count: Int, onOpenLog: () -> Unit, showError: Boolean) {
+private fun LastRun(
+    run: RunLogEntry?,
+    zone: ZoneId,
+    count: Int,
+    onOpenLog: () -> Unit,
+    showError: Boolean,
+) {
     if (run == null) {
         BurkanSegmentItem(
             index = 0,
@@ -671,12 +814,17 @@ private fun LastRun(run: RunLogEntry?, zone: ZoneId, count: Int, onOpenLog: () -
     }
     BurkanSegment(index = 0, count = count, onClick = onOpenLog) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RunResultBadge(run.result)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 RunSummary(run, zone)
                 // Only a run that failed has more to say.
                 run.error?.takeIf { showError }?.let { error ->
@@ -687,7 +835,10 @@ private fun LastRun(run: RunLogEntry?, zone: ZoneId, count: Int, onOpenLog: () -
                     )
                 }
             }
-            Icon(Tabler.Outline.ChevronRight, contentDescription = stringResource(R.string.home_open_log))
+            Icon(
+                Tabler.Outline.ChevronRight,
+                contentDescription = stringResource(R.string.home_open_log),
+            )
         }
     }
 }
@@ -696,7 +847,9 @@ private fun LastRun(run: RunLogEntry?, zone: ZoneId, count: Int, onOpenLog: () -
 @Composable
 private fun ActionsNote() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -751,13 +904,25 @@ private fun HomePreviewContent(state: HomeState) {
 @BurkanPreview
 @Composable
 private fun HomeRestartAllSheetPreview() =
-    RestartAllSheet(scope = RestartScope.All, keptCount = 0, onScope = {}, onConfirm = {}, onDismiss = {})
+    RestartAllSheet(
+        scope = RestartScope.All,
+        keptCount = 0,
+        onScope = {},
+        onConfirm = {},
+        onDismiss = {},
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun HomeRestartAllSheetLimitedPreview() =
-    RestartAllSheet(scope = RestartScope.Recent30, keptCount = 3, onScope = {}, onConfirm = {}, onDismiss = {})
+    RestartAllSheet(
+        scope = RestartScope.Recent30,
+        keptCount = 3,
+        onScope = {},
+        onConfirm = {},
+        onDismiss = {},
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -808,7 +973,11 @@ private fun HomeCannotConnectPreview() = HomePreviewContent(
 @Composable
 private fun HomeRunningPreview() = HomePreviewContent(
     sample(
-        run = ApplyRunState.Running(ApplyKind.Full, RunTrigger.Manual, RunPhase.Step(StepKind.StopApps(612))),
+        run = ApplyRunState.Running(
+            ApplyKind.Full,
+            RunTrigger.Manual,
+            RunPhase.Step(StepKind.StopApps(612)),
+        ),
         lastRun = sampleLightRun,
     ),
 )
@@ -857,7 +1026,11 @@ private fun HomeConfirmApplyPreview() = HomePreviewContent(sample().copy(isConfi
 @Composable
 private fun HomeRestartingSystemUiPreview() = HomePreviewContent(
     sample(
-        run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Manual, RunPhase.Step(StepKind.RestartSystemUi)),
+        run = ApplyRunState.Running(
+            ApplyKind.Light,
+            RunTrigger.Manual,
+            RunPhase.Step(StepKind.RestartSystemUi),
+        ),
         lastRun = sampleLightRun,
     ),
 )
@@ -874,7 +1047,12 @@ private fun HomeActiveDarkPreview() {
         HomePreviewContent(
             sample(
                 status = StatusState.Loaded(
-                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
+                    RendererStatus(
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                    ),
                 ),
                 lastRun = sampleLightRun.copy(kind = ApplyKind.Full, duration = 73.seconds),
             ),
@@ -888,7 +1066,11 @@ private fun HomeRunningLargeTextPreview() {
     BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
         HomePreviewContent(
             sample(
-                run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Boot, RunPhase.Step(StepKind.RestartSystemUi)),
+                run = ApplyRunState.Running(
+                    ApplyKind.Light,
+                    RunTrigger.Boot,
+                    RunPhase.Step(StepKind.RestartSystemUi),
+                ),
                 lastRun = sampleLightRun,
                 waitingFor = WaitReason.Wifi,
             ),
@@ -903,10 +1085,69 @@ private fun HomePartlyAppliedTealPreview() {
         HomePreviewContent(
             sample(
                 status = StatusState.Loaded(
-                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.OpenGL, Renderer.Unknown),
+                    RendererStatus(
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                        Renderer.OpenGL,
+                        Renderer.Unknown,
+                    ),
                 ),
                 lastRun = sampleLightRun,
             ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeActiveOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                    ),
+                ),
+                lastRun = sampleLightRun,
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomePartlyAppliedOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(
+                        Renderer.Vulkan,
+                        Renderer.OpenGL,
+                        Renderer.Vulkan,
+                        Renderer.Vulkan,
+                    ),
+                ),
+                lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot),
+            ).copy(systemUiAtNextLock = true),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeRestartAllSheetOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        RestartAllSheet(
+            scope = RestartScope.All,
+            keptCount = 3,
+            onScope = {},
+            onConfirm = {},
+            onDismiss = {},
         )
     }
 }

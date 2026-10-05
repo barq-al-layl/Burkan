@@ -16,14 +16,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -35,7 +36,6 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,10 +60,18 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.MonoFontFamily
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.scrolledPx
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
@@ -125,9 +133,15 @@ private fun LogContent(
     filter: LogFilter = LogFilter.All,
     onFilter: (LogFilter) -> Unit = {},
 ) {
+    val appBar = rememberBurkanAppBar()
+    val listState = rememberLazyListState()
     Scaffold(
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            TopAppBar(
+            BurkanTopBar(
+                onBack = onBack,
+                appBar = appBar,
+                contentScroll = { listState.scrolledPx() },
                 // How many runs there are, under the title: the list is long and this is its size.
                 title = {
                     Column {
@@ -142,15 +156,13 @@ private fun LogContent(
                         }
                     }
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.navigate_back))
-                    }
-                },
                 actions = {
                     if (!state.runs.isNullOrEmpty()) {
                         IconButton(onClick = onShare) {
-                            Icon(Tabler.Outline.Share, contentDescription = stringResource(R.string.log_share))
+                            Icon(
+                                Tabler.Outline.Share,
+                                contentDescription = stringResource(R.string.log_share),
+                            )
                         }
                     }
                 },
@@ -159,15 +171,22 @@ private fun LogContent(
     ) { innerPadding ->
         val runs = state.runs
         when {
-            runs == null -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            runs == null -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
                 LoadingIndicator()
             }
+
             runs.isEmpty() && state.isUnreadable -> BurkanMessage(
                 icon = Tabler.Outline.AlertCircle,
                 title = stringResource(R.string.log_unreadable_title),
                 text = stringResource(R.string.log_unreadable_text),
                 modifier = Modifier.padding(innerPadding),
             )
+
             runs.isEmpty() -> BurkanMessage(
                 icon = Tabler.Outline.History,
                 title = stringResource(R.string.log_empty_title),
@@ -176,25 +195,37 @@ private fun LogContent(
             ) {
                 FilledTonalButton(onClick = onBack) { Text(stringResource(R.string.log_empty_action)) }
             }
+
             else -> {
                 val found = remember(runs, filter) { runs.filter { filter.accepts(it.result) } }
+                val barInset = innerPadding.listInset()
                 LazyColumn(
-                    // The margin is content padding, so the row of chips can run to the screen's edges.
-                    modifier = Modifier.fillMaxSize(),
+                    // The margin is content padding, so the row of chips can run to the screen's edges. The bar's
+                    // height is kept clear here instead, so the fade starts under it.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = innerPadding.listTop())
+                        .oneUiScrollFade(listState),
+                    state = listState,
                     contentPadding = PaddingValues(
                         start = ScreenMargin,
                         end = ScreenMargin,
-                        top = innerPadding.calculateTopPadding(),
                         bottom = innerPadding.calculateBottomPadding() + GroupGap,
                     ),
                     verticalArrangement = Arrangement.spacedBy(SegmentGap),
                 ) {
+                    // In One UI the list runs under the bar: this keeps its start below it, and measures the scroll for it.
+                    if (barInset > 0.dp) item(key = "bar") { Spacer(Modifier.height(barInset)) }
                     // Only when there is something to tell apart: a log of one kind of result needs no filter.
-                    val present = LogFilter.entries.filter { option -> runs.any { option.accepts(it.result) } }
+                    val present =
+                        LogFilter.entries.filter { option -> runs.any { option.accepts(it.result) } }
                     if (present.size > 2) {
                         item(key = "filters") { Filters(runs, present, filter, onFilter) }
                     }
-                    itemsIndexed(found, key = { _, run -> run.startedAt.toEpochMilliseconds() }) { index, run ->
+                    itemsIndexed(
+                        found,
+                        key = { _, run -> run.startedAt.toEpochMilliseconds() },
+                    ) { index, run ->
                         RunItem(
                             run = run,
                             index = index,
@@ -232,7 +263,12 @@ private val LogFilter.label: Int
 
 /** One chip for each kind of result the log holds, with how many runs ended that way. */
 @Composable
-private fun Filters(runs: List<RunLogEntry>, present: List<LogFilter>, selected: LogFilter, onSelect: (LogFilter) -> Unit) {
+private fun Filters(
+    runs: List<RunLogEntry>,
+    present: List<LogFilter>,
+    selected: LogFilter,
+    onSelect: (LogFilter) -> Unit,
+) {
     Row(
         modifier = Modifier
             .bleedsToScreenEdges()
@@ -246,7 +282,15 @@ private fun Filters(runs: List<RunLogEntry>, present: List<LogFilter>, selected:
             FilterChip(
                 selected = option == selected,
                 onClick = { onSelect(option) },
-                label = { Text(stringResource(R.string.filter_with_count, stringResource(option.label), count)) },
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.filter_with_count,
+                            stringResource(option.label),
+                            count,
+                        ),
+                    )
+                },
                 shape = CircleShape,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -263,11 +307,20 @@ private fun Filters(runs: List<RunLogEntry>, present: List<LogFilter>, selected:
  * nothing has nothing to open and does not react.
  */
 @Composable
-private fun RunItem(run: RunLogEntry, index: Int, count: Int, expanded: Boolean, zone: ZoneId, onClick: () -> Unit) {
+private fun RunItem(
+    run: RunLogEntry,
+    index: Int,
+    count: Int,
+    expanded: Boolean,
+    zone: ZoneId,
+    onClick: () -> Unit,
+) {
     val hasDetail = run.steps.isNotEmpty() || run.error != null
     BurkanSegment(index = index, count = count, onClick = onClick.takeIf { hasDetail }) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -298,20 +351,36 @@ private fun RunSteps(run: RunLogEntry) {
     // The steps are the log proper: set in the fixed-width face, on a panel of the screen's own colour set into
     // the card.
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
         ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily)) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                run.error?.let {
+                    Text(
+                        stringResource(it.resource),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 run.steps.forEach { step ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
                         Column {
                             Text(step.kind.label().text())
                             step.error?.let {
-                                Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error)
+                                Text(
+                                    stringResource(it.resource),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
                             }
                         }
                     }
@@ -416,7 +485,8 @@ private fun LogPreview() {
 @BurkanPreview
 @Composable
 private fun LogExpandedPreview() {
-    val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt, sampleRuns[1].startedAt))
+    val state =
+        LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt, sampleRuns[1].startedAt))
     LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
 }
 
@@ -431,7 +501,13 @@ private fun LogLoadingPreview() {
 @BurkanPreview
 @Composable
 private fun LogUnreadablePreview() {
-    LogContent(LogState(emptyList(), isUnreadable = true), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    LogContent(
+        LogState(emptyList(), isUnreadable = true),
+        ZoneOffset.UTC,
+        onToggle = {},
+        onShare = {},
+        onBack = {},
+    )
 }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
@@ -464,5 +540,14 @@ private fun LogExpandedLargeTextPreview() {
 private fun LogTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) {
         LogContent(LogState(sampleRuns), ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun LogExpandedOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt))
+        LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
     }
 }

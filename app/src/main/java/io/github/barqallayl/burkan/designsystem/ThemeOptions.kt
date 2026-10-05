@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.designsystem
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import com.materialkolor.PaletteStyle
@@ -23,6 +24,19 @@ fun ThemeMode.isDark(): Boolean = when (this) {
     ThemeMode.Light -> false
     ThemeMode.Dark -> true
 }
+
+/**
+ * The look the whole app is drawn in. [Material] is Material 3 Expressive, as the app was built. [OneUi] follows
+ * Samsung's One UI, so the app sits beside the phone's own: a grey screen with white cards, rows parted by hairlines,
+ * and the system's font.
+ */
+enum class AppStyle {
+    Material,
+    OneUi,
+}
+
+/** The style the shared components draw themselves in. The theme provides it. */
+val LocalAppStyle = staticCompositionLocalOf { AppStyle.Material }
 
 /**
  * The colours the scheme can be generated from. [Wallpaper] has none of its own: it is the accent Android takes

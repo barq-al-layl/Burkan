@@ -15,6 +15,7 @@ import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.store.UserSettings
 import io.github.barqallayl.burkan.designsystem.AppFont
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -34,6 +35,7 @@ data class SettingsValues(
 
 /** The sheets and the dialog Settings can show; one at a time. */
 enum class SettingsDialog {
+    Style,
     ThemeMode,
     SeedColor,
     PaletteStyle,
@@ -54,6 +56,7 @@ sealed interface SettingsSideEffect {
     data object Back : SettingsSideEffect
     data object OpenExclusions : SettingsSideEffect
     data object OpenLicences : SettingsSideEffect
+    data object OpenTextSize : SettingsSideEffect
     data class OpenUrl(val url: String) : SettingsSideEffect
 }
 
@@ -71,7 +74,8 @@ class SettingsViewModel(
     override val container = orbitContainer<SettingsState, SettingsSideEffect>(
         SettingsState(values = store.settings.value?.toValues(), version = version),
     ) {
-        store.settings.filterNotNull().collect { settings -> reduce { state.copy(values = settings.toValues()) } }
+        store.settings.filterNotNull()
+            .collect { settings -> reduce { state.copy(values = settings.toValues()) } }
     }
 
     private fun UserSettings.toValues() =
@@ -83,7 +87,8 @@ class SettingsViewModel(
         if (!enabled) autoApply.stopWaiting()
     }
 
-    fun setTurnOffWirelessDebugging(enabled: Boolean) = intent { settings.setTurnOffWirelessDebugging(enabled) }
+    fun setTurnOffWirelessDebugging(enabled: Boolean) =
+        intent { settings.setTurnOffWirelessDebugging(enabled) }
 
     fun openExclusions() = intent { postSideEffect(SettingsSideEffect.OpenExclusions) }
 
@@ -92,6 +97,8 @@ class SettingsViewModel(
     fun dismissDialog() = intent { reduce { state.copy(dialog = null) } }
 
     // The appearance sheets stay open after a choice: the app changes behind them, so the choice can be compared.
+
+    fun setAppStyle(style: AppStyle) = intent { settings.setAppStyle(style) }
 
     fun setThemeMode(mode: ThemeMode) = intent { settings.setThemeMode(mode) }
 
@@ -120,6 +127,8 @@ class SettingsViewModel(
     fun openLicence() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.LICENCE_URL)) }
 
     fun openLicences() = intent { postSideEffect(SettingsSideEffect.OpenLicences) }
+
+    fun openTextSize() = intent { postSideEffect(SettingsSideEffect.OpenTextSize) }
 
     fun back() = intent { postSideEffect(SettingsSideEffect.Back) }
 }

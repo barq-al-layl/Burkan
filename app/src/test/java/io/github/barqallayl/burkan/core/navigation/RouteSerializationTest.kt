@@ -11,14 +11,26 @@ import kotlin.test.assertEquals
 
 class RouteSerializationTest {
 
-    private val routes: List<Route> = listOf(SetupRoute, HomeRoute, SettingsRoute, LogRoute, ExclusionsRoute, LicencesRoute)
+    private val routes: List<Route> =
+        listOf(
+            SetupRoute,
+            HomeRoute,
+            SettingsRoute,
+            LogRoute,
+            ExclusionsRoute,
+            LicencesRoute,
+            TextSizeRoute,
+        )
 
     @Test
     fun `every route is listed here`() {
         // The sealed serializer knows every subtype, so a route added without a line above fails this test.
         val declared = Route.serializer().descriptor.getElementDescriptor(1).elementNames.toSet()
         val listed = routes.map { route ->
-            Json.encodeToJsonElement(Route.serializer(), route).jsonObject.getValue("type").jsonPrimitive.content
+            Json.encodeToJsonElement(
+                Route.serializer(),
+                route,
+            ).jsonObject.getValue("type").jsonPrimitive.content
         }.toSet()
 
         assertEquals(declared, listed)

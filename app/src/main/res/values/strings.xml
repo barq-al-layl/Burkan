@@ -52,6 +52,10 @@
         <item quantity="other">%d apps are kept running</item>
     </plurals>
     <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_style">Style</string>
+    <string name="settings_style_text">Material is the app\'s own look. One UI follows Samsung\'s, in the phone\'s font.</string>
+    <string name="style_material">Material</string>
+    <string name="style_one_ui">One UI</string>
     <string name="settings_theme">Dark theme</string>
     <string name="settings_seed_color">Colour</string>
     <string name="settings_palette_style">Palette style</string>
@@ -61,6 +65,9 @@
     <string name="text_size_default">Default</string>
     <string name="text_size_percent">%1$d%%</string>
     <string name="text_size_reset">Reset</string>
+    <string name="text_size_sample">Text in Burkan will look like this.\n1234567890</string>
+    <string name="text_size_current">Size</string>
+    <string name="text_size_tap_to_reset">%1$s · Tap to reset</string>
     <string name="settings_section_setup">Setup</string>
     <string name="settings_redo_setup">Redo setup</string>
     <string name="settings_redo_setup_text">Forget the pairing and go through setup again.</string>

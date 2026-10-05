@@ -24,3 +24,7 @@ data object ExclusionsRoute : Route
 
 @Serializable
 data object LicencesRoute : Route
+
+/** The text size, as a screen of its own. Only the One UI style opens it; Material sets the size in a sheet. */
+@Serializable
+data object TextSizeRoute : Route

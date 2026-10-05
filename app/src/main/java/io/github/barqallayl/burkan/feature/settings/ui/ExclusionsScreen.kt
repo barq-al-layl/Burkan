@@ -7,27 +7,27 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +47,6 @@ import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.Lock
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.ShieldCheck
-import com.composables.icons.tabler.outline.X
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.messageRes
@@ -56,6 +55,17 @@ import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.FloatingSearchRoom
+import io.github.barqallayl.burkan.designsystem.component.BurkanFloatingSearch
+import io.github.barqallayl.burkan.designsystem.component.scrolledPx
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.component.BurkanSearchField
@@ -66,7 +76,6 @@ import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentGap
 import io.github.barqallayl.burkan.designsystem.component.bleedsToScreenEdges
 import io.github.barqallayl.burkan.designsystem.component.Tone
-import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -109,7 +118,10 @@ fun ExclusionsScreen() {
  * How a row gets its app's icon: [cached] at once when it was loaded before, [load] otherwise. Null leaves a
  * placeholder.
  */
-private class IconLoader(val cached: (PackageName) -> ImageBitmap?, val load: suspend (PackageName) -> ImageBitmap?)
+private class IconLoader(
+    val cached: (PackageName) -> ImageBitmap?,
+    val load: suspend (PackageName) -> ImageBitmap?,
+)
 
 @Composable
 private fun ExclusionsContent(
@@ -123,114 +135,164 @@ private fun ExclusionsContent(
     onBack: () -> Unit,
     icon: IconLoader,
 ) {
+    val appBar = rememberBurkanAppBar()
+    val listState = rememberLazyListState()
     Scaffold(
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            TopAppBar(
+            BurkanTopBar(
+                onBack = onBack,
+                appBar = appBar,
+                contentScroll = { listState.scrolledPx() },
                 title = { Text(stringResource(R.string.exclusions_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.navigate_back))
-                    }
-                },
             )
         },
     ) { innerPadding ->
         val found = remember(state.apps, query, filter, state.excluded) {
             (state.apps as? AppList.Loaded)?.apps?.matching(query, filter, state.excluded).orEmpty()
         }
-        LazyColumn(
-            // The margin is content padding, so the row of chips can run to the screen's edges.
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = ScreenMargin,
-                end = ScreenMargin,
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + GroupGap,
-            ),
-            verticalArrangement = Arrangement.spacedBy(SegmentGap),
-        ) {
-            val narrowed = query.isNotBlank() || filter != AppFilter.All
-            item {
-                // What the screen is for, in a card of its own ahead of the list.
-                BurkanSegment(index = 0, count = 1, modifier = Modifier.padding(bottom = GroupGap)) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+        Box(modifier = Modifier.fillMaxSize()) {
+            val barInset = innerPadding.listInset()
+            LazyColumn(
+                // The margin is content padding, so the row of chips can run to the screen's edges. The bar's height
+                // is kept clear here instead, so the fade starts under it.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = innerPadding.listTop())
+                    .oneUiScrollFade(listState),
+                state = listState,
+                contentPadding = PaddingValues(
+                    start = ScreenMargin,
+                    end = ScreenMargin,
+                    bottom = innerPadding.calculateBottomPadding() + GroupGap + FloatingSearchRoom,
+                ),
+                verticalArrangement = Arrangement.spacedBy(SegmentGap),
+            ) {
+                // In One UI the list runs under the bar: this keeps its start below it, and measures the scroll for it.
+                if (barInset > 0.dp) item(key = "bar") { Spacer(Modifier.height(barInset)) }
+                val narrowed = query.isNotBlank() || filter != AppFilter.All
+                item {
+                    // What the screen is for, in a card of its own ahead of the list.
+                    BurkanSegment(
+                        index = 0,
+                        count = 1,
+                        modifier = Modifier.padding(bottom = GroupGap),
                     ) {
-                        BurkanIconBadge(Tabler.Outline.ShieldCheck, tone = Tone.Good)
-                        Text(stringResource(R.string.exclusions_text), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-            // Part of the list, so it scrolls away with it and leaves the screen to the apps.
-            if (state.apps is AppList.Loaded) {
-                item(key = "search") {
-                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                        SearchField(query, onSearch)
-                        Filters(filter, onFilter) { option ->
-                            (state.apps as AppList.Loaded).apps.matching("", option, state.excluded).size
-                        }
-                    }
-                }
-            }
-            when (val apps = state.apps) {
-                AppList.Loading -> item {
-                    Column(
-                        modifier = Modifier.fillParentMaxWidth().fillParentMaxHeight(LIST_STATE_HEIGHT),
-                        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        LoadingIndicator()
-                        Text(stringResource(R.string.exclusions_loading))
-                    }
-                }
-                is AppList.Failed -> item {
-                    BurkanMessage(
-                        icon = Tabler.Outline.AlertCircle,
-                        title = stringResource(R.string.exclusions_failed_title),
-                        text = stringResource(apps.error.messageRes()),
-                    ) {
-                        FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.exclusions_retry)) }
-                    }
-                }
-                is AppList.Loaded -> {
-                    if (apps.apps.isEmpty()) {
-                        item {
-                            BurkanMessage(
-                                icon = Tabler.Outline.Apps,
-                                title = stringResource(R.string.exclusions_empty_title),
-                                text = stringResource(R.string.exclusions_empty_text),
-                            )
-                        }
-                    } else if (found.isEmpty()) {
-                        item {
-                            BurkanMessage(
-                                icon = Tabler.Outline.Search,
-                                title = stringResource(R.string.exclusions_none_found_title),
-                                text = if (query.isBlank()) {
-                                    stringResource(R.string.exclusions_none_in_filter_text)
-                                } else {
-                                    stringResource(R.string.exclusions_none_found_text, query.trim())
-                                },
-                            )
-                        }
-                    } else {
-                        itemsIndexed(found, key = { _, app -> app.packageName.value }) { index, app ->
-                            AppItem(
-                                app = app,
-                                index = index,
-                                count = found.size,
-                                excluded = app.packageName in state.excluded,
-                                icon = icon,
-                                onToggle = { onToggle(app.packageName) },
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BurkanIconBadge(Tabler.Outline.ShieldCheck, tone = Tone.Good)
+                            Text(
+                                stringResource(R.string.exclusions_text),
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                     }
                 }
+                // Part of the list, so it scrolls away with it and leaves the screen to the apps.
+                if (state.apps is AppList.Loaded) {
+                    item(key = "search") {
+                        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                            // One UI's search floats over the foot of the list instead.
+                            if (LocalAppStyle.current != AppStyle.OneUi) SearchField(
+                                query,
+                                onSearch,
+                            )
+                            Filters(filter, onFilter) { option ->
+                                state.apps.apps.matching(
+                                    "",
+                                    option,
+                                    state.excluded,
+                                ).size
+                            }
+                        }
+                    }
+                }
+                when (val apps = state.apps) {
+                    AppList.Loading -> item {
+                        Column(
+                            modifier = Modifier
+                                .fillParentMaxWidth()
+                                .fillParentMaxHeight(LIST_STATE_HEIGHT),
+                            verticalArrangement = Arrangement.spacedBy(
+                                12.dp,
+                                Alignment.CenterVertically,
+                            ),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            LoadingIndicator()
+                            Text(stringResource(R.string.exclusions_loading))
+                        }
+                    }
+
+                    is AppList.Failed -> item {
+                        BurkanMessage(
+                            icon = Tabler.Outline.AlertCircle,
+                            title = stringResource(R.string.exclusions_failed_title),
+                            text = stringResource(apps.error.messageRes()),
+                        ) {
+                            FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.exclusions_retry)) }
+                        }
+                    }
+
+                    is AppList.Loaded -> {
+                        if (apps.apps.isEmpty()) {
+                            item {
+                                BurkanMessage(
+                                    icon = Tabler.Outline.Apps,
+                                    title = stringResource(R.string.exclusions_empty_title),
+                                    text = stringResource(R.string.exclusions_empty_text),
+                                )
+                            }
+                        } else if (found.isEmpty()) {
+                            item {
+                                BurkanMessage(
+                                    icon = Tabler.Outline.Search,
+                                    title = stringResource(R.string.exclusions_none_found_title),
+                                    text = if (query.isBlank()) {
+                                        stringResource(R.string.exclusions_none_in_filter_text)
+                                    } else {
+                                        stringResource(
+                                            R.string.exclusions_none_found_text,
+                                            query.trim(),
+                                        )
+                                    },
+                                )
+                            }
+                        } else {
+                            itemsIndexed(
+                                found,
+                                key = { _, app -> app.packageName.value },
+                            ) { index, app ->
+                                AppItem(
+                                    app = app,
+                                    index = index,
+                                    count = found.size,
+                                    excluded = app.packageName in state.excluded,
+                                    icon = icon,
+                                    onToggle = { onToggle(app.packageName) },
+                                )
+                            }
+                        }
+                    }
+                }
+                // A search or a filter is over the apps that can be chosen; the ones that cannot would only be in its way.
+                if (!narrowed) fixedItems(state.fixed, icon)
             }
-            // A search or a filter is over the apps that can be chosen; the ones that cannot would only be in its way.
-            if (!narrowed) fixedItems(state.fixed, icon)
+            if (LocalAppStyle.current == AppStyle.OneUi && state.apps is AppList.Loaded) {
+                BurkanFloatingSearch(
+                    query = query,
+                    onSearch = onSearch,
+                    placeholder = stringResource(R.string.exclusions_search),
+                    clearLabel = stringResource(R.string.search_clear),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .imePadding()
+                        .padding(bottom = innerPadding.calculateBottomPadding() + 12.dp),
+                )
+            }
         }
     }
 }
@@ -238,10 +300,15 @@ private fun ExclusionsContent(
 private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoader) {
     item {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = GroupGap + 8.dp, bottom = 12.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(top = GroupGap + 8.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Icon(
                     Tabler.Outline.Lock,
                     contentDescription = null,
@@ -264,8 +331,17 @@ private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoad
     val fixedCount = FullApplyPlan.FixedExclusions.size
     if (fixed == null) {
         // Until it is known which are installed, the names alone.
-        itemsIndexed(FullApplyPlan.FixedExclusions, key = { _, name -> "fixed:${name.value}" }) { index, name ->
-            BurkanSegmentItem(index, fixedCount, name.value, leading = { AppIcon(name, icon) }, trailing = { LockMark() })
+        itemsIndexed(
+            FullApplyPlan.FixedExclusions,
+            key = { _, name -> "fixed:${name.value}" },
+        ) { index, name ->
+            BurkanSegmentItem(
+                index,
+                fixedCount,
+                name.value,
+                leading = { AppIcon(name, icon) },
+                trailing = { LockMark() },
+            )
         }
     } else {
         itemsIndexed(fixed, key = { _, app -> "fixed:${app.packageName.value}" }) { index, app ->
@@ -307,7 +383,15 @@ private fun Filters(selected: AppFilter, onSelect: (AppFilter) -> Unit, count: (
             FilterChip(
                 selected = filter == selected,
                 onClick = { onSelect(filter) },
-                label = { Text(stringResource(R.string.filter_with_count, stringResource(filter.label), count(filter))) },
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.filter_with_count,
+                            stringResource(filter.label),
+                            count(filter),
+                        ),
+                    )
+                },
                 shape = CircleShape,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -369,7 +453,13 @@ private fun AppIcon(packageName: PackageName, icon: IconLoader) {
     if (loaded != null) {
         Image(loaded, contentDescription = null, modifier = Modifier.size(40.dp))
     } else {
-        Icon(Tabler.Outline.Apps, contentDescription = null, modifier = Modifier.size(40.dp).padding(8.dp))
+        Icon(
+            Tabler.Outline.Apps,
+            contentDescription = null,
+            modifier = Modifier
+                .size(40.dp)
+                .padding(8.dp),
+        )
     }
 }
 
@@ -427,12 +517,14 @@ private fun ExclusionsSearchPreview() = ExclusionsPreviewContent(sampleExclusion
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun ExclusionsFilterSelectedPreview() = ExclusionsPreviewContent(sampleExclusions, filter = AppFilter.Selected)
+private fun ExclusionsFilterSelectedPreview() =
+    ExclusionsPreviewContent(sampleExclusions, filter = AppFilter.Selected)
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun ExclusionsNoneFoundPreview() = ExclusionsPreviewContent(sampleExclusions, query = "zebra")
+private fun ExclusionsNoneFoundPreview() =
+    ExclusionsPreviewContent(sampleExclusions, query = "zebra")
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -443,13 +535,23 @@ private fun ExclusionsLoadingPreview() = ExclusionsPreviewContent(ExclusionsStat
 @BurkanPreview
 @Composable
 private fun ExclusionsEmptyPreview() =
-    ExclusionsPreviewContent(ExclusionsState(apps = AppList.Loaded(emptyList()), fixed = sampleFixed))
+    ExclusionsPreviewContent(
+        ExclusionsState(
+            apps = AppList.Loaded(emptyList()),
+            fixed = sampleFixed,
+        ),
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun ExclusionsFailedPreview() =
-    ExclusionsPreviewContent(ExclusionsState(apps = AppList.Failed(SettingsError.AppsNotListed), fixed = sampleFixed))
+    ExclusionsPreviewContent(
+        ExclusionsState(
+            apps = AppList.Failed(SettingsError.AppsNotListed),
+            fixed = sampleFixed,
+        ),
+    )
 
 @BurkanPreview
 @Composable
@@ -460,11 +562,23 @@ private fun ExclusionsDarkPreview() {
 @BurkanPreview
 @Composable
 private fun ExclusionsLargeTextPreview() {
-    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) { ExclusionsPreviewContent(sampleExclusions) }
+    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+        ExclusionsPreviewContent(
+            sampleExclusions,
+        )
+    }
 }
 
 @BurkanPreview
 @Composable
 private fun ExclusionsTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) { ExclusionsPreviewContent(sampleExclusions) }
+}
+
+@BurkanPreview
+@Composable
+private fun ExclusionsOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        ExclusionsPreviewContent(sampleExclusions)
+    }
 }

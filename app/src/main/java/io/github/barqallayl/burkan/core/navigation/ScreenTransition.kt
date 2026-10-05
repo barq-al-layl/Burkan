@@ -1,8 +1,12 @@
 package io.github.barqallayl.burkan.core.navigation
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -29,3 +33,35 @@ private val slideSpec = spring(
     stiffness = STIFFNESS,
     visibilityThreshold = IntOffset.VisibilityThreshold,
 )
+
+/**
+ * A change of screen in the One UI style, as the phone's own apps do it: the new screen slides in over the old one,
+ * which gives way a short distance and dims out behind it. Going back runs it the other way, the old screen
+ * returning from where it waited as the top one slides off.
+ */
+fun oneUiTransition(forward: Boolean): ContentTransform =
+    if (forward) {
+        slideInHorizontally(oneUiSlide) { width -> width } togetherWith
+            slideOutHorizontally(oneUiSlide) { width -> -(width * ONE_UI_GIVE).toInt() } + fadeOut(
+            oneUiFade,
+        )
+    } else {
+        (
+            slideInHorizontally(oneUiSlide) { width -> -(width * ONE_UI_GIVE).toInt() } + fadeIn(
+                oneUiFade,
+            ) togetherWith
+                slideOutHorizontally(oneUiSlide) { width -> width }
+            ).apply {
+                // The screen being left is the one on top, so it stays above the one coming back.
+                targetContentZIndex = -1f
+            }
+    }
+
+/** How far the screen underneath moves, as a share of the screen's width. */
+private const val ONE_UI_GIVE = 0.25f
+private const val ONE_UI_MILLIS = 400
+
+/** Quick off the mark and long in settling, like One UI's own. */
+private val OneUiEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+private val oneUiSlide = tween<IntOffset>(ONE_UI_MILLIS, easing = OneUiEasing)
+private val oneUiFade = tween<Float>(ONE_UI_MILLIS, easing = OneUiEasing)

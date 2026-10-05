@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
@@ -21,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.materialkolor.material3.ktx.animateColorScheme
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.recordsRevealOrigin
 import kotlinx.coroutines.launch
 
@@ -61,27 +65,43 @@ fun BurkanBottomSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
-        val colors = animateColorScheme(MaterialTheme.colorScheme, animationSpec = { tween(SCHEME_FADE_MILLIS) })
+        val colors = animateColorScheme(
+            MaterialTheme.colorScheme,
+            animationSpec = { tween(SCHEME_FADE_MILLIS) },
+        )
         MaterialTheme(colorScheme = colors) {
+            val oneUi = LocalAppStyle.current == AppStyle.OneUi
             Surface(
                 modifier = Modifier
                     .recordsRevealOrigin()
                     .windowInsetsPadding(WindowInsets.systemBars)
-                    .padding(horizontal = SheetMargin)
+                    .padding(horizontal = if (oneUi) 10.dp else SheetMargin)
                     .padding(bottom = SheetMargin),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surface,
-                // The card is the colour of the screen behind it, so in a dark theme only its edge tells them apart.
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                // One UI's is rounder and a lighter grey than the cards it floats over, which is all that sets it
+                // apart. Material's is the colour of the screen behind it, so in a dark theme only its edge does.
+                shape = if (oneUi) OneUiSheetShape else MaterialTheme.shapes.extraLarge,
+                color = if (oneUi) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                border = if (oneUi) null else BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant,
+                ),
+                shadowElevation = if (oneUi) 6.dp else 0.dp,
             ) {
-                Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                    BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
-                    content { then -> scope.launch { sheetState.hide() }.invokeOnCompletion { then() } }
+                CompositionLocalProvider(LocalOnSheet provides true) {
+                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                        BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        content { then ->
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { then() }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+private val OneUiSheetShape = RoundedCornerShape(34.dp)
 
 /** About as long as the circle takes to cross the screen behind the sheet. */
 private const val SCHEME_FADE_MILLIS = 350
@@ -115,7 +135,9 @@ fun <T> BurkanChoiceList(
             Text(
                 text,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp),
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 8.dp),
             )
         }
         SegmentedColumn(
@@ -168,10 +190,15 @@ fun BurkanSegmentChoice(
         // The row is the control; the button only shows its state, in the row's own colour.
         trailing = {
             val color = LocalContentColor.current
+            // One UI's row does not fill when chosen, so its button carries the accent instead.
+            val oneUi = LocalAppStyle.current == AppStyle.OneUi
             RadioButton(
                 selected = selected,
                 onClick = null,
-                colors = RadioButtonDefaults.colors(selectedColor = color, unselectedColor = color),
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = if (oneUi) MaterialTheme.colorScheme.primary else color,
+                    unselectedColor = if (oneUi) MaterialTheme.colorScheme.onSurfaceVariant else color,
+                ),
             )
         },
     )
