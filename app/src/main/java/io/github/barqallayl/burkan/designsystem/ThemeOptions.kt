@@ -2,7 +2,9 @@ package io.github.barqallayl.burkan.designsystem
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import com.materialkolor.PaletteStyle
 
 /**
@@ -22,8 +24,12 @@ fun ThemeMode.isDark(): Boolean = when (this) {
     ThemeMode.Dark -> true
 }
 
-/** The colours the scheme can be generated from. */
-enum class SeedColors(val color: Color) {
+/**
+ * The colours the scheme can be generated from. [Wallpaper] has none of its own: it is the accent Android takes
+ * from the user's wallpaper, read when the theme is built.
+ */
+enum class SeedColors(val color: Color?) {
+    Wallpaper(null),
     Blue(Color(0xFF1E88E5)),
     Indigo(Color(0xFF3949AB)),
     Purple(Color(0xFF8E24AA)),
@@ -35,9 +41,14 @@ enum class SeedColors(val color: Color) {
     ;
 
     companion object {
-        val Default: SeedColors = Blue
+        val Default: SeedColors = Wallpaper
     }
 }
+
+/** The colour to generate the scheme from: the entry's own, or the system's wallpaper accent. */
+@Composable
+@ReadOnlyComposable
+fun SeedColors.resolved(): Color = color ?: colorResource(android.R.color.system_accent1_500)
 
 /** Every MaterialKolor palette style, under names this app owns so a library rename cannot reset a choice. */
 enum class PaletteStyles(val style: PaletteStyle) {

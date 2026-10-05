@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.designsystem.component
 
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -70,6 +71,8 @@ fun BurkanBottomSheet(
                     .padding(bottom = SheetMargin),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surface,
+                // The card is the colour of the screen behind it, so in a dark theme only its edge tells them apart.
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(modifier = Modifier.padding(bottom = 8.dp)) {
                     BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -145,6 +148,7 @@ fun BurkanSegmentChoice(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    supporting: String? = null,
     fontFamily: FontFamily? = null,
     leading: (@Composable () -> Unit)? = null,
 ) {
@@ -153,6 +157,7 @@ fun BurkanSegmentChoice(
         count = count,
         headline = text,
         modifier = modifier,
+        supporting = supporting,
         headlineStyle = MaterialTheme.typography.titleMedium.copy(
             fontFamily = fontFamily ?: MaterialTheme.typography.titleMedium.fontFamily,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,

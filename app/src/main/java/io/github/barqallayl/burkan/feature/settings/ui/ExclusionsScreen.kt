@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Checkbox
@@ -28,8 +27,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,17 +37,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.Apps
-import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Lock
 import com.composables.icons.tabler.outline.Search
+import com.composables.icons.tabler.outline.ShieldCheck
 import com.composables.icons.tabler.outline.X
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -60,12 +56,16 @@ import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
-import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
+import io.github.barqallayl.burkan.designsystem.component.BurkanSearchField
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentGap
+import io.github.barqallayl.burkan.designsystem.component.bleedsToScreenEdges
+import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
@@ -139,8 +139,11 @@ private fun ExclusionsContent(
             (state.apps as? AppList.Loaded)?.apps?.matching(query, filter, state.excluded).orEmpty()
         }
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = ScreenMargin),
+            // The margin is content padding, so the row of chips can run to the screen's edges.
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
+                start = ScreenMargin,
+                end = ScreenMargin,
                 top = innerPadding.calculateTopPadding(),
                 bottom = innerPadding.calculateBottomPadding() + GroupGap,
             ),
@@ -148,17 +151,26 @@ private fun ExclusionsContent(
         ) {
             val narrowed = query.isNotBlank() || filter != AppFilter.All
             item {
-                Text(
-                    stringResource(R.string.exclusions_text),
-                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = GroupGap),
-                )
+                // What the screen is for, in a card of its own ahead of the list.
+                BurkanSegment(index = 0, count = 1, modifier = Modifier.padding(bottom = GroupGap)) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BurkanIconBadge(Tabler.Outline.ShieldCheck, tone = Tone.Good)
+                        Text(stringResource(R.string.exclusions_text), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
             // Part of the list, so it scrolls away with it and leaves the screen to the apps.
             if (state.apps is AppList.Loaded) {
                 item(key = "search") {
                     Column(modifier = Modifier.padding(bottom = 8.dp)) {
                         SearchField(query, onSearch)
-                        Filters(filter, onFilter)
+                        Filters(filter, onFilter) { option ->
+                            (state.apps as AppList.Loaded).apps.matching("", option, state.excluded).size
+                        }
                     }
                 }
             }
@@ -225,16 +237,35 @@ private fun ExclusionsContent(
 
 private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoader) {
     item {
-        Column(modifier = Modifier.padding(top = GroupGap, bottom = 8.dp)) {
-            BurkanSectionTitle(stringResource(R.string.exclusions_fixed_title))
-            Text(stringResource(R.string.exclusions_fixed_text), modifier = Modifier.padding(horizontal = 16.dp))
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = GroupGap + 8.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Tabler.Outline.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    stringResource(R.string.exclusions_fixed_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                stringResource(R.string.exclusions_fixed_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
     val fixedCount = FullApplyPlan.FixedExclusions.size
     if (fixed == null) {
         // Until it is known which are installed, the names alone.
         itemsIndexed(FullApplyPlan.FixedExclusions, key = { _, name -> "fixed:${name.value}" }) { index, name ->
-            BurkanSegmentItem(index, fixedCount, name.value, leading = { AppIcon(name, icon) })
+            BurkanSegmentItem(index, fixedCount, name.value, leading = { AppIcon(name, icon) }, trailing = { LockMark() })
         }
     } else {
         itemsIndexed(fixed, key = { _, app -> "fixed:${app.packageName.value}" }) { index, app ->
@@ -244,33 +275,45 @@ private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoad
                 headline = app.label ?: app.packageName.value,
                 supporting = if (app.label != null) app.packageName.value else notInstalled(),
                 leading = { AppIcon(app.packageName, icon) },
+                trailing = { LockMark() },
             )
         }
     }
 }
 
+/** Where a row that can be chosen has its checkbox: this one is kept, and that cannot be changed. */
+@Composable
+private fun LockMark() {
+    Icon(
+        Tabler.Outline.Lock,
+        contentDescription = stringResource(R.string.exclusions_fixed_mark),
+        modifier = Modifier.size(20.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 /** One filter at a time, as a row of chips that scrolls sideways when it does not fit. */
 @Composable
-private fun Filters(selected: AppFilter, onSelect: (AppFilter) -> Unit) {
+private fun Filters(selected: AppFilter, onSelect: (AppFilter) -> Unit, count: (AppFilter) -> Int) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 4.dp),
+        modifier = Modifier
+            .bleedsToScreenEdges()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = ScreenMargin)
+            .padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         AppFilter.entries.forEach { filter ->
             FilterChip(
                 selected = filter == selected,
                 onClick = { onSelect(filter) },
-                label = { Text(stringResource(filter.label)) },
+                label = { Text(stringResource(R.string.filter_with_count, stringResource(filter.label), count(filter))) },
+                shape = CircleShape,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
-                leadingIcon = if (filter == selected) {
-                    { Icon(Tabler.Outline.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                } else {
-                    null
-                },
             )
         }
     }
@@ -287,28 +330,11 @@ private val AppFilter.label: Int
 /** Searches the apps by name or package name. */
 @Composable
 private fun SearchField(query: String, onSearch: (String) -> Unit) {
-    TextField(
-        value = query,
-        onValueChange = onSearch,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text(stringResource(R.string.exclusions_search)) },
-        leadingIcon = { Icon(Tabler.Outline.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onSearch("") }) {
-                    Icon(Tabler.Outline.X, contentDescription = stringResource(R.string.exclusions_search_clear))
-                }
-            }
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        shape = CircleShape,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = segmentContainerColor,
-            unfocusedContainerColor = segmentContainerColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
+    BurkanSearchField(
+        query = query,
+        onSearch = onSearch,
+        placeholder = stringResource(R.string.exclusions_search),
+        clearLabel = stringResource(R.string.search_clear),
     )
 }
 

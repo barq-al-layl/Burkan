@@ -5,7 +5,9 @@ import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
@@ -64,6 +66,7 @@ class HomeViewModelTest {
         launcher,
         RunLogStore(log, backgroundScope),
         autoApply,
+        SettingsStore(settings, FakeDeviceStateStorage(), backgroundScope),
         clock,
     )
 

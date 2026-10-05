@@ -22,6 +22,7 @@ import io.github.barqallayl.burkan.designsystem.BurkanTheme
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.ProvideTextScale
 import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.ThemeReveal
 import io.github.barqallayl.burkan.designsystem.isDark
 import io.github.barqallayl.burkan.designsystem.recordsRevealOrigin
@@ -47,7 +48,7 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
             ThemeReveal(ThemeColours(isDarkTheme, appearance.seedColor, appearance.paletteStyle)) { colours ->
                 BurkanTheme(
                     isDarkTheme = colours.isDark,
-                    seedColor = colours.seedColor.color,
+                    seedColor = colours.seedColor.resolved(),
                     paletteStyle = colours.paletteStyle.style,
                     appFont = appearance.appFont,
                 ) {

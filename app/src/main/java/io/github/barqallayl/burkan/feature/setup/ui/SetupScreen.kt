@@ -8,15 +8,18 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -30,19 +33,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
-import com.composables.icons.tabler.outline.Circle
-import com.composables.icons.tabler.outline.CircleCheck
-import com.composables.icons.tabler.outline.CircleDot
+import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.InfoCircle
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -52,13 +55,15 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
-import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
+import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
+import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.noticeColors
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
+import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
@@ -109,7 +114,22 @@ private fun batteryExemptionIntent(context: Context): Intent =
 
 @Composable
 private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSkipBattery: () -> Unit) {
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.setup_title)) }) }) { innerPadding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.setup_title)) },
+                actions = {
+                    state.current?.let { current ->
+                        BurkanPill(
+                            stringResource(R.string.setup_progress, current.ordinal + 1, SetupStep.entries.size),
+                            modifier = Modifier.padding(end = ScreenMargin),
+                            tone = Tone.Good,
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
         val done = state.done
         Column(
             modifier = Modifier
@@ -131,12 +151,8 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
                 val finished = SetupStep.entries.filter { it in done }
                 val remaining = SetupStep.entries.filter { it !in done }
                 val rows = remaining.size + if (finished.isEmpty()) 0 else 1
-                Column {
-                    state.current?.let { current ->
-                        BurkanSectionTitle(
-                            stringResource(R.string.setup_progress, current.ordinal + 1, SetupStep.entries.size),
-                        )
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(GroupGap)) {
+                    ProgressBar(done)
                     SegmentedColumn {
                         if (finished.isNotEmpty()) DoneItem(finished, rows)
                         remaining.forEachIndexed { index, step ->
@@ -157,7 +173,25 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
     }
 }
 
-private enum class StepStatus { Done, Current, Waiting }
+/** One bar for each step, filled for the ones that are done: how far along, at a glance. The pill says it in words. */
+@Composable
+private fun ProgressBar(done: Set<SetupStep>) {
+    Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        SetupStep.entries.forEach { step ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .background(
+                        if (step in done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        CircleShape,
+                    ),
+            )
+        }
+    }
+}
+
+private enum class StepStatus { Current, Waiting }
 
 /** Every finished step in one row: how many, and which. */
 @Composable
@@ -168,7 +202,13 @@ private fun DoneItem(finished: List<SetupStep>, count: Int) {
         count = count,
         headline = pluralStringResource(R.plurals.setup_steps_done, finished.size, finished.size),
         supporting = names.joinToString(separator = stringResource(R.string.list_separator)),
-        leading = { StatusIcon(StepStatus.Done) },
+        leading = {
+            BurkanIconBadge(
+                Tabler.Outline.Check,
+                tone = Tone.Good,
+                contentDescription = stringResource(R.string.setup_step_done),
+            )
+        },
     )
 }
 
@@ -204,20 +244,39 @@ private fun StepItem(
         count = count,
         headline = stringResource(step.title),
         containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else segmentContainerColor,
-        leading = { StatusIcon(status) },
+        leading = { StepNumber(step.ordinal + 1, isCurrent) },
+        // Said on the step itself while it waits; once it is the current one, its own button offers the skip.
+        trailing = if (step == SetupStep.Battery && !isCurrent) {
+            { BurkanPill(stringResource(R.string.setup_optional)) }
+        } else {
+            null
+        },
         content = if (isCurrent) ({ CurrentStepDetail(step, state, onAction, onSkipBattery) }) else null,
     )
 }
 
+/**
+ * A step's place in the list, in a round badge: filled for the one to do now, quiet for the ones still to come.
+ * Each has a spoken label as well: never colour alone.
+ */
 @Composable
-private fun StatusIcon(status: StepStatus) {
-    // Each status has its own shape and a spoken label: never colour alone.
-    val (icon: ImageVector, label: Int) = when (status) {
-        StepStatus.Done -> Tabler.Outline.CircleCheck to R.string.setup_step_done
-        StepStatus.Current -> Tabler.Outline.CircleDot to R.string.setup_step_current
-        StepStatus.Waiting -> Tabler.Outline.Circle to R.string.setup_step_waiting
+private fun StepNumber(number: Int, isCurrent: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    val label = stringResource(if (isCurrent) R.string.setup_step_current else R.string.setup_step_waiting)
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .background(if (isCurrent) scheme.primary else scheme.surfaceContainerHighest, CircleShape)
+            .clearAndSetSemantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            number.toString(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isCurrent) scheme.onPrimary else scheme.onSurfaceVariant,
+        )
     }
-    Icon(icon, contentDescription = stringResource(label))
 }
 
 @Composable

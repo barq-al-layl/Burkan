@@ -10,11 +10,14 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.store.SettingsStore
+import io.github.barqallayl.burkan.core.store.UserSettings
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
@@ -52,6 +55,10 @@ data class HomeState(
     val waitingFor: WaitReason? = null,
     /** The run after a restart left System UI for the next time the phone locks. */
     val systemUiAtNextLock: Boolean = false,
+    /** Whether Vulkan is applied by itself after a restart. Null until the settings are read. */
+    val applyOnBoot: Boolean? = null,
+    /** How many apps the user has chosen never to restart. */
+    val keptCount: Int = 0,
 )
 
 sealed interface HomeSideEffect {
@@ -69,17 +76,22 @@ class HomeViewModel(
     private val launcher: ApplyLauncher,
     private val runLog: RunLogStore,
     private val autoApply: AutoApplyStorage,
+    private val settings: SettingsStore,
     private val clock: Clock,
 ) : OrbitContainerHost<HomeState, HomeState, HomeSideEffect>, ViewModel() {
 
     override val container = orbitContainer<HomeState, HomeSideEffect>(
-        HomeState(lastRun = runLog.log.value?.runs?.firstOrNull()),
+        HomeState(
+            lastRun = runLog.log.value?.runs?.firstOrNull(),
+            applyOnBoot = settings.settings.value?.applyOnBoot,
+            keptCount = settings.settings.value?.exclusions?.size ?: 0,
+        ),
     ) {
         var logRead = false
         var lockWaitArmed = false
-        combine(runLog.log.filterNotNull(), controller.state, autoApply.state) { log, run, auto ->
-            Triple(log.runs.firstOrNull(), run, auto)
-        }.collect { (lastRun, run, auto) ->
+        combine(runLog.log.filterNotNull(), controller.state, autoApply.state, settings.settings) { log, run, auto, user ->
+            Inputs(log.runs.firstOrNull(), run, auto, user)
+        }.collect { (lastRun, run, auto, user) ->
             // Every run that ends adds to the log, so a new entry means a run has finished.
             val runFinished = logRead && lastRun != state.lastRun
             logRead = true
@@ -89,6 +101,8 @@ class HomeViewModel(
                     run = run,
                     waitingFor = auto.waitingFor,
                     systemUiAtNextLock = auto.systemUiAtNextLock,
+                    applyOnBoot = user?.applyOnBoot,
+                    keptCount = user?.exclusions?.size ?: 0,
                 )
             }
             // The service waits for the lock while it lives. If the process has gone since, wait again from here.
@@ -167,6 +181,13 @@ class HomeViewModel(
             refresh().join()
         }
     }
+
+    private data class Inputs(
+        val lastRun: RunLogEntry?,
+        val run: ApplyRunState,
+        val auto: AutoApplyState,
+        val user: UserSettings?,
+    )
 
     private companion object {
         /** A status read this recently is shown as it is when the screen resumes. */

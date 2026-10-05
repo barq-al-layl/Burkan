@@ -32,6 +32,7 @@ val ThemeMode.icon: ImageVector
 @get:StringRes
 val SeedColors.label: Int
     get() = when (this) {
+        SeedColors.Wallpaper -> R.string.seed_wallpaper
         SeedColors.Blue -> R.string.seed_blue
         SeedColors.Indigo -> R.string.seed_indigo
         SeedColors.Purple -> R.string.seed_purple

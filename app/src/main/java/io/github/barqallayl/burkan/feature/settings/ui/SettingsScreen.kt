@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
@@ -38,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.PreviewWrapper
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Apps
@@ -67,12 +72,15 @@ import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.component.BurkanChoiceList
+import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
+import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -226,7 +234,12 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         },
         onClick = actions.onOpenExclusions,
         leading = { Icon(Tabler.Outline.Apps, contentDescription = null) },
-        trailing = { Chevron() },
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (values.exclusionCount > 0) BurkanPill(values.exclusionCount.toString(), tone = Tone.Good)
+                Chevron()
+            }
+        },
     )
 }
 
@@ -235,7 +248,13 @@ private fun AppearanceItems(appearance: Appearance, actions: SettingsActions) {
     ChoiceItem(0, Tabler.Outline.SunMoon, R.string.settings_theme, stringResource(appearance.themeMode.label)) {
         actions.onShow(SettingsDialog.ThemeMode)
     }
-    ChoiceItem(1, Tabler.Outline.Palette, R.string.settings_seed_color, stringResource(appearance.seedColor.label)) {
+    ChoiceItem(
+        index = 1,
+        icon = Tabler.Outline.Palette,
+        title = R.string.settings_seed_color,
+        value = stringResource(appearance.seedColor.label),
+        swatch = appearance.seedColor.resolved(),
+    ) {
         actions.onShow(SettingsDialog.SeedColor)
     }
     ChoiceItem(2, Tabler.Outline.ColorSwatch, R.string.settings_palette_style, stringResource(appearance.paletteStyle.label)) {
@@ -255,8 +274,8 @@ private fun AboutItems(version: String, actions: SettingsActions) {
         index = 0,
         count = ABOUT_ITEMS,
         headline = stringResource(R.string.settings_version),
-        supporting = version,
         leading = { Icon(Tabler.Outline.InfoCircle, contentDescription = null) },
+        trailing = { BurkanPill(version) },
     )
     BurkanSegmentItem(
         index = 1,
@@ -335,7 +354,7 @@ private fun AppearanceChoices(dialog: SettingsDialog, appearance: Appearance, ac
             selected = appearance.seedColor,
             label = { stringResource(it.label) },
             onSelect = actions.onSeedColor,
-            leading = { Box(Modifier.size(24.dp).background(it.color, CircleShape)) },
+            leading = { Box(Modifier.size(24.dp).background(it.resolved(), CircleShape)) },
         )
         SettingsDialog.PaletteStyle -> BurkanChoiceList(
             title = stringResource(R.string.settings_palette_style),
@@ -393,17 +412,44 @@ private fun SwitchItem(
     )
 }
 
+/**
+ * A preference that opens a sheet of choices. What is chosen now sits at the end of the row, before the chevron, so
+ * the group reads as two columns: the names down one side, their values down the other.
+ */
 @Composable
-private fun ChoiceItem(index: Int, icon: ImageVector, title: Int, value: String, onClick: () -> Unit) {
+private fun ChoiceItem(
+    index: Int,
+    icon: ImageVector,
+    title: Int,
+    value: String,
+    swatch: Color? = null,
+    onClick: () -> Unit,
+) {
     BurkanSegmentItem(
         index = index,
         count = APPEARANCE_ITEMS,
         headline = stringResource(title),
-        supporting = value,
         onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (swatch != null) Box(Modifier.size(14.dp).background(swatch, CircleShape))
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = VALUE_MAX_WIDTH),
+                )
+                Chevron()
+            }
+        },
     )
 }
+
+/** A value longer than this is cut short, so the row's name always has the room it needs. */
+private val VALUE_MAX_WIDTH = 150.dp
 
 /** Marks a row that opens something: another screen, or a page in the browser. */
 @Composable
@@ -438,7 +484,7 @@ private fun sampleAppearance(
     appFont: AppFont = SettingsStorage.Defaults.appFont,
 ) = Appearance(
     themeMode = SettingsStorage.Defaults.themeMode,
-    seedColor = SettingsStorage.Defaults.seedColor,
+    seedColor = SeedColors.Blue,
     paletteStyle = SettingsStorage.Defaults.paletteStyle,
     appFont = appFont,
     textScalePercent = textScalePercent,

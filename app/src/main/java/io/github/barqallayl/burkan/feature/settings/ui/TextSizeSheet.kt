@@ -6,12 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,10 +30,15 @@ import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.TextSize
+import com.composables.icons.tabler.outline.Check
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.component.BurkanPill
+import io.github.barqallayl.burkan.designsystem.component.BurkanSheetActions
+import io.github.barqallayl.burkan.designsystem.component.BurkanSheetHeader
+import io.github.barqallayl.burkan.designsystem.component.GroupGap
+import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
@@ -58,55 +59,75 @@ fun TextSizeSheet(savedPercent: Int, onSave: (Int) -> Unit, onCancel: () -> Unit
     var pending by remember(savedPercent) { mutableIntStateOf(savedPercent) }
     val steps = remember { TextScale.percentages.toList() }
     val label = textSizeLabel(pending)
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenMargin), verticalArrangement = Arrangement.spacedBy(GroupGap)) {
+        // The size as a number beside the title: it is the one thing the slider changes.
+        BurkanSheetHeader(
             stringResource(R.string.settings_text_size),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier.padding(horizontal = 8.dp),
+            trailing = { BurkanPill(stringResource(R.string.text_size_percent, pending), tone = Tone.Good) },
         )
-        Column(modifier = Modifier.padding(ScreenMargin), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                )
-                // Always laid out, so the row keeps its height as the button comes and goes.
-                val canReset = pending != SettingsStorage.Defaults.TEXT_SCALE_PERCENT
-                TextButton(
-                    onClick = { pending = SettingsStorage.Defaults.TEXT_SCALE_PERCENT },
-                    enabled = canReset,
-                    modifier = Modifier
-                        .alpha(if (canReset) 1f else 0f)
-                        .then(if (canReset) Modifier else Modifier.clearAndSetSemantics { }),
-                ) {
-                    Text(stringResource(R.string.text_size_reset))
+        BurkanSegment(index = 0, count = 1) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 4.dp)) {
+                // A small letter and a large one at the ends: which way is which, without reading the numbers.
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(SAMPLE_LETTER, style = MaterialTheme.typography.bodySmall, modifier = Modifier.clearAndSetSemantics { })
+                    Slider(
+                        value = steps.indexOf(pending).toFloat(),
+                        onValueChange = { pending = steps[it.roundToInt().coerceIn(steps.indices)] },
+                        valueRange = 0f..steps.lastIndex.toFloat(),
+                        steps = steps.size - 2,
+                        modifier = Modifier.weight(1f).semantics { stateDescription = label },
+                    )
+                    Text(
+                        SAMPLE_LETTER,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clearAndSetSemantics { },
+                    )
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Tabler.Outline.TextSize, contentDescription = null, modifier = Modifier.size(18.dp))
-                Slider(
-                    value = steps.indexOf(pending).toFloat(),
-                    onValueChange = { pending = steps[it.roundToInt().coerceIn(steps.indices)] },
-                    valueRange = 0f..steps.lastIndex.toFloat(),
-                    steps = steps.size - 2,
-                    modifier = Modifier.weight(1f).semantics { stateDescription = label },
-                )
-                Icon(Tabler.Outline.TextSize, contentDescription = null, modifier = Modifier.size(30.dp))
-            }
-            TextSizeSample(pending, savedPercent)
-            Row(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
-                Button(onClick = { onSave(pending) }, enabled = pending != savedPercent, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dialog_save))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    EndLabel(steps.first())
+                    // Always laid out, so the row keeps its height as the button comes and goes.
+                    val canReset = pending != SettingsStorage.Defaults.TEXT_SCALE_PERCENT
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        TextButton(
+                            onClick = { pending = SettingsStorage.Defaults.TEXT_SCALE_PERCENT },
+                            enabled = canReset,
+                            modifier = Modifier
+                                .alpha(if (canReset) 1f else 0f)
+                                .then(if (canReset) Modifier else Modifier.clearAndSetSemantics { }),
+                        ) {
+                            Text(stringResource(R.string.text_size_reset))
+                        }
+                    }
+                    EndLabel(steps.last())
                 }
             }
         }
+        TextSizeSample(pending, savedPercent)
+        BurkanSheetActions(
+            modifier = Modifier.padding(bottom = 8.dp),
+            dismiss = stringResource(R.string.dialog_cancel),
+            onDismiss = onCancel,
+            confirm = stringResource(R.string.dialog_save),
+            onConfirm = { onSave(pending) },
+            confirmIcon = Tabler.Outline.Check,
+            confirmEnabled = pending != savedPercent,
+        )
     }
 }
+
+/** The size at one end of the slider. */
+@Composable
+private fun EndLabel(percent: Int) {
+    Text(
+        stringResource(R.string.text_size_percent, percent),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private const val SAMPLE_LETTER = "A"
 
 /**
  * A few lines in the app's own styles at [percent]. The card is always as tall as the sample at the largest size:

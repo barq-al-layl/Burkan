@@ -8,6 +8,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,24 +20,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
@@ -50,19 +60,16 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
-import io.github.barqallayl.burkan.core.ui.LocalCurrentYear
-import io.github.barqallayl.burkan.core.ui.durationText
-import io.github.barqallayl.burkan.core.ui.formatDateTime
 import io.github.barqallayl.burkan.designsystem.MonoFontFamily
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
-import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentGap
+import io.github.barqallayl.burkan.designsystem.component.bleedsToScreenEdges
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -96,9 +103,12 @@ fun LogScreen() {
             is LogSideEffect.Share -> context.shareLogFile(effect.runs, zone, Clock.System.now())
         }
     }
+    var filter by rememberSaveable { mutableStateOf(LogFilter.All) }
     LogContent(
         state = state,
         zone = zone,
+        filter = filter,
+        onFilter = { filter = it },
         onToggle = viewModel::toggle,
         onShare = viewModel::share,
         onBack = viewModel::back,
@@ -112,11 +122,26 @@ private fun LogContent(
     onToggle: (RunLogEntry) -> Unit,
     onShare: () -> Unit,
     onBack: () -> Unit,
+    filter: LogFilter = LogFilter.All,
+    onFilter: (LogFilter) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.log_title)) },
+                // How many runs there are, under the title: the list is long and this is its size.
+                title = {
+                    Column {
+                        Text(stringResource(R.string.log_title))
+                        val count = state.runs?.size ?: 0
+                        if (count > 0) {
+                            Text(
+                                pluralStringResource(R.plurals.log_run_count, count, count),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.navigate_back))
@@ -151,25 +176,83 @@ private fun LogContent(
             ) {
                 FilledTonalButton(onClick = onBack) { Text(stringResource(R.string.log_empty_action)) }
             }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = ScreenMargin),
-                contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + GroupGap,
-                ),
-                verticalArrangement = Arrangement.spacedBy(SegmentGap),
-            ) {
-                itemsIndexed(runs, key = { _, run -> run.startedAt.toEpochMilliseconds() }) { index, run ->
-                    RunItem(
-                        run = run,
-                        index = index,
-                        count = runs.size,
-                        expanded = run.startedAt in state.expanded,
-                        zone = zone,
-                        onClick = { onToggle(run) },
-                    )
+            else -> {
+                val found = remember(runs, filter) { runs.filter { filter.accepts(it.result) } }
+                LazyColumn(
+                    // The margin is content padding, so the row of chips can run to the screen's edges.
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = ScreenMargin,
+                        end = ScreenMargin,
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = innerPadding.calculateBottomPadding() + GroupGap,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(SegmentGap),
+                ) {
+                    // Only when there is something to tell apart: a log of one kind of result needs no filter.
+                    val present = LogFilter.entries.filter { option -> runs.any { option.accepts(it.result) } }
+                    if (present.size > 2) {
+                        item(key = "filters") { Filters(runs, present, filter, onFilter) }
+                    }
+                    itemsIndexed(found, key = { _, run -> run.startedAt.toEpochMilliseconds() }) { index, run ->
+                        RunItem(
+                            run = run,
+                            index = index,
+                            count = found.size,
+                            expanded = run.startedAt in state.expanded,
+                            zone = zone,
+                            onClick = { onToggle(run) },
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Which runs the log shows, by how they ended. */
+enum class LogFilter {
+    All, Failed, Succeeded, Other;
+
+    fun accepts(result: RunResult): Boolean = when (this) {
+        All -> true
+        Failed -> result == RunResult.Failed
+        Succeeded -> result == RunResult.Succeeded || result == RunResult.AlreadyApplied
+        Other -> result == RunResult.Postponed || result == RunResult.Cancelled
+    }
+}
+
+private val LogFilter.label: Int
+    get() = when (this) {
+        LogFilter.All -> R.string.log_filter_all
+        LogFilter.Failed -> R.string.result_failed
+        LogFilter.Succeeded -> R.string.result_succeeded
+        LogFilter.Other -> R.string.log_filter_other
+    }
+
+/** One chip for each kind of result the log holds, with how many runs ended that way. */
+@Composable
+private fun Filters(runs: List<RunLogEntry>, present: List<LogFilter>, selected: LogFilter, onSelect: (LogFilter) -> Unit) {
+    Row(
+        modifier = Modifier
+            .bleedsToScreenEdges()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = ScreenMargin)
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        present.forEach { option ->
+            val count = runs.count { option.accepts(it.result) }
+            FilterChip(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                label = { Text(stringResource(R.string.filter_with_count, stringResource(option.label), count)) },
+                shape = CircleShape,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            )
         }
     }
 }
@@ -188,27 +271,8 @@ private fun RunItem(run: RunLogEntry, index: Int, count: Int, expanded: Boolean,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RunResultIcon(failed = run.result == RunResult.Failed)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(
-                        R.string.log_run_title,
-                        stringResource(run.kind.label),
-                        stringResource(run.result.label),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    stringResource(
-                        R.string.log_run_detail,
-                        formatDateTime(run.startedAt, zone, LocalCurrentYear.current),
-                        stringResource(run.trigger.label),
-                        durationText(run.duration),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LocalContentColor.current.copy(alpha = DETAIL_ALPHA),
-                )
-            }
+            RunResultBadge(run.result)
+            RunSummary(run, zone, modifier = Modifier.weight(1f))
             if (hasDetail) {
                 val turn by animateFloatAsState(if (expanded) HALF_TURN else 0f, label = "chevron")
                 Icon(
@@ -231,19 +295,25 @@ private fun RunItem(run: RunLogEntry, index: Int, count: Int, expanded: Boolean,
 
 @Composable
 private fun RunSteps(run: RunLogEntry) {
-    // The steps are the log proper, so they are set in the fixed-width face. They line up under the header's text.
-    ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily)) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(start = 56.dp, end = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
-            run.steps.forEach { step ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                    RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
-                    Column {
-                        Text(step.kind.label().text())
-                        step.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
+    // The steps are the log proper: set in the fixed-width face, on a panel of the screen's own colour set into
+    // the card.
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily)) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                run.error?.let { Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error) }
+                run.steps.forEach { step ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                        RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
+                        Column {
+                            Text(step.kind.label().text())
+                            step.error?.let {
+                                Text(stringResource(it.resource), color = MaterialTheme.colorScheme.error)
+                            }
+                        }
                     }
                 }
             }
@@ -251,7 +321,6 @@ private fun RunSteps(run: RunLogEntry) {
     }
 }
 
-private const val DETAIL_ALPHA = 0.74f
 private const val HALF_TURN = 180f
 
 /** A run's or a step's result. The words beside it carry the result too: never colour alone. */
@@ -265,7 +334,12 @@ fun RunResultIcon(failed: Boolean, modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.error,
         )
     } else {
-        Icon(Tabler.Outline.CircleCheck, contentDescription = null, modifier = modifier)
+        Icon(
+            Tabler.Outline.CircleCheck,
+            contentDescription = null,
+            modifier = modifier,
+            tint = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

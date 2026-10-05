@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,18 @@ val GroupGap: Dp = 16.dp
 
 /** The space between the screen's edge and its groups. */
 val ScreenMargin: Dp = 16.dp
+
+/**
+ * Lets a row that scrolls sideways run to the screen's edges, from inside a list that keeps [ScreenMargin] at its
+ * sides: it is laid out a margin wider each way. Give the row's content the margin back as padding, so it starts
+ * in line with everything else and is only cut off at the edge of the screen.
+ */
+fun Modifier.bleedsToScreenEdges(): Modifier = layout { measurable, constraints ->
+    val margin = ScreenMargin.roundToPx()
+    val width = constraints.maxWidth + margin * 2
+    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-margin, 0) }
+}
 
 /** The segments' fill: a surface raised just off the screen's background. */
 val segmentContainerColor: Color

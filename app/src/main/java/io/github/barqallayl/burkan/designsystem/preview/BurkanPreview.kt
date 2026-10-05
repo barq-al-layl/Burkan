@@ -12,6 +12,7 @@ import io.github.barqallayl.burkan.designsystem.BurkanTheme
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.ProvideTextScale
 import io.github.barqallayl.burkan.designsystem.SeedColors
+import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.isDark
 
@@ -37,7 +38,8 @@ class BurkanPreviewWrapper : PreviewWrapperProvider {
 @Composable
 fun BurkanPreviewTheme(
     themeMode: ThemeMode = SettingsStorage.Defaults.themeMode,
-    seedColor: SeedColors = SettingsStorage.Defaults.seedColor,
+    // A fixed colour: the wallpaper's accent is whatever the machine drawing the preview has.
+    seedColor: SeedColors = SeedColors.Blue,
     paletteStyle: PaletteStyles = SettingsStorage.Defaults.paletteStyle,
     appFont: AppFont = SettingsStorage.Defaults.appFont,
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
@@ -48,7 +50,7 @@ fun BurkanPreviewTheme(
         ProvideTextScale(textScalePercent) {
             BurkanTheme(
                 isDarkTheme = themeMode.isDark(),
-                seedColor = seedColor.color,
+                seedColor = seedColor.resolved(),
                 paletteStyle = paletteStyle.style,
                 appFont = appFont,
             ) {
