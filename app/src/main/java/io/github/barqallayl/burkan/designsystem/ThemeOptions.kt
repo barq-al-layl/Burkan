@@ -91,8 +91,3 @@ enum class PaletteStyles(val style: PaletteStyle) {
     /** The variant the 2026 spec added. */
     Cmf(PaletteStyle.Cmf()),
 }
-
-/** Text size, as a percentage of the system font scale. */
-object TextScale {
-    val percentages: IntProgression = 85..130 step 5
-}

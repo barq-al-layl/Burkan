@@ -8,9 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
@@ -21,7 +19,7 @@ import com.materialkolor.material3.rememberDynamicColorScheme
  * The app's theme, in one of its two styles.
  *
  * As [AppStyle.Material] it is Material 3 Expressive with a scheme generated from [seedColor] under Material's 2026
- * colour spec, and Material's type scale set in [appFont]. As [AppStyle.OneUi] it follows One UI 8.5: the accents
+ * colour spec, and Material's type scale set in Roboto. As [AppStyle.OneUi] it follows One UI 8.5: the accents
  * still come from [seedColor], as the phone's own colour palette does, but the surfaces are One UI's greys and the
  * type is the system's font. Every appearance choice arrives as a parameter; shapes are Material's own.
  */
@@ -30,14 +28,13 @@ fun BurkanTheme(
     isDarkTheme: Boolean,
     seedColor: Color,
     paletteStyle: PaletteStyle,
-    appFont: AppFont,
     appStyle: AppStyle = AppStyle.Material,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalAppStyle provides appStyle) {
         when (appStyle) {
             AppStyle.Material -> {
-                val typography = remember(appFont) { burkanTypography(appFont) }
+                val typography = remember { materialTypography() }
                 DynamicMaterialExpressiveTheme(
                     seedColor = seedColor,
                     isDark = isDarkTheme,
@@ -125,23 +122,5 @@ private val OneUiTypography: Typography = Typography().let { base ->
             letterSpacing = 0.sp,
         ),
         titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
-    )
-}
-
-/**
- * Multiplies the system font scale by [percent] / 100 for [content].
- *
- * The scaled density is linear, so above the system's own scale it does not follow Android's non-linear curve for
- * very large text.
- */
-@Composable
-fun ProvideTextScale(percent: Int, content: @Composable () -> Unit) {
-    val density = LocalDensity.current
-    CompositionLocalProvider(
-        LocalDensity provides Density(
-            density = density.density,
-            fontScale = density.fontScale * percent / 100f,
-        ),
-        content = content,
     )
 }

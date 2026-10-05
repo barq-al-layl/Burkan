@@ -55,7 +55,7 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.listInset
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
@@ -592,7 +592,7 @@ private fun SetupPairWrongCodeDarkPreview() {
 @BurkanPreview
 @Composable
 private fun SetupBatteryLargeTextPreview() {
-    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+    BurkanPreviewTheme(fontScale = LargeFontScale) {
         SetupPreviewContent(sample(SetupStep.Battery, isUntestedModel = true))
     }
 }

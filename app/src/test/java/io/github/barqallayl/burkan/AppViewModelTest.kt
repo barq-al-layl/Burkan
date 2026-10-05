@@ -4,7 +4,6 @@ import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -21,8 +20,6 @@ class AppViewModelTest {
         themeMode = SettingsStorage.Defaults.themeMode,
         seedColor = SettingsStorage.Defaults.seedColor,
         paletteStyle = SettingsStorage.Defaults.paletteStyle,
-        appFont = SettingsStorage.Defaults.appFont,
-        textScalePercent = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     )
 
     @Test
@@ -68,13 +65,6 @@ class AppViewModelTest {
             expected = expected.copy(paletteStyle = PaletteStyles.Vibrant)
             expectInternalState(AppState(expected, isSetupComplete = false))
 
-            settings.appFont.value = AppFont.Poppins
-            expected = expected.copy(appFont = AppFont.Poppins)
-            expectInternalState(AppState(expected, isSetupComplete = false))
-
-            settings.textScalePercent.value = 120
-            expected = expected.copy(textScalePercent = 120)
-            expectInternalState(AppState(expected, isSetupComplete = false))
             reading.cancel()
         }
     }

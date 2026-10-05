@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.materialkolor.material3.ktx.animateColorScheme
@@ -111,7 +110,7 @@ private val SheetMargin = 12.dp
 
 /**
  * One choice out of [options], as a title over a segmented group of radio rows; made for a [BurkanBottomSheet].
- * [text] says what is being chosen, [leading] draws ahead of an option's label, and [fontFamily] sets a label in a typeface of its own.
+ * [text] says what is being chosen, and [leading] draws ahead of an option's label.
  */
 @Composable
 fun <T> BurkanChoiceList(
@@ -121,7 +120,6 @@ fun <T> BurkanChoiceList(
     label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     text: String? = null,
-    fontFamily: ((T) -> FontFamily?)? = null,
     leading: (@Composable (T) -> Unit)? = null,
 ) {
     Column {
@@ -153,7 +151,6 @@ fun <T> BurkanChoiceList(
                     text = label(option),
                     selected = option == selected,
                     onClick = { onSelect(option) },
-                    fontFamily = fontFamily?.invoke(option),
                     leading = leading?.let { { it(option) } },
                 )
             }
@@ -171,7 +168,6 @@ fun BurkanSegmentChoice(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     supporting: String? = null,
-    fontFamily: FontFamily? = null,
     leading: (@Composable () -> Unit)? = null,
 ) {
     BurkanSegmentItem(
@@ -181,7 +177,6 @@ fun BurkanSegmentChoice(
         modifier = modifier,
         supporting = supporting,
         headlineStyle = MaterialTheme.typography.titleMedium.copy(
-            fontFamily = fontFamily ?: MaterialTheme.typography.titleMedium.fontFamily,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         ),
         selected = selected,

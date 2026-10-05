@@ -14,7 +14,6 @@ import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.store.UserSettings
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
@@ -39,8 +38,6 @@ enum class SettingsDialog {
     ThemeMode,
     SeedColor,
     PaletteStyle,
-    Font,
-    TextSize,
     RedoSetup,
 }
 
@@ -104,14 +101,6 @@ class SettingsViewModel(
     fun setSeedColor(color: SeedColors) = intent { settings.setSeedColor(color) }
 
     fun setPaletteStyle(style: PaletteStyles) = intent { settings.setPaletteStyle(style) }
-
-    fun setAppFont(font: AppFont) = intent { settings.setAppFont(font) }
-
-    /** The text size is chosen on a sample and saved from its sheet, which then closes. */
-    fun setTextScalePercent(percent: Int) = intent {
-        reduce { state.copy(dialog = null) }
-        settings.setTextScalePercent(percent)
-    }
 
     /** Forgets the pairing and leaves setup unfinished; `App.kt` then shows Setup. */
     fun confirmRedoSetup() = intent {

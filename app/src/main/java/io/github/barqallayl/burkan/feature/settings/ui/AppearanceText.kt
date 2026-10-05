@@ -1,15 +1,12 @@
 package io.github.barqallayl.burkan.feature.settings.ui
 
 import androidx.annotation.StringRes
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Moon
 import com.composables.icons.tabler.outline.Palette
 import com.composables.icons.tabler.outline.Sun
 import io.github.barqallayl.burkan.R
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
@@ -65,7 +62,3 @@ val PaletteStyles.label: Int
         PaletteStyles.Content -> R.string.palette_content
         PaletteStyles.Cmf -> R.string.palette_cmf
     }
-
-/** A typeface is called by its own name; only the phone's own font needs words. */
-@Composable
-fun AppFont.label(): String = displayName ?: stringResource(R.string.font_system)

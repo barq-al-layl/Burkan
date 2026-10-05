@@ -50,8 +50,6 @@ import com.composables.icons.tabler.outline.Power
 import com.composables.icons.tabler.outline.Refresh
 import com.composables.icons.tabler.outline.Scale
 import com.composables.icons.tabler.outline.SunMoon
-import com.composables.icons.tabler.outline.TextSize
-import com.composables.icons.tabler.outline.Typography
 import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.Appearance
@@ -60,12 +58,10 @@ import io.github.barqallayl.burkan.core.navigation.ExclusionsRoute
 import io.github.barqallayl.burkan.core.navigation.LicencesRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.listInset
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
@@ -88,6 +84,7 @@ import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 
@@ -118,8 +115,6 @@ fun SettingsScreen() {
             onThemeMode = viewModel::setThemeMode,
             onSeedColor = viewModel::setSeedColor,
             onPaletteStyle = viewModel::setPaletteStyle,
-            onAppFont = viewModel::setAppFont,
-            onTextScale = viewModel::setTextScalePercent,
             onConfirmRedoSetup = viewModel::confirmRedoSetup,
             onOpenSource = viewModel::openSource,
             onOpenLicence = viewModel::openLicence,
@@ -139,8 +134,6 @@ private class SettingsActions(
     val onThemeMode: (ThemeMode) -> Unit = {},
     val onSeedColor: (SeedColors) -> Unit = {},
     val onPaletteStyle: (PaletteStyles) -> Unit = {},
-    val onAppFont: (AppFont) -> Unit = {},
-    val onTextScale: (Int) -> Unit = {},
     val onConfirmRedoSetup: () -> Unit = {},
     val onOpenSource: () -> Unit = {},
     val onOpenLicence: () -> Unit = {},
@@ -322,23 +315,7 @@ private fun AppearanceItems(appearance: Appearance, actions: SettingsActions) {
                     SettingsDialog.PaletteStyle,
                 ),
             )
-            add(
-                AppearanceRow(
-                    Tabler.Outline.Typography,
-                    R.string.settings_font,
-                    appearance.appFont.label(),
-                    SettingsDialog.Font,
-                ),
-            )
         }
-        add(
-            AppearanceRow(
-                Tabler.Outline.TextSize,
-                R.string.settings_text_size,
-                textSizeLabel(appearance.textScalePercent),
-                SettingsDialog.TextSize,
-            ),
-        )
     }
     rows.forEachIndexed { index, row ->
         ChoiceItem(index, rows.size, row.icon, row.title, row.value, row.swatch) { actions.onShow(row.dialog) }
@@ -397,18 +374,7 @@ private fun SettingsDialogs(
             onDismiss = actions.onDismissDialog,
         )
     } else {
-        BurkanBottomSheet(onDismiss = actions.onDismissDialog) { hide ->
-            if (dialog == SettingsDialog.TextSize) {
-                TextSizeSheet(
-                    savedPercent = appearance.textScalePercent,
-                    // After the sheet has gone, so the app does not lay itself out again under a closing sheet.
-                    onSave = { percent -> hide { actions.onTextScale(percent) } },
-                    onCancel = { hide(actions.onDismissDialog) },
-                )
-            } else {
-                AppearanceChoices(dialog, appearance, actions)
-            }
-        }
+        BurkanBottomSheet(onDismiss = actions.onDismissDialog) { AppearanceChoices(dialog, appearance, actions) }
     }
 }
 
@@ -460,17 +426,8 @@ private fun AppearanceChoices(
             label = { stringResource(it.label) },
             onSelect = actions.onPaletteStyle,
         )
-        // Each name is set in its own typeface, so the list is its own specimen.
-        SettingsDialog.Font -> BurkanChoiceList(
-            title = stringResource(R.string.settings_font),
-            options = AppFont.entries,
-            selected = appearance.appFont,
-            label = { it.label() },
-            onSelect = actions.onAppFont,
-            fontFamily = { it.family },
-        )
 
-        SettingsDialog.TextSize, SettingsDialog.RedoSetup -> Unit
+        SettingsDialog.RedoSetup -> Unit
     }
 }
 
@@ -577,31 +534,25 @@ private const val ABOUT_ITEMS = 4
 private fun sample(
     dialog: SettingsDialog? = null,
     exclusions: Int = 0,
-    textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
-    appFont: AppFont = SettingsStorage.Defaults.appFont,
     appStyle: AppStyle = AppStyle.Material,
 ) = SettingsState(
     values = SettingsValues(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
         exclusionCount = exclusions,
-        appearance = sampleAppearance(textScalePercent, appFont, appStyle),
+        appearance = sampleAppearance(appStyle),
     ),
     dialog = dialog,
     version = "1.0.0",
 )
 
 private fun sampleAppearance(
-    textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
-    appFont: AppFont = SettingsStorage.Defaults.appFont,
     appStyle: AppStyle = AppStyle.Material,
 ) = Appearance(
     appStyle = appStyle,
     themeMode = SettingsStorage.Defaults.themeMode,
     seedColor = SeedColors.Blue,
     paletteStyle = SettingsStorage.Defaults.paletteStyle,
-    appFont = appFont,
-    textScalePercent = textScalePercent,
 )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
@@ -643,8 +594,8 @@ private fun SettingsDarkPreview() {
 @BurkanPreview
 @Composable
 private fun SettingsLargeTextPreview() {
-    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
-        SettingsContent(sample(textScalePercent = TextScale.percentages.last), SettingsActions())
+    BurkanPreviewTheme(fontScale = LargeFontScale) {
+        SettingsContent(sample(), SettingsActions())
     }
 }
 
@@ -653,26 +604,6 @@ private fun SettingsLargeTextPreview() {
 private fun SettingsPaletteStyleSheetTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) {
         AppearanceChoices(SettingsDialog.PaletteStyle, sampleAppearance(), SettingsActions())
-    }
-}
-
-@BurkanPreview
-@Composable
-private fun SettingsFontSheetDarkPreview() {
-    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appFont = AppFont.Poppins) {
-        AppearanceChoices(
-            SettingsDialog.Font,
-            sampleAppearance(appFont = AppFont.Poppins),
-            SettingsActions(),
-        )
-    }
-}
-
-@BurkanPreview
-@Composable
-private fun SettingsFontPreview() {
-    BurkanPreviewTheme(appFont = AppFont.Poppins) {
-        SettingsContent(sample(appFont = AppFont.Poppins), SettingsActions())
     }
 }
 

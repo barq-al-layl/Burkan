@@ -62,7 +62,7 @@ import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.MonoFontFamily
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.scrolledPx
 import io.github.barqallayl.burkan.designsystem.component.listInset
@@ -528,7 +528,7 @@ private fun LogExpandedDarkPreview() {
 @BurkanPreview
 @Composable
 private fun LogExpandedLargeTextPreview() {
-    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+    BurkanPreviewTheme(fontScale = LargeFontScale) {
         val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt))
         LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
     }

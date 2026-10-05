@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -14,11 +13,9 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -33,8 +30,6 @@ interface SettingsStorage {
     val themeMode: Flow<ThemeMode>
     val seedColor: Flow<SeedColors>
     val paletteStyle: Flow<PaletteStyles>
-    val appFont: Flow<AppFont>
-    val textScalePercent: Flow<Int>
 
     /** Apply Vulkan by itself after every restart. */
     val applyOnBoot: Flow<Boolean>
@@ -49,10 +44,6 @@ interface SettingsStorage {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setSeedColor(color: SeedColors)
     suspend fun setPaletteStyle(style: PaletteStyles)
-    suspend fun setAppFont(font: AppFont)
-
-    /** One of [TextScale.percentages]; anything else is refused. */
-    suspend fun setTextScalePercent(percent: Int)
     suspend fun setApplyOnBoot(enabled: Boolean)
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
     suspend fun setUserExclusions(packages: Set<PackageName>)
@@ -66,8 +57,6 @@ interface SettingsStorage {
         val themeMode: ThemeMode = ThemeMode.FollowSystem
         val seedColor: SeedColors = SeedColors.Default
         val paletteStyle: PaletteStyles = PaletteStyles.Expressive
-        val appFont: AppFont = AppFont.SpaceGrotesk
-        const val TEXT_SCALE_PERCENT: Int = 100
         const val APPLY_ON_BOOT: Boolean = true
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
     }
@@ -95,14 +84,6 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override val paletteStyle: Flow<PaletteStyles> =
         read { it.enumValue(Keys.paletteStyle) ?: SettingsStorage.Defaults.paletteStyle }
 
-    override val appFont: Flow<AppFont> =
-        read { it.enumValue(Keys.appFont) ?: SettingsStorage.Defaults.appFont }
-
-    override val textScalePercent: Flow<Int> = read { preferences ->
-        preferences[Keys.textScalePercent]?.takeIf { it in TextScale.percentages }
-            ?: SettingsStorage.Defaults.TEXT_SCALE_PERCENT
-    }
-
     override val applyOnBoot: Flow<Boolean> =
         read { it[Keys.applyOnBoot] ?: SettingsStorage.Defaults.APPLY_ON_BOOT }
 
@@ -127,13 +108,6 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override suspend fun setPaletteStyle(style: PaletteStyles) =
         write(Keys.paletteStyle, style.name)
 
-    override suspend fun setAppFont(font: AppFont) = write(Keys.appFont, font.name)
-
-    override suspend fun setTextScalePercent(percent: Int) {
-        require(percent in TextScale.percentages) { "Not a text size: $percent" }
-        write(Keys.textScalePercent, percent)
-    }
-
     override suspend fun setApplyOnBoot(enabled: Boolean) = write(Keys.applyOnBoot, enabled)
 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) =
@@ -157,8 +131,6 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         val themeMode = stringPreferencesKey("theme_mode")
         val seedColor = stringPreferencesKey("seed_color")
         val paletteStyle = stringPreferencesKey("palette_style")
-        val appFont = stringPreferencesKey("app_font")
-        val textScalePercent = intPreferencesKey("text_scale_percent")
         val applyOnBoot = booleanPreferencesKey("apply_on_boot")
         val turnOffWirelessDebugging = booleanPreferencesKey("turn_off_wireless_debugging")
         val userExclusions = stringSetPreferencesKey("user_exclusions")

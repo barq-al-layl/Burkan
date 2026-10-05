@@ -107,7 +107,6 @@ class SettingsViewModelTest {
             assertEquals(SettingsDialog.ThemeMode, containerHost.container.stateFlow.value.dialog)
             containerHost.setSeedColor(SeedColors.Teal).join()
             containerHost.setPaletteStyle(PaletteStyles.Vibrant).join()
-            containerHost.setTextScalePercent(115).join()
             containerHost.setTurnOffWirelessDebugging(false).join()
             cancelAndIgnoreRemainingItems()
         }
@@ -115,7 +114,6 @@ class SettingsViewModelTest {
         assertEquals(ThemeMode.Dark, settings.themeMode.value)
         assertEquals(SeedColors.Teal, settings.seedColor.value)
         assertEquals(PaletteStyles.Vibrant, settings.paletteStyle.value)
-        assertEquals(115, settings.textScalePercent.value)
         assertFalse(settings.turnOffWirelessDebugging.value)
     }
 

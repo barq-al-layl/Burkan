@@ -53,7 +53,7 @@ import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.TextScale
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.FloatingSearchRoom
 import io.github.barqallayl.burkan.designsystem.component.BurkanFloatingSearch
@@ -562,7 +562,7 @@ private fun ExclusionsDarkPreview() {
 @BurkanPreview
 @Composable
 private fun ExclusionsLargeTextPreview() {
-    BurkanPreviewTheme(textScalePercent = TextScale.percentages.last) {
+    BurkanPreviewTheme(fontScale = LargeFontScale) {
         ExclusionsPreviewContent(
             sampleExclusions,
         )

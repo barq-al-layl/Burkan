@@ -24,7 +24,6 @@ import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
-import io.github.barqallayl.burkan.designsystem.ProvideTextScale
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.ThemeReveal
@@ -47,29 +46,17 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
         val isDarkTheme = appearance.themeMode.isDark()
         // The system bars' icons are the activity's to colour, and it only knows the system's own theme.
         LaunchedEffect(isDarkTheme) { onThemeChange(isDarkTheme) }
-        ProvideTextScale(appearance.textScalePercent) {
-            // The colours change in a circle spreading from the tap; the font and the text size simply change.
-            ThemeReveal(
-                ThemeColours(
-                    isDarkTheme,
-                    appearance.seedColor,
-                    appearance.paletteStyle,
-                    appearance.appStyle,
-                ),
-            ) { colours ->
-                BurkanTheme(
-                    isDarkTheme = colours.isDark,
-                    seedColor = colours.seedColor.resolved(),
-                    paletteStyle = colours.paletteStyle.style,
-                    appFont = appearance.appFont,
-                    appStyle = colours.appStyle,
-                ) {
-                    Surface(modifier = Modifier.recordsRevealOrigin()) {
-                        AppNavigation(
-                            isSetupComplete,
-                        )
-                    }
-                }
+        // The colours and the style change in a circle spreading from the tap.
+        ThemeReveal(
+            ThemeColours(isDarkTheme, appearance.seedColor, appearance.paletteStyle, appearance.appStyle),
+        ) { colours ->
+            BurkanTheme(
+                isDarkTheme = colours.isDark,
+                seedColor = colours.seedColor.resolved(),
+                paletteStyle = colours.paletteStyle.style,
+                appStyle = colours.appStyle,
+            ) {
+                Surface(modifier = Modifier.recordsRevealOrigin()) { AppNavigation(isSetupComplete) }
             }
         }
     }

@@ -32,7 +32,6 @@ class DataStoreSettingsStorageTest {
     private val themeModeKey = stringPreferencesKey("theme_mode")
     private val seedColorKey = stringPreferencesKey("seed_color")
     private val paletteStyleKey = stringPreferencesKey("palette_style")
-    private val textScaleKey = intPreferencesKey("text_scale_percent")
 
     @Test
     fun `a fresh install reads the defaults`() = runTest {
@@ -41,7 +40,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(SettingsStorage.Defaults.themeMode, storage.themeMode.first())
         assertEquals(SettingsStorage.Defaults.seedColor, storage.seedColor.first())
         assertEquals(SettingsStorage.Defaults.paletteStyle, storage.paletteStyle.first())
-        assertEquals(SettingsStorage.Defaults.TEXT_SCALE_PERCENT, storage.textScalePercent.first())
     }
 
     @Test
@@ -51,14 +49,12 @@ class DataStoreSettingsStorageTest {
             it[themeModeKey] = "Dark"
             it[seedColorKey] = "Teal"
             it[paletteStyleKey] = "Monochrome"
-            it[textScaleKey] = 115
         }
         val storage = DataStoreSettingsStorage(dataStore)
 
         assertEquals(ThemeMode.Dark, storage.themeMode.first())
         assertEquals(SeedColors.Teal, storage.seedColor.first())
         assertEquals(PaletteStyles.Monochrome, storage.paletteStyle.first())
-        assertEquals(115, storage.textScalePercent.first())
     }
 
     @Test
@@ -68,31 +64,12 @@ class DataStoreSettingsStorageTest {
             it[themeModeKey] = "Sepia"
             it[seedColorKey] = "dark"
             it[paletteStyleKey] = ""
-            it[textScaleKey] = 112
         }
         val storage = DataStoreSettingsStorage(dataStore)
 
         assertEquals(SettingsStorage.Defaults.themeMode, storage.themeMode.first())
         assertEquals(SettingsStorage.Defaults.seedColor, storage.seedColor.first())
         assertEquals(SettingsStorage.Defaults.paletteStyle, storage.paletteStyle.first())
-        assertEquals(SettingsStorage.Defaults.TEXT_SCALE_PERCENT, storage.textScalePercent.first())
-    }
-
-    @Test
-    fun `text scale outside the range reads as the default`() = runTest {
-        val dataStore = dataStore()
-        val storage = DataStoreSettingsStorage(dataStore)
-
-        listOf(80, 135, 0, -100).forEach { percent ->
-            dataStore.edit { it[textScaleKey] = percent }
-
-            assertEquals(SettingsStorage.Defaults.TEXT_SCALE_PERCENT, storage.textScalePercent.first(), "$percent")
-        }
-        listOf(85, 130).forEach { percent ->
-            dataStore.edit { it[textScaleKey] = percent }
-
-            assertEquals(percent, storage.textScalePercent.first())
-        }
     }
 
     @Test
@@ -112,7 +89,6 @@ class DataStoreSettingsStorageTest {
         storage.setThemeMode(ThemeMode.Light)
         storage.setSeedColor(SeedColors.Purple)
         storage.setPaletteStyle(PaletteStyles.Rainbow)
-        storage.setTextScalePercent(125)
         storage.setApplyOnBoot(false)
         storage.setTurnOffWirelessDebugging(false)
         storage.setUserExclusions(excluded)
@@ -120,7 +96,6 @@ class DataStoreSettingsStorageTest {
         assertEquals(ThemeMode.Light, storage.themeMode.first())
         assertEquals(SeedColors.Purple, storage.seedColor.first())
         assertEquals(PaletteStyles.Rainbow, storage.paletteStyle.first())
-        assertEquals(125, storage.textScalePercent.first())
         assertFalse(storage.applyOnBoot.first())
         assertFalse(storage.turnOffWirelessDebugging.first())
         assertEquals(excluded, storage.userExclusions.first())
@@ -134,13 +109,6 @@ class DataStoreSettingsStorageTest {
         val exclusions = DataStoreSettingsStorage(dataStore).userExclusions.first()
 
         assertEquals(setOf(PackageName.known("com.example.notes")), exclusions)
-    }
-
-    @Test
-    fun `a text size off the scale is refused`() = runTest {
-        val storage = DataStoreSettingsStorage(dataStore())
-
-        assertFailsWith<IllegalArgumentException> { storage.setTextScalePercent(112) }
     }
 
     private fun TestScope.dataStore(): DataStore<Preferences> = PreferenceDataStoreFactory.create(

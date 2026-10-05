@@ -9,7 +9,6 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
-import io.github.barqallayl.burkan.designsystem.AppFont
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
@@ -32,22 +31,12 @@ data class Appearance(
     val themeMode: ThemeMode,
     val seedColor: SeedColors,
     val paletteStyle: PaletteStyles,
-    val appFont: AppFont,
-    val textScalePercent: Int,
     val appStyle: AppStyle = AppStyle.Material,
 )
 
 /** The appearance preferences as one value, for the composition root and for Settings. */
 fun SettingsStorage.appearance(): Flow<Appearance> =
-    combine(
-        themeMode,
-        seedColor,
-        paletteStyle,
-        appFont,
-        textScalePercent,
-    ) { mode, seed, palette, font, scale ->
-        Appearance(mode, seed, palette, font, scale)
-    }.combine(appStyle) { appearance, style -> appearance.copy(appStyle = style) }
+    combine(themeMode, seedColor, paletteStyle, appStyle, ::Appearance)
 
 @Inject
 @ViewModelKey

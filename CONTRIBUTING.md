@@ -294,35 +294,37 @@ Metro, one graph:
     headline and the current setup step, `secondaryContainer` for a notice.
   - A click or a toggle goes inside the segment (`onClick`, `interaction`), so its ripple follows the corners.
 - **The look is tuned through preferences, not code.** `BurkanTheme` takes every appearance choice as a
-  parameter: the scheme's inputs go to MaterialKolor's `DynamicMaterialExpressiveTheme`, and the font sets
-  Material's own type scale (`burkanTypography`), leaving its sizes and weights alone. The parameters have no
-  defaults, so the only defaults are those in `SettingsStorage.Defaults`.
+  parameter: the scheme's inputs go to MaterialKolor's `DynamicMaterialExpressiveTheme`. The typeface is not a
+  preference: the Material style sets Material's own type scale in Roboto (`materialTypography`), leaving its
+  sizes and weights alone, and the One UI style uses the phone's own font. The only defaults are those in
+  `SettingsStorage.Defaults`.
 - **The appearance preferences** are stored in `SettingsStorage` and edited in Settings:
 
   | Preference | Options | Default |
   |---|---|---|
+  | Style | Material, One UI | One UI on a Samsung phone, Material elsewhere |
   | Dark theme | Follow system, light, dark | Follow system |
   | Seed colour | The list in `SeedColors` | `SeedColors.Default` |
-  | Palette style | The list in `PaletteStyles` (every MaterialKolor style) | Expressive |
-  | Font | The phone's own, or one of the bundled typefaces in `AppFont` | Space Grotesk |
-  | Text size | 85–130 %, in fives | 100 % |
+  | Palette style (Material only) | The list in `PaletteStyles` (every MaterialKolor style) | Expressive |
+
+  The size of text is the phone's own setting, and the app does not change it.
 
   `SettingsStorage.appearance()` combines their flows into one `Appearance`; `App.kt` collects it through
   `AppViewModel` and passes the values to `BurkanTheme`. The scheme is always generated under Material's 2026
   colour spec. A change of theme or colour is revealed in a circle growing from where the user tapped
   (`ThemeReveal`); a sheet, being a window of its own, fades its colours instead. `App` reports whether the
-  app is dark through `onThemeChange`, and `MainActivity` colours the system bars' icons to match. Text size multiplies the system font scale and is applied once, in `App.kt`. Defaults live in one
-  `Defaults` object in the storage class, so a preview and a fresh install agree.
+  app is dark through `onThemeChange`, and `MainActivity` colours the system bars' icons to match. Defaults live
+  in one `Defaults` object in the storage class, so a preview and a fresh install agree.
 - **A list row is `BurkanSegmentItem`**, Material's segmented list item: a pressed row and a selected or ticked one
   change shape as well as colour. A setting that is switched on is not a selected row; only its switch shows it.
 - **A choice is made in a bottom sheet** (`BurkanBottomSheet`): a card floating above the bottom of the screen,
   open in full or closed, never half open.
   One option out of several is a `BurkanChoiceList` of radio segments and applies at once with the sheet left
-  open; text size is chosen on a sample and applied on Save.
+  open.
 - **Fonts are bundled, not downloaded**: the files are in `res/font`, each under the SIL Open Font License, and
-  each has an entry in `app/aboutlibraries/libraries/` so it appears on the licences screen. Adding one means the
-  file, an `AppFont` entry and that licence entry, with a group of its own in `uniqueId` so the fonts are not
-  merged into one.
+  each has an entry in `app/aboutlibraries/libraries/` so it appears on the licences screen. There are two:
+  Roboto, for the Material style, and JetBrains Mono, for the log's steps. Adding one means the file, a family in
+  `Fonts.kt` and that licence entry, with a group of its own in `uniqueId` so the fonts are not merged into one.
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
 - Use `start`/`end`, never `left`/`right`.

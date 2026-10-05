@@ -109,8 +109,8 @@ The status, and the two actions.
   own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
   apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
   where it is installed. Listing the apps has its own loading, empty and failed states.
-- Appearance: dark theme, seed colour, palette style, font and text size, each chosen in a bottom sheet. A change
-  applies at once, except text size, which is tried on a sample and applied on Save.
+- Appearance: style (Material or One UI), dark theme, seed colour and, in the Material style, palette style, each
+  chosen in a bottom sheet. A change applies at once.
   The options and defaults are in `CONTRIBUTING.md`.
 - Redo setup: forgets the pairing and returns to Setup, after a confirmation.
 - About: version, a link to the source on GitHub, the app's licence (Apache-2.0), and the
