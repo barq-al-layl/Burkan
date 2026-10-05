@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.core.storage
 
+import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -14,6 +15,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.AppFont
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
@@ -27,6 +29,7 @@ import kotlin.enums.enumEntries
 
 /** The user's settings. A missing or unreadable value reads as its entry in [Defaults]. */
 interface SettingsStorage {
+    val appStyle: Flow<AppStyle>
     val themeMode: Flow<ThemeMode>
     val seedColor: Flow<SeedColors>
     val paletteStyle: Flow<PaletteStyles>
@@ -42,6 +45,7 @@ interface SettingsStorage {
     /** Apps the user never wants a full apply to restart. */
     val userExclusions: Flow<Set<PackageName>>
 
+    suspend fun setAppStyle(style: AppStyle)
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setSeedColor(color: SeedColors)
     suspend fun setPaletteStyle(style: PaletteStyles)
@@ -53,8 +57,12 @@ interface SettingsStorage {
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
     suspend fun setUserExclusions(packages: Set<PackageName>)
 
-    /** What a fresh install gets, and what previews render with. */
+    /**
+     * What a fresh install gets, and what previews render with. The style is the exception: a Samsung phone starts
+     * in One UI, which the storage decides from the phone it is on, and [appStyle] is what any other gets.
+     */
     object Defaults {
+        val appStyle: AppStyle = AppStyle.Material
         val themeMode: ThemeMode = ThemeMode.FollowSystem
         val seedColor: SeedColors = SeedColors.Default
         val paletteStyle: PaletteStyles = PaletteStyles.Expressive
@@ -74,6 +82,9 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         // A corrupt file reads as a fresh install rather than taking the app down with it.
         if (error is IOException) emit(emptyPreferences()) else throw error
     }
+
+    override val appStyle: Flow<AppStyle> =
+        read { it.enumValue(Keys.appStyle) ?: AppStyle.defaultFor(Build.MANUFACTURER) }
 
     override val themeMode: Flow<ThemeMode> =
         read { it.enumValue(Keys.themeMode) ?: SettingsStorage.Defaults.themeMode }
@@ -96,17 +107,25 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         read { it[Keys.applyOnBoot] ?: SettingsStorage.Defaults.APPLY_ON_BOOT }
 
     override val turnOffWirelessDebugging: Flow<Boolean> =
-        read { it[Keys.turnOffWirelessDebugging] ?: SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING }
+        read {
+            it[Keys.turnOffWirelessDebugging]
+                ?: SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING
+        }
 
     /** A stored name that is not a valid package name is dropped: it never reaches a command. */
     override val userExclusions: Flow<Set<PackageName>> =
-        read { preferences -> preferences[Keys.userExclusions].orEmpty().mapNotNull(PackageName::parse).toSet() }
+        read { preferences ->
+            preferences[Keys.userExclusions].orEmpty().mapNotNull(PackageName::parse).toSet()
+        }
+
+    override suspend fun setAppStyle(style: AppStyle) = write(Keys.appStyle, style.name)
 
     override suspend fun setThemeMode(mode: ThemeMode) = write(Keys.themeMode, mode.name)
 
     override suspend fun setSeedColor(color: SeedColors) = write(Keys.seedColor, color.name)
 
-    override suspend fun setPaletteStyle(style: PaletteStyles) = write(Keys.paletteStyle, style.name)
+    override suspend fun setPaletteStyle(style: PaletteStyles) =
+        write(Keys.paletteStyle, style.name)
 
     override suspend fun setAppFont(font: AppFont) = write(Keys.appFont, font.name)
 
@@ -117,12 +136,14 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
 
     override suspend fun setApplyOnBoot(enabled: Boolean) = write(Keys.applyOnBoot, enabled)
 
-    override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) = write(Keys.turnOffWirelessDebugging, enabled)
+    override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) =
+        write(Keys.turnOffWirelessDebugging, enabled)
 
     override suspend fun setUserExclusions(packages: Set<PackageName>) =
         write(Keys.userExclusions, packages.map { it.value }.toSet())
 
-    private fun <T> read(transform: (Preferences) -> T): Flow<T> = preferences.map(transform).distinctUntilChanged()
+    private fun <T> read(transform: (Preferences) -> T): Flow<T> =
+        preferences.map(transform).distinctUntilChanged()
 
     private suspend fun <T> write(key: Preferences.Key<T>, value: T) {
         dataStore.edit { it[key] = value }
@@ -132,6 +153,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         this[key]?.let { name -> enumEntries<E>().firstOrNull { it.name == name } }
 
     private object Keys {
+        val appStyle = stringPreferencesKey("app_style")
         val themeMode = stringPreferencesKey("theme_mode")
         val seedColor = stringPreferencesKey("seed_color")
         val paletteStyle = stringPreferencesKey("palette_style")

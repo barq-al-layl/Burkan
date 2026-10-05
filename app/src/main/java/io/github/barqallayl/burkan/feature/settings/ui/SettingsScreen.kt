@@ -13,26 +13,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -47,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.BrandGithub
+import com.composables.icons.tabler.outline.Brush
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ColorSwatch
 import com.composables.icons.tabler.outline.InfoCircle
@@ -67,15 +61,25 @@ import io.github.barqallayl.burkan.core.navigation.LicencesRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.AppFont
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.component.BurkanConfirm
 import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.component.BurkanChoiceList
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
+import io.github.barqallayl.burkan.designsystem.component.OneUiSwitch
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
@@ -84,7 +88,6 @@ import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
-import io.github.barqallayl.burkan.feature.settings.model.About
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 
@@ -111,6 +114,7 @@ fun SettingsScreen() {
             onOpenExclusions = viewModel::openExclusions,
             onShow = viewModel::show,
             onDismissDialog = viewModel::dismissDialog,
+            onAppStyle = viewModel::setAppStyle,
             onThemeMode = viewModel::setThemeMode,
             onSeedColor = viewModel::setSeedColor,
             onPaletteStyle = viewModel::setPaletteStyle,
@@ -131,6 +135,7 @@ private class SettingsActions(
     val onOpenExclusions: () -> Unit = {},
     val onShow: (SettingsDialog) -> Unit = {},
     val onDismissDialog: () -> Unit = {},
+    val onAppStyle: (AppStyle) -> Unit = {},
     val onThemeMode: (ThemeMode) -> Unit = {},
     val onSeedColor: (SeedColors) -> Unit = {},
     val onPaletteStyle: (PaletteStyles) -> Unit = {},
@@ -145,24 +150,27 @@ private class SettingsActions(
 @Composable
 private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
     // The title starts large and shrinks into the bar as the list is scrolled up.
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val appBar = rememberBurkanAppBar(large = true)
+    val scrollState = rememberScrollState()
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            LargeFlexibleTopAppBar(
+            BurkanTopBar(
                 title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = actions.onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.navigate_back))
-                    }
-                },
-                scrollBehavior = scrollBehavior,
+                onBack = actions.onBack,
+                appBar = appBar,
+                contentScroll = { scrollState.value },
             )
         },
     ) { innerPadding ->
         val values = state.values
         if (values == null) {
-            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
                 LoadingIndicator()
             }
             return@Scaffold
@@ -170,14 +178,25 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = innerPadding.listTop(),
+                    bottom = innerPadding.calculateBottomPadding(),
+                )
+                .oneUiScrollFade(scrollState)
+                .verticalScroll(scrollState)
+                .padding(top = innerPadding.listInset())
+
                 .padding(horizontal = ScreenMargin)
                 .padding(bottom = GroupGap),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
             Section(R.string.settings_section_restart) { RestartItems(values, actions) }
-            Section(R.string.settings_section_appearance) { AppearanceItems(values.appearance, actions) }
+            Section(R.string.settings_section_appearance) {
+                AppearanceItems(
+                    values.appearance,
+                    actions,
+                )
+            }
             Section(R.string.settings_section_setup) {
                 BurkanSegmentItem(
                     index = 0,
@@ -227,44 +246,102 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         index = 2,
         count = RESTART_ITEMS,
         headline = stringResource(R.string.settings_exclusions),
-        supporting = if (values.exclusionCount == 0) {
+        // One UI leaves a row that opens a screen to that screen to explain itself; the count is in the pill.
+        supporting = if (LocalAppStyle.current == AppStyle.OneUi) {
+            null
+        } else if (values.exclusionCount == 0) {
             stringResource(R.string.settings_exclusions_none)
         } else {
-            pluralStringResource(R.plurals.settings_exclusions_count, values.exclusionCount, values.exclusionCount)
+            pluralStringResource(
+                R.plurals.settings_exclusions_count,
+                values.exclusionCount,
+                values.exclusionCount,
+            )
         },
         onClick = actions.onOpenExclusions,
         leading = { Icon(Tabler.Outline.Apps, contentDescription = null) },
         trailing = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (values.exclusionCount > 0) BurkanPill(values.exclusionCount.toString(), tone = Tone.Good)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (values.exclusionCount > 0) BurkanPill(
+                    values.exclusionCount.toString(),
+                    tone = Tone.Good,
+                )
                 Chevron()
             }
         },
     )
 }
 
+/** One row of the Appearance group: a preference, what it is set to, and the sheet that changes it. */
+private class AppearanceRow(
+    val icon: ImageVector,
+    val title: Int,
+    val value: String,
+    val dialog: SettingsDialog,
+    val swatch: Color? = null,
+)
+
 @Composable
 private fun AppearanceItems(appearance: Appearance, actions: SettingsActions) {
-    ChoiceItem(0, Tabler.Outline.SunMoon, R.string.settings_theme, stringResource(appearance.themeMode.label)) {
-        actions.onShow(SettingsDialog.ThemeMode)
+    val rows = buildList {
+        add(
+            AppearanceRow(
+                Tabler.Outline.Brush,
+                R.string.settings_style,
+                stringResource(appearance.appStyle.label),
+                SettingsDialog.Style,
+            ),
+        )
+        add(
+            AppearanceRow(
+                Tabler.Outline.SunMoon,
+                R.string.settings_theme,
+                stringResource(appearance.themeMode.label),
+                SettingsDialog.ThemeMode,
+            ),
+        )
+        add(
+            AppearanceRow(
+                icon = Tabler.Outline.Palette,
+                title = R.string.settings_seed_color,
+                value = stringResource(appearance.seedColor.label),
+                dialog = SettingsDialog.SeedColor,
+                swatch = appearance.seedColor.resolved(),
+            ),
+        )
+        // Palette styles and typefaces are Material's: One UI has one palette and the phone's own font.
+        if (appearance.appStyle == AppStyle.Material) {
+            add(
+                AppearanceRow(
+                    Tabler.Outline.ColorSwatch,
+                    R.string.settings_palette_style,
+                    stringResource(appearance.paletteStyle.label),
+                    SettingsDialog.PaletteStyle,
+                ),
+            )
+            add(
+                AppearanceRow(
+                    Tabler.Outline.Typography,
+                    R.string.settings_font,
+                    appearance.appFont.label(),
+                    SettingsDialog.Font,
+                ),
+            )
+        }
+        add(
+            AppearanceRow(
+                Tabler.Outline.TextSize,
+                R.string.settings_text_size,
+                textSizeLabel(appearance.textScalePercent),
+                SettingsDialog.TextSize,
+            ),
+        )
     }
-    ChoiceItem(
-        index = 1,
-        icon = Tabler.Outline.Palette,
-        title = R.string.settings_seed_color,
-        value = stringResource(appearance.seedColor.label),
-        swatch = appearance.seedColor.resolved(),
-    ) {
-        actions.onShow(SettingsDialog.SeedColor)
-    }
-    ChoiceItem(2, Tabler.Outline.ColorSwatch, R.string.settings_palette_style, stringResource(appearance.paletteStyle.label)) {
-        actions.onShow(SettingsDialog.PaletteStyle)
-    }
-    ChoiceItem(3, Tabler.Outline.Typography, R.string.settings_font, appearance.appFont.label()) {
-        actions.onShow(SettingsDialog.Font)
-    }
-    ChoiceItem(4, Tabler.Outline.TextSize, R.string.settings_text_size, textSizeLabel(appearance.textScalePercent)) {
-        actions.onShow(SettingsDialog.TextSize)
+    rows.forEachIndexed { index, row ->
+        ChoiceItem(index, rows.size, row.icon, row.title, row.value, row.swatch) { actions.onShow(row.dialog) }
     }
 }
 
@@ -304,21 +381,20 @@ private fun AboutItems(version: String, actions: SettingsActions) {
 }
 
 @Composable
-private fun SettingsDialogs(dialog: SettingsDialog, values: SettingsValues, actions: SettingsActions) {
+private fun SettingsDialogs(
+    dialog: SettingsDialog,
+    values: SettingsValues,
+    actions: SettingsActions,
+) {
     val appearance = values.appearance
     if (dialog == SettingsDialog.RedoSetup) {
-        AlertDialog(
-            onDismissRequest = actions.onDismissDialog,
-            title = { Text(stringResource(R.string.settings_redo_setup_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_redo_setup_confirm_text)) },
-            confirmButton = {
-                TextButton(onClick = actions.onConfirmRedoSetup) {
-                    Text(stringResource(R.string.settings_redo_setup_confirm_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = actions.onDismissDialog) { Text(stringResource(R.string.dialog_cancel)) }
-            },
+        BurkanConfirm(
+            title = stringResource(R.string.settings_redo_setup_confirm_title),
+            text = stringResource(R.string.settings_redo_setup_confirm_text),
+            confirm = stringResource(R.string.settings_redo_setup_confirm_action),
+            dismiss = stringResource(R.string.dialog_cancel),
+            onConfirm = actions.onConfirmRedoSetup,
+            onDismiss = actions.onDismissDialog,
         )
     } else {
         BurkanBottomSheet(onDismiss = actions.onDismissDialog) { hide ->
@@ -338,8 +414,21 @@ private fun SettingsDialogs(dialog: SettingsDialog, values: SettingsValues, acti
 
 /** The options of one appearance preference, as they are listed in its sheet. */
 @Composable
-private fun AppearanceChoices(dialog: SettingsDialog, appearance: Appearance, actions: SettingsActions) {
+private fun AppearanceChoices(
+    dialog: SettingsDialog,
+    appearance: Appearance,
+    actions: SettingsActions,
+) {
     when (dialog) {
+        SettingsDialog.Style -> BurkanChoiceList(
+            title = stringResource(R.string.settings_style),
+            text = stringResource(R.string.settings_style_text),
+            options = AppStyle.entries,
+            selected = appearance.appStyle,
+            label = { stringResource(it.label) },
+            onSelect = actions.onAppStyle,
+        )
+
         SettingsDialog.ThemeMode -> BurkanChoiceList(
             title = stringResource(R.string.settings_theme),
             options = ThemeMode.entries,
@@ -348,14 +437,22 @@ private fun AppearanceChoices(dialog: SettingsDialog, appearance: Appearance, ac
             onSelect = actions.onThemeMode,
             leading = { Icon(it.icon, contentDescription = null) },
         )
+
         SettingsDialog.SeedColor -> BurkanChoiceList(
             title = stringResource(R.string.settings_seed_color),
             options = SeedColors.entries,
             selected = appearance.seedColor,
             label = { stringResource(it.label) },
             onSelect = actions.onSeedColor,
-            leading = { Box(Modifier.size(24.dp).background(it.resolved(), CircleShape)) },
+            leading = {
+                Box(
+                    Modifier
+                        .size(24.dp)
+                        .background(it.resolved(), CircleShape),
+                )
+            },
         )
+
         SettingsDialog.PaletteStyle -> BurkanChoiceList(
             title = stringResource(R.string.settings_palette_style),
             options = PaletteStyles.entries,
@@ -372,6 +469,7 @@ private fun AppearanceChoices(dialog: SettingsDialog, appearance: Appearance, ac
             onSelect = actions.onAppFont,
             fontFamily = { it.family },
         )
+
         SettingsDialog.TextSize, SettingsDialog.RedoSetup -> Unit
     }
 }
@@ -399,15 +497,23 @@ private fun SwitchItem(
         onClick = { onCheckedChange(!checked) },
         leading = { Icon(icon, contentDescription = null) },
         trailing = {
-            Switch(
-                checked = checked,
-                onCheckedChange = null,
-                thumbContent = {
-                    if (checked) {
-                        Icon(Tabler.Outline.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                    }
-                },
-            )
+            if (LocalAppStyle.current == AppStyle.OneUi) {
+                OneUiSwitch(checked)
+            } else {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = null,
+                    thumbContent = {
+                        if (checked) {
+                            Icon(
+                                Tabler.Outline.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    },
+                )
+            }
         },
     )
 }
@@ -419,6 +525,7 @@ private fun SwitchItem(
 @Composable
 private fun ChoiceItem(
     index: Int,
+    count: Int,
     icon: ImageVector,
     title: Int,
     value: String,
@@ -427,13 +534,20 @@ private fun ChoiceItem(
 ) {
     BurkanSegmentItem(
         index = index,
-        count = APPEARANCE_ITEMS,
+        count = count,
         headline = stringResource(title),
         onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
         trailing = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (swatch != null) Box(Modifier.size(14.dp).background(swatch, CircleShape))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (swatch != null) Box(
+                    Modifier
+                        .size(14.dp)
+                        .background(swatch, CircleShape),
+                )
                 Text(
                     value,
                     style = MaterialTheme.typography.bodyMedium,
@@ -458,9 +572,6 @@ private fun Chevron() {
 }
 
 private const val RESTART_ITEMS = 3
-
-/** Theme, colour, palette style, font and text size. */
-private const val APPEARANCE_ITEMS = 5
 private const val ABOUT_ITEMS = 4
 
 private fun sample(
@@ -468,12 +579,13 @@ private fun sample(
     exclusions: Int = 0,
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     appFont: AppFont = SettingsStorage.Defaults.appFont,
+    appStyle: AppStyle = AppStyle.Material,
 ) = SettingsState(
     values = SettingsValues(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
         exclusionCount = exclusions,
-        appearance = sampleAppearance(textScalePercent, appFont),
+        appearance = sampleAppearance(textScalePercent, appFont, appStyle),
     ),
     dialog = dialog,
     version = "1.0.0",
@@ -482,7 +594,9 @@ private fun sample(
 private fun sampleAppearance(
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
     appFont: AppFont = SettingsStorage.Defaults.appFont,
+    appStyle: AppStyle = AppStyle.Material,
 ) = Appearance(
+    appStyle = appStyle,
     themeMode = SettingsStorage.Defaults.themeMode,
     seedColor = SeedColors.Blue,
     paletteStyle = SettingsStorage.Defaults.paletteStyle,
@@ -503,7 +617,8 @@ private fun SettingsLoadingPreview() = SettingsContent(SettingsState(), Settings
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SettingsThemeSheetPreview() = AppearanceChoices(SettingsDialog.ThemeMode, sampleAppearance(), SettingsActions())
+private fun SettingsThemeSheetPreview() =
+    AppearanceChoices(SettingsDialog.ThemeMode, sampleAppearance(), SettingsActions())
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -514,7 +629,8 @@ private fun SettingsSeedColorSheetPreview() =
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SettingsRedoSetupPreview() = SettingsContent(sample(SettingsDialog.RedoSetup), SettingsActions())
+private fun SettingsRedoSetupPreview() =
+    SettingsContent(sample(SettingsDialog.RedoSetup), SettingsActions())
 
 @BurkanPreview
 @Composable
@@ -544,7 +660,11 @@ private fun SettingsPaletteStyleSheetTealPreview() {
 @Composable
 private fun SettingsFontSheetDarkPreview() {
     BurkanPreviewTheme(themeMode = ThemeMode.Dark, appFont = AppFont.Poppins) {
-        AppearanceChoices(SettingsDialog.Font, sampleAppearance(appFont = AppFont.Poppins), SettingsActions())
+        AppearanceChoices(
+            SettingsDialog.Font,
+            sampleAppearance(appFont = AppFont.Poppins),
+            SettingsActions(),
+        )
     }
 }
 
@@ -553,5 +673,33 @@ private fun SettingsFontSheetDarkPreview() {
 private fun SettingsFontPreview() {
     BurkanPreviewTheme(appFont = AppFont.Poppins) {
         SettingsContent(sample(appFont = AppFont.Poppins), SettingsActions())
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SettingsOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        SettingsContent(sample(exclusions = 3, appStyle = AppStyle.OneUi), SettingsActions())
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SettingsOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        SettingsContent(sample(exclusions = 3, appStyle = AppStyle.OneUi), SettingsActions())
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun SettingsStyleSheetOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        AppearanceChoices(
+            SettingsDialog.Style,
+            sampleAppearance(appStyle = AppStyle.OneUi),
+            SettingsActions(),
+        )
     }
 }

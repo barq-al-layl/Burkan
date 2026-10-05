@@ -10,9 +10,17 @@ import com.composables.icons.tabler.outline.Palette
 import com.composables.icons.tabler.outline.Sun
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.designsystem.AppFont
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+
+@get:StringRes
+val AppStyle.label: Int
+    get() = when (this) {
+        AppStyle.Material -> R.string.style_material
+        AppStyle.OneUi -> R.string.style_one_ui
+    }
 
 @get:StringRes
 val ThemeMode.label: Int

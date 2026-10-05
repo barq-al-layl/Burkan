@@ -89,7 +89,12 @@ class HomeViewModel(
     ) {
         var logRead = false
         var lockWaitArmed = false
-        combine(runLog.log.filterNotNull(), controller.state, autoApply.state, settings.settings) { log, run, auto, user ->
+        combine(
+            runLog.log.filterNotNull(),
+            controller.state,
+            autoApply.state,
+            settings.settings,
+        ) { log, run, auto, user ->
             Inputs(log.runs.firstOrNull(), run, auto, user)
         }.collect { (lastRun, run, auto, user) ->
             // Every run that ends adds to the log, so a new entry means a run has finished.
@@ -115,7 +120,8 @@ class HomeViewModel(
     /** Called when the screen resumes. Reads the status unless it was read moments ago. */
     fun onResume(): Job = intent {
         val readAt = state.statusReadAt
-        val fresh = state.status is StatusState.Loaded && readAt != null && clock.now() - readAt < FRESH_FOR
+        val fresh =
+            state.status is StatusState.Loaded && readAt != null && clock.now() - readAt < FRESH_FOR
         if (!fresh) refresh().join()
     }
 
@@ -126,7 +132,8 @@ class HomeViewModel(
     fun refresh(): Job = intent {
         if (state.run is ApplyRunState.Running || state.isRefreshing) return@intent
         reduce { state.copy(isRefreshing = true) }
-        val status = statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
+        val status =
+            statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
         reduce { state.copy(status = status, statusReadAt = clock.now(), isRefreshing = false) }
     }
 
@@ -151,7 +158,8 @@ class HomeViewModel(
         reduce { state.copy(isConfirmingFullApply = true, restartScope = RestartScope.All) }
     }
 
-    fun chooseRestartScope(scope: RestartScope) = intent { reduce { state.copy(restartScope = scope) } }
+    fun chooseRestartScope(scope: RestartScope) =
+        intent { reduce { state.copy(restartScope = scope) } }
 
     fun confirmRestartAll() = intent {
         val scope = state.restartScope
@@ -176,7 +184,12 @@ class HomeViewModel(
     private fun showRunResult(run: RunLogEntry): Job = intent {
         val verified = controller.verified.value
         if (verified != null && verified.at >= run.startedAt) {
-            reduce { state.copy(status = StatusState.Loaded(verified.status), statusReadAt = verified.at) }
+            reduce {
+                state.copy(
+                    status = StatusState.Loaded(verified.status),
+                    statusReadAt = verified.at,
+                )
+            }
         } else {
             refresh().join()
         }

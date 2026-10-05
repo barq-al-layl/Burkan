@@ -22,13 +22,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -52,9 +52,17 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.TextScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
@@ -81,9 +89,10 @@ fun SetupScreen() {
     val viewModel = metroViewModel<SetupViewModel>()
     val state by viewModel.collectAsState()
     val context = LocalContext.current
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        viewModel.refresh()
-    }
+    val notificationPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            viewModel.refresh()
+        }
     // Most steps are done in Settings, so every return to the app re-checks them.
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -93,6 +102,7 @@ fun SetupScreen() {
         when (effect) {
             SetupSideEffect.RequestNotificationPermission ->
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+
             SetupSideEffect.OpenAboutPhone -> context.openSettings(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS))
             SetupSideEffect.OpenDeveloperOptions ->
                 context.openSettings(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
@@ -104,24 +114,44 @@ fun SetupScreen() {
             }
         }
     }
-    SetupContent(state = state, onAction = viewModel::onAction, onSkipBattery = viewModel::skipBattery)
+    SetupContent(
+        state = state,
+        onAction = viewModel::onAction,
+        onSkipBattery = viewModel::skipBattery,
+    )
 }
 
 /** The exemption request is the point of the step: the run after boot must not be held back. */
 @SuppressLint("BatteryLife")
 private fun batteryExemptionIntent(context: Context): Intent =
-    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, "package:${context.packageName}".toUri())
+    Intent(
+        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        "package:${context.packageName}".toUri(),
+    )
 
 @Composable
-private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSkipBattery: () -> Unit) {
+private fun SetupContent(
+    state: SetupState,
+    onAction: (SetupStep) -> Unit,
+    onSkipBattery: () -> Unit,
+) {
+    val appBar = rememberBurkanAppBar()
+    val scrollState = rememberScrollState()
     Scaffold(
+        modifier = Modifier.topBarScroll(appBar),
         topBar = {
-            TopAppBar(
+            BurkanTopBar(
+                appBar = appBar,
+                contentScroll = { scrollState.value },
                 title = { Text(stringResource(R.string.setup_title)) },
                 actions = {
                     state.current?.let { current ->
                         BurkanPill(
-                            stringResource(R.string.setup_progress, current.ordinal + 1, SetupStep.entries.size),
+                            stringResource(
+                                R.string.setup_progress,
+                                current.ordinal + 1,
+                                SetupStep.entries.size,
+                            ),
                             modifier = Modifier.padding(end = ScreenMargin),
                             tone = Tone.Good,
                         )
@@ -134,15 +164,26 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = innerPadding.listTop(),
+                    bottom = innerPadding.calculateBottomPadding(),
+                )
+                .oneUiScrollFade(scrollState)
+                .verticalScroll(scrollState)
+                .padding(top = innerPadding.listInset())
+
                 .padding(horizontal = ScreenMargin)
                 .padding(bottom = GroupGap),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
             if (state.isUntestedModel) UntestedModelNotice()
             if (done == null) {
-                Box(Modifier.fillMaxWidth().padding(vertical = 96.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 96.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     LoadingIndicator()
                 }
             } else {
@@ -176,7 +217,12 @@ private fun SetupContent(state: SetupState, onAction: (SetupStep) -> Unit, onSki
 /** One bar for each step, filled for the ones that are done: how far along, at a glance. The pill says it in words. */
 @Composable
 private fun ProgressBar(done: Set<SetupStep>) {
-    Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics { },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         SetupStep.entries.forEach { step ->
             Box(
                 modifier = Modifier
@@ -215,7 +261,12 @@ private fun DoneItem(finished: List<SetupStep>, count: Int) {
 @Composable
 private fun UntestedModelNotice() {
     val colors = noticeColors
-    BurkanSegment(index = 0, count = 1, containerColor = colors.container, contentColor = colors.content) {
+    BurkanSegment(
+        index = 0,
+        count = 1,
+        containerColor = colors.container,
+        contentColor = colors.content,
+    ) {
         Row(
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -251,7 +302,14 @@ private fun StepItem(
         } else {
             null
         },
-        content = if (isCurrent) ({ CurrentStepDetail(step, state, onAction, onSkipBattery) }) else null,
+        content = if (isCurrent) ({
+            CurrentStepDetail(
+                step,
+                state,
+                onAction,
+                onSkipBattery,
+            )
+        }) else null,
     )
 }
 
@@ -262,11 +320,15 @@ private fun StepItem(
 @Composable
 private fun StepNumber(number: Int, isCurrent: Boolean) {
     val scheme = MaterialTheme.colorScheme
-    val label = stringResource(if (isCurrent) R.string.setup_step_current else R.string.setup_step_waiting)
+    val label =
+        stringResource(if (isCurrent) R.string.setup_step_current else R.string.setup_step_waiting)
     Box(
         modifier = Modifier
             .size(40.dp)
-            .background(if (isCurrent) scheme.primary else scheme.surfaceContainerHighest, CircleShape)
+            .background(
+                if (isCurrent) scheme.primary else scheme.surfaceContainerHighest,
+                CircleShape,
+            )
             .clearAndSetSemantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
@@ -280,7 +342,12 @@ private fun StepNumber(number: Int, isCurrent: Boolean) {
 }
 
 @Composable
-private fun CurrentStepDetail(step: SetupStep, state: SetupState, onAction: () -> Unit, onSkipBattery: () -> Unit) {
+private fun CurrentStepDetail(
+    step: SetupStep,
+    state: SetupState,
+    onAction: () -> Unit,
+    onSkipBattery: () -> Unit,
+) {
     Column(
         modifier = Modifier.padding(top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -295,10 +362,17 @@ private fun CurrentStepDetail(step: SetupStep, state: SetupState, onAction: () -
                     else -> Progress(stringResource(R.string.setup_connect_in_progress))
                 }
             }
+
             SetupStep.Battery -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onAction) { Text(stringResource(R.string.setup_battery_action)) }
-                TextButton(onClick = onSkipBattery) { Text(stringResource(R.string.setup_battery_skip)) }
+                // One UI does not put a flat button beside a contained one.
+                if (LocalAppStyle.current == AppStyle.OneUi) {
+                    FilledTonalButton(onClick = onSkipBattery) { Text(stringResource(R.string.setup_battery_skip)) }
+                } else {
+                    TextButton(onClick = onSkipBattery) { Text(stringResource(R.string.setup_battery_skip)) }
+                }
             }
+
             else -> Button(onClick = onAction) { Text(stringResource(step.action)) }
         }
     }
@@ -313,13 +387,17 @@ private fun PairDetail(pairing: PairingStatus, onAction: () -> Unit) {
             Text(stringResource(R.string.setup_pair_waiting))
             Button(onClick = onAction) { Text(stringResource(R.string.setup_wireless_debugging_action)) }
         }
+
         PairingStatus.Idle -> Button(onClick = onAction) { Text(stringResource(R.string.setup_pair_action)) }
     }
 }
 
 @Composable
 private fun Progress(label: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         LoadingIndicator(modifier = Modifier.size(40.dp))
         Text(label)
     }
@@ -328,7 +406,11 @@ private fun Progress(label: String) {
 @Composable
 private fun FailureWithRetry(error: AppError, onRetry: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(Tabler.Outline.AlertCircle, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+        Icon(
+            Tabler.Outline.AlertCircle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+        )
         Text(stringResource(error.messageRes()), color = MaterialTheme.colorScheme.error)
     }
     Button(onClick = onRetry) { Text(stringResource(R.string.setup_try_again)) }
@@ -396,7 +478,8 @@ private fun SetupNotificationsPreview() = SetupPreviewContent(sample(SetupStep.N
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupUntestedModelPreview() = SetupPreviewContent(sample(SetupStep.Notifications, isUntestedModel = true))
+private fun SetupUntestedModelPreview() =
+    SetupPreviewContent(sample(SetupStep.Notifications, isUntestedModel = true))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -406,7 +489,8 @@ private fun SetupDeveloperOptionsPreview() = SetupPreviewContent(sample(SetupSte
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupWirelessDebuggingPreview() = SetupPreviewContent(sample(SetupStep.WirelessDebugging))
+private fun SetupWirelessDebuggingPreview() =
+    SetupPreviewContent(sample(SetupStep.WirelessDebugging))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -422,30 +506,47 @@ private fun SetupPairWaitingPreview() =
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupPairInProgressPreview() = SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Pairing))
+private fun SetupPairInProgressPreview() =
+    SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Pairing))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun SetupPairWrongCodePreview() =
-    SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Failed(PairingError.WrongCode)))
+    SetupPreviewContent(
+        sample(
+            SetupStep.Pair,
+            pairing = PairingStatus.Failed(PairingError.WrongCode),
+        ),
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun SetupPairDialogClosedPreview() =
-    SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Failed(PairingError.DialogClosed)))
+    SetupPreviewContent(
+        sample(
+            SetupStep.Pair,
+            pairing = PairingStatus.Failed(PairingError.DialogClosed),
+        ),
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun SetupPairTimedOutPreview() =
-    SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Failed(PairingError.TimedOut)))
+    SetupPreviewContent(
+        sample(
+            SetupStep.Pair,
+            pairing = PairingStatus.Failed(PairingError.TimedOut),
+        ),
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupConnectingPreview() = SetupPreviewContent(sample(SetupStep.Connect, isConnecting = true))
+private fun SetupConnectingPreview() =
+    SetupPreviewContent(sample(SetupStep.Connect, isConnecting = true))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -457,7 +558,12 @@ private fun SetupConnectNoWifiPreview() =
 @BurkanPreview
 @Composable
 private fun SetupConnectRefusedPreview() =
-    SetupPreviewContent(sample(SetupStep.Connect, failure = ConnectionError.WirelessDebuggingRefused))
+    SetupPreviewContent(
+        sample(
+            SetupStep.Connect,
+            failure = ConnectionError.WirelessDebuggingRefused,
+        ),
+    )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -474,7 +580,12 @@ private fun SetupBatteryPreview() = SetupPreviewContent(sample(SetupStep.Battery
 @Composable
 private fun SetupPairWrongCodeDarkPreview() {
     BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
-        SetupPreviewContent(sample(SetupStep.Pair, pairing = PairingStatus.Failed(PairingError.WrongCode)))
+        SetupPreviewContent(
+            sample(
+                SetupStep.Pair,
+                pairing = PairingStatus.Failed(PairingError.WrongCode),
+            ),
+        )
     }
 }
 

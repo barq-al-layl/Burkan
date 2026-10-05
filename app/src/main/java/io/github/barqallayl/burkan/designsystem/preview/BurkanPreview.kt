@@ -8,6 +8,7 @@ import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.ui.LocalCurrentYear
 import io.github.barqallayl.burkan.designsystem.AppFont
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.ProvideTextScale
@@ -43,6 +44,7 @@ fun BurkanPreviewTheme(
     paletteStyle: PaletteStyles = SettingsStorage.Defaults.paletteStyle,
     appFont: AppFont = SettingsStorage.Defaults.appFont,
     textScalePercent: Int = SettingsStorage.Defaults.TEXT_SCALE_PERCENT,
+    appStyle: AppStyle = SettingsStorage.Defaults.appStyle,
     content: @Composable () -> Unit,
 ) {
     // The sample runs are from this year, and stay written that way whenever the screenshots are recorded.
@@ -53,6 +55,7 @@ fun BurkanPreviewTheme(
                 seedColor = seedColor.resolved(),
                 paletteStyle = paletteStyle.style,
                 appFont = appFont,
+                appStyle = appStyle,
             ) {
                 Surface(content = content)
             }
