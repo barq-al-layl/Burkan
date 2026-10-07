@@ -4,9 +4,9 @@ What the app has to do on the phone, command by command, and what was measured o
 reference for anything that runs as the `shell` user.
 
 **Test device:** Galaxy S23 (SM-S911B), Android 16, One UI, Secure Folder set up, a live wallpaper selected.
-Measured on 1 October 2026 with the macOS script from
+Measured first with the macOS script from
 [s23-vulkan-support](https://github.com/Ameen-Sha-Cheerangan/s23-vulkan-support), which this app replaces on the
-phone itself, and on 2 October 2026 with Burkan on the phone alone, before and after a reboot.
+phone itself, and then with Burkan on the phone alone, before and after a reboot.
 
 Each statement below is marked:
 
@@ -325,7 +325,7 @@ test device `am crash` left the default alone (section 2); this is the safety ne
 
 ## 9. Reaching the shell from the app
 
-Partly measured on 2 October 2026: the app paired, connected and ran commands on the phone alone, and after a
+Partly measured: the app paired, connected and ran commands on the phone alone, and after a
 reboot it switched wireless debugging on, connected and applied by itself. Which address the connection used was not
 recorded.
 
@@ -342,7 +342,8 @@ recorded.
 | `pm grant <package> android.permission.WRITE_SECURE_SETTINGS` succeeds from the shell on One UI | Measured, over the app's own connection |
 | A foreground service of type `specialUse` may be started from a `BOOT_COMPLETED` receiver on Android 15 and later | Measured on Android 16. The types Android 15 forbids there are `dataSync`, `camera`, `mediaPlayback`, `phoneCall`, `mediaProjection` and `microphone` |
 | adbd accepts `shell,v2,raw:<command>` on a stream opened by libadb-android, and answers with v2 packets ending in the exit code | Measured: the grant and the light apply ran through it |
-| libadb-android reports a wrong pairing code as an `IOException` with the message `Exchanging message wasn't successful.`, and a closed pairing dialog as a refused connection | Expected — read from the library's source, version 3.1.1 |
+| libadb-android reports a wrong pairing code as an `IOException` with the message `Could not exchange peer info.` | Measured. The library's source (3.1.1) also has `Exchanging message wasn't successful.` for a failure one step earlier; the app takes either to mean a wrong code |
+| libadb-android reports a closed pairing dialog as a refused connection | Expected — read from the library's source, version 3.1.1 |
 | libadb-android's `AbsAdbConnectionManager.close()` destroys the private key | Read from the library's source; the app only ever calls `disconnect()` |
 
 **The pairing dialog closes when the user leaves the Settings screen**, so the code cannot be typed into the
@@ -371,7 +372,7 @@ computer: pair, connect, then run the `pm grant` above. (Measured.)
 
 ## 11. The lock screen restarts adbd
 
-All measured on 2 October 2026.
+All measured.
 
 - **Restarting System UI shows the lock screen** on a phone with a secure lock (PIN, pattern, password or
   biometrics).
@@ -398,7 +399,7 @@ What follows for the app:
 
 ## 12. After a reboot
 
-Measured on 2 October 2026, rebooting with the USB cable plugged in, on a Wi-Fi network marked "Always allow".
+Measured, rebooting with the USB cable plugged in, on a Wi-Fi network marked "Always allow".
 
 | Fact | Status |
 |---|---|
@@ -427,3 +428,22 @@ What follows for the app:
 - A second `BOOT_COMPLETED` in the same boot is not a restart. The app compares the boot count with the one it last
   handled. If it is the same, it applies nothing and only resumes what this boot was waiting for.
 - The run at the lock is logged as its own entry, "System UI at lock", after the "After restart" run it continues.
+
+## 13. A full pass with Vulkan already active
+
+Measured on One UI 8.5 with a debug build, the USB cable plugged in, on a Wi-Fi network marked "Always allow", with
+Vulkan already active on every surface.
+
+| Fact | Status |
+|---|---|
+| A full apply of every app took 42 seconds: 605 apps stopped, 106 reopened, then the three settings put back | Measured |
+| Limited to the 30 most recent, it stopped 30 apps, reopened 17 and took about 7 seconds | Measured |
+| Auto-rotation, the enabled accessibility services, `edge_enable` and the default input method read the same before and after a full apply, and after one cancelled while it was stopping apps | Measured |
+| Burkan's own process lived through the full apply, and Home showed the run's steps when brought back to the front | Measured |
+| With System UI already on Vulkan, neither kind of apply restarts it, and the screen does not lock | Measured |
+| `pm list packages` on a phone with Secure Folder prints the list, and an error that the shell may not access the Secure Folder's user, and exits with 0 | Measured |
+| `settings get global boot_count` reads from the shell | Measured |
+| `cmd package resolve-activity --brief` prints a line of match details, then `package/activity` on the last line, and exits with 0; `cmd role get-role-holders android.app.role.HOME` prints the launcher's package name | Measured |
+| A wrong pairing code leaves the system's pairing dialog open with the same code, and the right code typed next pairs | Measured |
+| After a reinstall, the run log and the settings came back from Android's backup and setup started from its first step, as the state file that holds the pairing is excluded from backups | Observed; that it was a backup restore is inferred from what came back and what did not |
+| Every new connection raises the system's "Wireless debugging connected" notification as a banner over the top of the screen for a few seconds, and tapping it opens Developer options | Measured |
