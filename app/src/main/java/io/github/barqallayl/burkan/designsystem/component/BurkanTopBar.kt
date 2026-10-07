@@ -168,10 +168,8 @@ private fun OneUiTopBar(
                     alpha = 1f - scrolled()
                 },
         ) {
-            // A first screen names the app, larger; a screen reached from one names itself beside the way back.
-            val style =
-                if (onBack != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium
-            ProvideTextStyle(style, title)
+            // A first screen's title is the size of any other's, as in most of Samsung's own apps.
+            ProvideTextStyle(MaterialTheme.typography.titleLarge, title)
         }
         FloatingCard(scrolled) {
             Row(

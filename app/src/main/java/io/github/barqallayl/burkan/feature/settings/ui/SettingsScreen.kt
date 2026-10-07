@@ -239,11 +239,10 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         index = 2,
         count = RESTART_ITEMS,
         headline = stringResource(R.string.settings_exclusions),
-        // One UI leaves a row that opens a screen to that screen to explain itself; the count is in the pill.
-        supporting = if (LocalAppStyle.current == AppStyle.OneUi) {
-            null
-        } else if (values.exclusionCount == 0) {
-            stringResource(R.string.settings_exclusions_none)
+        // One UI leaves a row that opens a screen to that screen to explain itself, and writes the row's value,
+        // here the count, under its name.
+        supporting = if (values.exclusionCount == 0) {
+            if (LocalAppStyle.current == AppStyle.OneUi) null else stringResource(R.string.settings_exclusions_none)
         } else {
             pluralStringResource(
                 R.plurals.settings_exclusions_count,
@@ -251,6 +250,7 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
                 values.exclusionCount,
             )
         },
+        supportingColor = valueColor,
         onClick = actions.onOpenExclusions,
         leading = { Icon(Tabler.Outline.Apps, contentDescription = null) },
         trailing = {
@@ -258,10 +258,9 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (values.exclusionCount > 0) BurkanPill(
-                    values.exclusionCount.toString(),
-                    tone = Tone.Good,
-                )
+                if (values.exclusionCount > 0 && LocalAppStyle.current != AppStyle.OneUi) {
+                    BurkanPill(values.exclusionCount.toString(), tone = Tone.Good)
+                }
                 Chevron()
             }
         },
@@ -476,8 +475,9 @@ private fun SwitchItem(
 }
 
 /**
- * A preference that opens a sheet of choices. What is chosen now sits at the end of the row, before the chevron, so
- * the group reads as two columns: the names down one side, their values down the other.
+ * A preference that opens a sheet of choices. In Material what is chosen now sits at the end of the row, before the
+ * chevron, so the group reads as two columns: the names down one side, their values down the other. One UI writes
+ * it under the name, in the accent colour, and has no chevron.
  */
 @Composable
 private fun ChoiceItem(
@@ -489,10 +489,13 @@ private fun ChoiceItem(
     swatch: Color? = null,
     onClick: () -> Unit,
 ) {
+    val oneUi = LocalAppStyle.current == AppStyle.OneUi
     BurkanSegmentItem(
         index = index,
         count = count,
         headline = stringResource(title),
+        supporting = if (oneUi) value else null,
+        supportingColor = valueColor,
         onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
         trailing = {
@@ -505,26 +508,34 @@ private fun ChoiceItem(
                         .size(14.dp)
                         .background(swatch, CircleShape),
                 )
-                Text(
-                    value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = VALUE_MAX_WIDTH),
-                )
+                if (!oneUi) {
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = VALUE_MAX_WIDTH),
+                    )
+                }
                 Chevron()
             }
         },
     )
 }
 
+/** The colour of a row's second line when that line is its value: One UI's accent. Material has no such line. */
+private val valueColor: Color?
+    @Composable
+    get() = if (LocalAppStyle.current == AppStyle.OneUi) MaterialTheme.colorScheme.primary else null
+
 /** A value longer than this is cut short, so the row's name always has the room it needs. */
 private val VALUE_MAX_WIDTH = 150.dp
 
-/** Marks a row that opens something: another screen, or a page in the browser. */
+/** Marks a row that opens something: another screen, or a page in the browser. One UI's rows carry no such mark. */
 @Composable
 private fun Chevron() {
+    if (LocalAppStyle.current == AppStyle.OneUi) return
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 

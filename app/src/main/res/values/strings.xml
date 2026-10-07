@@ -50,9 +50,9 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_restart">After a restart</string>
     <string name="settings_apply_on_boot">Apply after restart</string>
-    <string name="settings_apply_on_boot_text">Applies Vulkan by itself each time the phone restarts, once it is on Wi-Fi.</string>
+    <string name="settings_apply_on_boot_text">Once the phone is on Wi-Fi</string>
     <string name="settings_turn_off_wireless_debugging">Turn off wireless debugging</string>
-    <string name="settings_turn_off_wireless_debugging_text">After applying, and only when Burkan was the one that switched it on.</string>
+    <string name="settings_turn_off_wireless_debugging_text">Only if Burkan switched it on</string>
     <string name="settings_exclusions">Never restart these apps</string>
     <string name="restart_scope_all">Every app</string>
     <string name="restart_scope_recent">The %1$d most recent</string>
@@ -71,7 +71,7 @@
     <string name="settings_palette_style">Palette style</string>
     <string name="settings_section_setup">Setup</string>
     <string name="settings_redo_setup">Redo setup</string>
-    <string name="settings_redo_setup_text">Forget the pairing and go through setup again.</string>
+    <string name="settings_redo_setup_text">Forgets the pairing</string>
     <string name="settings_redo_setup_confirm_title">Redo setup?</string>
     <string name="settings_redo_setup_confirm_text">Burkan forgets its pairing with wireless debugging and stops applying Vulkan until setup is finished again.</string>
     <string name="settings_redo_setup_confirm_action">Redo setup</string>

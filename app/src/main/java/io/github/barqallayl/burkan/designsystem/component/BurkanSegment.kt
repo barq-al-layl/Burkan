@@ -235,6 +235,9 @@ fun SegmentedColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  * A row is one of four things. With nothing more it only shows. With [onClick] it is tapped. With [selected] it is
  * one option out of several, and [onClick] chooses it. With [checked] it is ticked or not, on its own, and
  * [onCheckedChange] flips it. The selected and the ticked row are filled and rounded.
+ *
+ * [supportingColor] is for a second line that is the row's value and not a description of it: One UI writes a
+ * setting's value under its name in the accent colour.
  */
 @Composable
 fun BurkanSegmentItem(
@@ -243,6 +246,7 @@ fun BurkanSegmentItem(
     headline: String,
     modifier: Modifier = Modifier,
     supporting: String? = null,
+    supportingColor: Color? = null,
     containerColor: Color = segmentContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     headlineStyle: TextStyle = MaterialTheme.typography.titleMedium,
@@ -292,6 +296,7 @@ fun BurkanSegmentItem(
                 if (supporting != null) Text(
                     supporting,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = supportingColor ?: Color.Unspecified,
                 )
                 // What goes under the text is the row's own content, not a quieter line of it.
                 if (content != null) CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
