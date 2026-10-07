@@ -21,11 +21,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -372,6 +374,9 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             RestartAllSheet(
                 scope = state.restartScope,
                 keptCount = state.keptCount,
+                // System UI is restarted, and the screen locks, only when it is not on Vulkan already. Not
+                // knowing, say it: a lock nobody was told about is the worse surprise.
+                locks = (state.status as? StatusState.Loaded)?.status?.systemUi != Renderer.Vulkan,
                 onScope = actions.onRestartScope,
                 onConfirm = { hide(actions.onConfirmRestartAll) },
                 onDismiss = { hide(actions.onDismissRestartAll) },
@@ -387,6 +392,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
 private fun RestartAllSheet(
     scope: RestartScope,
     keptCount: Int,
+    locks: Boolean,
     onScope: (RestartScope) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -404,7 +410,11 @@ private fun RestartAllSheet(
             icon = Tabler.Outline.Refresh,
         )
         Text(
-            stringResource(R.string.home_confirm_text),
+            if (locks) {
+                stringResource(R.string.home_confirm_text) + " " + stringResource(R.string.home_confirm_lock_text)
+            } else {
+                stringResource(R.string.home_confirm_text)
+            },
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
@@ -695,8 +705,9 @@ private const val GLOW_FLATNESS = 0.3f
 private enum class SummaryActions { Apply, Cancel, Done }
 
 /**
- * The summary card's button, a pill only as wide as its word needs. Starting and stopping are grey, as One UI has a
- * card's own action; "Done" is the accent, the one thing left to do.
+ * The summary card's buttons. At rest they are the two things the app is for, side by side and equally wide, in
+ * grey as One UI has a card's own actions. During a run there is one, which stops it; after it one, "Done", in the
+ * accent: the one thing left to do. A lone button is only as wide as its word needs.
  */
 @Composable
 private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier: Modifier = Modifier) {
@@ -713,21 +724,45 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
     ) { shown ->
         // A button on its way out no longer does anything: a second tap must not land on the one replacing it.
         val live = shown == action
-        if (shown == SummaryActions.Done) {
-            Button(onClick = { if (live) actions.onDismissRun() }, modifier = shape) {
+        val grey = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        )
+        when (shown) {
+            SummaryActions.Done -> Button(onClick = { if (live) actions.onDismissRun() }, modifier = shape) {
                 Text(stringResource(R.string.home_done), style = style)
             }
-        } else {
-            val applying = shown == SummaryActions.Apply
-            FilledTonalButton(
-                onClick = { if (live) (if (applying) actions.onApplyNow else actions.onCancelRun)() },
+
+            SummaryActions.Cancel -> FilledTonalButton(
+                onClick = { if (live) actions.onCancelRun() },
                 modifier = shape,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+                colors = grey,
             ) {
-                Text(stringResource(if (applying) R.string.home_apply_now else R.string.home_cancel_run), style = style)
+                Text(stringResource(R.string.home_cancel_run), style = style)
+            }
+
+            SummaryActions.Apply -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    R.string.home_apply_now to actions.onApplyNow,
+                    R.string.home_restart_all to actions.onRestartAll,
+                ).forEach { (label, onClick) ->
+                    FilledTonalButton(
+                        onClick = { if (live) onClick() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(SUMMARY_ACTION_HEIGHT),
+                        colors = grey,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        // One line in any font size: the label is set smaller before it is ever cut.
+                        Text(
+                            stringResource(label),
+                            style = style,
+                            maxLines = 1,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize),
+                        )
+                    }
+                }
             }
         }
     }
@@ -762,7 +797,9 @@ private const val SWAP_IN_MILLIS = 220
 
 /**
  * A run as a checklist, as One UI shows work under way: one row for each thing the run has done, in order, the last
- * of them turning until it is done too. When the run has ended the last row says how: ticked, failed, or stopped.
+ * of them turning until it is done too. When a run has failed, the step that failed says so: the one the log
+ * records the failure against, or the last when it failed before or after its steps. A run that was cancelled is
+ * ticked throughout, because what it had started it also finished or put back; the row under Runs says "Cancelled".
  */
 @Composable
 private fun RunChecklist(state: HomeState) {
@@ -770,7 +807,15 @@ private fun RunChecklist(state: HomeState) {
     var steps by remember { mutableStateOf(state.runSteps) }
     if (state.runSteps.isNotEmpty()) steps = state.runSteps
     val running = state.run is ApplyRunState.Running
-    val result = state.finishedRun?.result
+    val finished = state.finishedRun
+    val failedRow = if (finished?.result == RunResult.Failed) {
+        // The log's steps are the rows that are steps, in the same order.
+        val failedStep = finished.steps.indexOfFirst { it.error != null }
+        val stepRows = steps.indices.filter { steps[it] is RunPhase.Step }
+        stepRows.getOrNull(failedStep) ?: steps.lastIndex
+    } else {
+        -1
+    }
     BurkanSegment(index = 0, count = 1) {
         Column(
             modifier = Modifier
@@ -783,12 +828,11 @@ private fun RunChecklist(state: HomeState) {
                     ChecklistRow(
                         phase = phase,
                         mark = when {
+                            index == failedRow -> StepMarks.Failed
                             index != steps.lastIndex -> StepMarks.Done
                             // Also for the moment between the run ending and its result arriving: no tick
                             // before it is known that the step earned one.
-                            running || result == null -> StepMarks.Working
-                            result == RunResult.Failed -> StepMarks.Failed
-                            result == RunResult.Cancelled -> StepMarks.Stopped
+                            running || finished == null -> StepMarks.Working
                             else -> StepMarks.Done
                         },
                     )
@@ -802,7 +846,6 @@ private enum class StepMarks(val label: Int) {
     Working(R.string.home_step_working),
     Done(R.string.home_step_done),
     Failed(R.string.home_step_failed),
-    Stopped(R.string.home_step_stopped),
 }
 
 @Composable
@@ -811,8 +854,8 @@ private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(CHECKLIST_ROW_HEIGHT)
-            .padding(horizontal = 18.dp)
+            .heightIn(min = CHECKLIST_ROW_HEIGHT)
+            .padding(horizontal = 18.dp, vertical = 6.dp)
             .semantics(mergeDescendants = true) { },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -827,7 +870,6 @@ private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
         Text(
             if (phase is RunPhase.Step) phase.kind.label().text() else phase.label().text(),
             style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
             modifier = Modifier.weight(1f),
         )
         // The spinner gives way to the mark in place. A glyph for each: never colour alone.
@@ -847,12 +889,6 @@ private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
                     Tabler.Outline.AlertTriangle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
-                )
-
-                StepMarks.Stopped -> Icon(
-                    Tabler.Outline.X,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -1251,8 +1287,7 @@ private fun NextLockNotice() {
 private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showError: Boolean) {
     val applyOnBoot = state.applyOnBoot
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
-    // In One UI the heavier action is a row here: nothing is docked at the bottom for it.
-    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (oneUi) 1 else 0)
+    val count = if (applyOnBoot == null) 1 else 2
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
     SegmentedColumn(modifier = Modifier.animateContentSize()) {
         LastRun(state.lastRun, zone, count, actions.onOpenLog, showError)
@@ -1283,18 +1318,6 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                         tone = if (applyOnBoot) Tone.Good else Tone.Neutral,
                     )
                 },
-            )
-        }
-        if (oneUi) {
-            val idle = state.run == ApplyRunState.Idle
-            BurkanSegmentItem(
-                index = count - 1,
-                count = count,
-                headline = stringResource(R.string.home_restart_all),
-                supporting = stringResource(R.string.home_restart_all_text),
-                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
-                onClick = { if (idle) actions.onRestartAll() },
-                leading = { BurkanIconBadge(Tabler.Outline.Refresh) },
             )
         }
     }
@@ -1418,6 +1441,7 @@ private fun HomeRestartAllSheetPreview() =
     RestartAllSheet(
         scope = RestartScope.All,
         keptCount = 0,
+        locks = true,
         onScope = {},
         onConfirm = {},
         onDismiss = {},
@@ -1430,6 +1454,7 @@ private fun HomeRestartAllSheetLimitedPreview() =
     RestartAllSheet(
         scope = RestartScope.Recent30,
         keptCount = 3,
+        locks = false,
         onScope = {},
         onConfirm = {},
         onDismiss = {},
@@ -1731,7 +1756,14 @@ private fun HomePartlyAppliedOneUiDarkPreview() {
 @Composable
 private fun HomeRestartAllSheetOneUiPreview() {
     BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
-        RestartAllSheet(scope = RestartScope.All, keptCount = 3, onScope = {}, onConfirm = {}, onDismiss = {})
+        RestartAllSheet(
+            scope = RestartScope.All,
+            keptCount = 3,
+            locks = true,
+            onScope = {},
+            onConfirm = {},
+            onDismiss = {},
+        )
     }
 }
 
