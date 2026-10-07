@@ -102,6 +102,7 @@ More detail lives in these documents:
 - [`docs/device-notes.md`](docs/device-notes.md): what Burkan does on the phone, and what was measured on a real
   S23.
 - [`docs/testing.md`](docs/testing.md): what has been checked on a phone and what has not.
+- [`docs/f-droid.md`](docs/f-droid.md): what is ready for publishing on F-Droid and what is still to do.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): building, testing and the code conventions.
 
 ## Thanks

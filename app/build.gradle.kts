@@ -61,6 +61,12 @@ android {
     buildFeatures {
         compose = true
     }
+    // The build tools would add a list of the dependencies to the APK, encrypted with a key of Google's, for the
+    // Play Store to read. Nobody else can read it, and F-Droid asks for it to be left out.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
     lint {
         // MetroAppComponentFactory constructs activities, services and receivers, so they take constructor arguments.
         disable += "Instantiatable"

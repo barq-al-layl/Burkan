@@ -1,0 +1,6 @@
+The first release.
+
+* Applies Vulkan by itself after every restart, once the phone is on Wi-Fi
+* Apply now, and Restart all apps with a choice of how many
+* A step-by-step view of each run, and a log of the last 50
+* Two looks, One UI and Material, in light and dark

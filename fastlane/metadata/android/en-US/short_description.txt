@@ -1,0 +1,1 @@
+Keeps your Galaxy S23 on the Vulkan renderer, even after a restart
