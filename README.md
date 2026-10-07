@@ -1,19 +1,64 @@
 # Burkan
 
-Burkan keeps your Galaxy S23 running on Vulkan, the faster way for the phone to draw its screen. You set it up
-once, and it takes care of the rest, even after you restart the phone. No computer needed.
+Burkan keeps your Galaxy S23 on Vulkan, the faster way for the phone to draw its screen. Set it up once, in a
+few minutes, and it looks after itself from then on, even after a restart. No computer needed.
 
-Normally, switching a phone to Vulkan means plugging it into a computer and typing commands, and doing that
-again every time the phone restarts, because a restart puts everything back. Burkan does the same job from
-inside the phone, by itself.
+## Get started
 
-> **Burkan is new.** It has been tried on a Galaxy S23 with One UI 8.5 and works there. The list of what has and
-> has not been checked is in [`docs/testing.md`](docs/testing.md).
+**You need** a Galaxy S23, S23+ or S23 Ultra, connected to Wi-Fi.
+
+1. **Install Burkan.** Download the latest version from the
+   [Releases page](https://github.com/barq-al-layl/Burkan/releases/latest) and open the file on your phone.
+2. **Open it and follow the steps.** Burkan shows you one step at a time and tells you exactly what to tap.
+   When a step is finished, tap **Done** to go to the next.
+3. **That's all.** Burkan now turns Vulkan on by itself every time the phone restarts.
+
+### The steps, if you want to see them first
+
+There are seven, and Burkan does two of them for you.
+
+| | Step | What you do |
+|---|---|---|
+| 1 | Allow notifications | Tap *Allow*. |
+| 2 | Turn on Developer options | In the phone's Settings, open *About phone*, then *Software information*, and tap *Build number* seven times. |
+| 3 | Turn on Wireless debugging | Open *Developer options*, switch on *Wireless debugging*, and tick *Always allow on this network*. |
+| 4 | Pair | In *Wireless debugging*, tap *Pair device with pairing code*. Pull down the notification shade and type the six-digit code into Burkan's notification. |
+| 5 | Connect | Nothing. Burkan does it. |
+| 6 | Permission | Nothing. Burkan does it. |
+| 7 | Battery | Tap *Allow* so Burkan is not held back after a restart, or skip it. |
+
+### If you get stuck
+
+- **The Wireless debugging switch is grey.** The phone is not on Wi-Fi. Connect to a Wi-Fi network and try again.
+- **The pairing code disappeared.** It goes away when you leave the pairing screen. Tap *Pair device with
+  pairing code* again and use the new code.
+- **Burkan says it cannot connect.** Check that the phone is on Wi-Fi, then tap *Try again*.
+- **You want to start over.** Open Burkan's Settings and tap *Redo setup*.
+
+## What Burkan does for you
+
+- **Turns Vulkan back on after every restart**, as soon as the phone is on Wi-Fi. You do not need to open it.
+- **Shows you what is going on.** Home tells you whether Vulkan is active. If it cannot check, it says why in
+  plain words.
+- **Lets you do it yourself, too.** *Apply now* switches to Vulkan on the spot. *Restart all apps* also reopens
+  your apps so they pick it up. You can choose apps that should never be restarted.
+- **Shows its work.** You see each step ticked off while it is busy, and a log keeps the last 50 runs.
+- **Fits your taste.** Pick the look, a light or dark theme, and a color.
+
+## Good to know
+
+- **It is safe to try.** If anything looks odd, restart the phone and it is back to normal. To stop Burkan from
+  applying Vulkan again, switch off *Apply after restart* in its Settings first.
+- **It is private.** Burkan only talks to your own phone. It does not go online, collects nothing about you,
+  and has no ads.
+- **It needs nothing extra.** No computer, no root, no other apps.
+- **It is new.** Burkan has been tried on a Galaxy S23 with One UI 8.5. It opens on other phones with a warning,
+  but it is not tested there. Samsung and Google do not officially support forcing Vulkan.
 
 ## How it looks
 
 Burkan comes in two looks. On a Samsung phone it starts in **One UI**, so it feels like one of the phone's own
-apps. You can switch to **Material** in Settings whenever you like.
+apps. You can switch to **Material** in Settings. Both also have a light theme.
 
 **One UI**
 
@@ -27,61 +72,7 @@ apps. You can switch to **Material** in Settings whenever you like.
 |---|---|---|---|---|
 | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.setup.ui.SetupScreenKt.SetupPairDarkPreview.WITH_BACKGROUND.png" width="160" alt="Setup in the Material look, at the pairing step"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeActiveDarkPreview.WITH_BACKGROUND.png" width="160" alt="Home in the Material look, showing Vulkan is active"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeRunningDarkPreview.WITH_BACKGROUND.png" width="160" alt="Home in the Material look while Vulkan is being applied"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.settings.ui.SettingsScreenKt.SettingsDarkPreview.WITH_BACKGROUND.png" width="160" alt="Settings in the Material look"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.log.ui.LogScreenKt.LogExpandedDarkPreview.WITH_BACKGROUND.png" width="160" alt="The log in the Material look, with one run opened"> |
 
-These pictures are made from the app itself with sample data. Both looks also have a light theme.
-
-## What Burkan does for you
-
-- **Turns Vulkan back on after every restart.** As soon as the phone is on Wi-Fi, Burkan applies Vulkan without
-  you opening it. If there is no Wi-Fi yet, it waits until there is.
-- **Tells you what is really going on.** Home shows whether Vulkan is active, and for which parts of the phone.
-  If it cannot check, it tells you why in plain words, for example that the phone is not on Wi-Fi.
-- **Lets you do it yourself, too.** *Apply now* switches the phone to Vulkan on the spot. *Restart all apps* goes
-  further and reopens your apps so they pick it up as well. You can choose apps that should never be restarted.
-- **Shows its work.** While it is busy you see each step ticked off, and a log keeps the last 50 runs in case
-  you want to look back or share one.
-- **Fits your taste.** Pick the look, a light or dark theme, and a color.
-
-## What you need
-
-- A Galaxy S23, S23+ or S23 Ultra. Burkan will open on other phones, with a warning, but it is not tested there.
-- Android 13 or newer.
-- Wi-Fi. Burkan works through a feature of the phone called wireless debugging, and Android only allows that
-  while the phone is connected to a Wi-Fi network.
-
-## Getting started
-
-Install Burkan and open it. It walks you through seven short steps, one at a time. Each step tells you what to
-do, checks that it worked, and waits for you to tap **Done** before moving on.
-
-1. **Allow notifications.** You will type a code into a notification in step 4, and Burkan uses notifications to
-   tell you if something went wrong.
-2. **Turn on Developer options.** In the phone's Settings, open *About phone*, then *Software information*, and
-   tap *Build number* seven times.
-3. **Turn on Wireless debugging.** You will find it in Developer options. Tick *Always allow on this network*
-   when the phone asks.
-4. **Pair.** In Wireless debugging, tap *Pair device with pairing code*. Then pull down the notification shade
-   and type the six-digit code into Burkan's notification. Stay on the pairing screen while you do this, because
-   the code disappears if you leave it.
-5. **Connect.** Burkan does this one for you.
-6. **Permission.** Burkan does this one too. It gives itself what it needs to switch wireless debugging on and
-   off without asking you each time.
-7. **Battery.** Let Burkan run without battery limits, so it is not held back after a restart. You can skip
-   this step.
-
-That's it. From now on Burkan looks after things on its own, and Home shows you how it is going. If you ever want
-to start over, *Redo setup* is in Settings.
-
-## Your privacy
-
-Burkan only ever talks to your own phone. It does not go online, does not collect anything about you, and has
-no ads or tracking. The key it uses to talk to the phone is stored safely on the phone and is never backed up.
-
-## Good to know
-
-- Samsung and Google do not officially support forcing Vulkan. Most things work well, but if something looks odd,
-  restarting the phone puts everything back to normal. Burkan then applies Vulkan again by itself, unless you
-  switch off *Apply after restart* in Settings first.
-- Burkan needs no root and no extra apps.
+These pictures are made from the app itself with sample data.
 
 ## For developers
 
