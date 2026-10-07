@@ -800,6 +800,20 @@ private fun SetupBatteryPreview() = SetupPreviewContent(sample(SetupStep.Battery
 
 @BurkanPreview
 @Composable
+private fun SetupPairDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark) { SetupPreviewContent(sample(SetupStep.Pair)) }
+}
+
+@BurkanPreview
+@Composable
+private fun SetupPairOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        SetupPreviewContent(sample(SetupStep.Pair))
+    }
+}
+
+@BurkanPreview
+@Composable
 private fun SetupPairWrongCodeDarkPreview() {
     BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
         SetupPreviewContent(

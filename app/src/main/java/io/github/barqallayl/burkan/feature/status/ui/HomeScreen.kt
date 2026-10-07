@@ -1515,6 +1515,34 @@ private val sampleSteps = listOf(
 
 @BurkanPreview
 @Composable
+private fun HomeActiveOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
+                ),
+                lastRun = sampleLightRun.copy(kind = ApplyKind.Full, duration = 73.seconds),
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeRunningDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark) {
+        HomePreviewContent(
+            sample(
+                run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Manual, sampleSteps.last()),
+                runSteps = sampleSteps,
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
 private fun HomeRunningOneUiDarkPreview() {
     BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
         HomePreviewContent(

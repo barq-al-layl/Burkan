@@ -550,3 +550,12 @@ private fun LogExpandedOneUiPreview() {
         LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
     }
 }
+
+@BurkanPreview
+@Composable
+private fun LogExpandedOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        val state = LogState(sampleRuns, expanded = setOf(sampleRuns[0].startedAt))
+        LogContent(state, ZoneOffset.UTC, onToggle = {}, onShare = {}, onBack = {})
+    }
+}
