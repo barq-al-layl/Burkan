@@ -28,7 +28,7 @@ data class UserSettings(
 
 /** What the phone's own state file holds. */
 @Immutable
-data class DeviceState(val isPaired: Boolean, val isBatteryStepSkipped: Boolean, val isSetupComplete: Boolean)
+data class DeviceState(val isPaired: Boolean, val setupStepsDone: Int, val isSetupComplete: Boolean)
 
 /**
  * The settings, read when the process starts and kept current for as long as it lives. A screen takes what is here
@@ -53,7 +53,7 @@ class SettingsStore(
 
     val device: StateFlow<DeviceState?> = combine(
         deviceState.isPaired,
-        deviceState.isBatteryStepSkipped,
+        deviceState.setupStepsDone,
         deviceState.isSetupComplete,
         ::DeviceState,
     ).stateIn(scope, SharingStarted.Eagerly, null)

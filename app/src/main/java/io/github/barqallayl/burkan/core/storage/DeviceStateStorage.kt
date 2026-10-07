@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -24,15 +25,15 @@ interface DeviceStateStorage {
     /** Whether this app's key has been paired with the phone's wireless debugging. */
     val isPaired: Flow<Boolean>
 
-    /** Whether the user skipped the battery-optimisation step of setup. */
-    val isBatteryStepSkipped: Flow<Boolean>
+    /** How many setup steps the user has finished, counted from the first. */
+    val setupStepsDone: Flow<Int>
 
     /** Whether every setup step is done. `App.kt` chooses the start screen from it. */
     val isSetupComplete: Flow<Boolean>
 
     suspend fun setPaired(paired: Boolean)
 
-    suspend fun setBatteryStepSkipped(skipped: Boolean)
+    suspend fun setSetupStepsDone(count: Int)
 
     suspend fun setSetupComplete(complete: Boolean)
 }
@@ -49,12 +50,15 @@ class DataStoreDeviceStateStorage(
     }
 
     override val isPaired: Flow<Boolean> = read(Keys.paired)
-    override val isBatteryStepSkipped: Flow<Boolean> = read(Keys.batteryStepSkipped)
+    override val setupStepsDone: Flow<Int> =
+        preferences.map { it[Keys.setupStepsDone] ?: 0 }.distinctUntilChanged()
     override val isSetupComplete: Flow<Boolean> = read(Keys.setupComplete)
 
     override suspend fun setPaired(paired: Boolean) = write(Keys.paired, paired)
 
-    override suspend fun setBatteryStepSkipped(skipped: Boolean) = write(Keys.batteryStepSkipped, skipped)
+    override suspend fun setSetupStepsDone(count: Int) {
+        dataStore.edit { it[Keys.setupStepsDone] = count }
+    }
 
     override suspend fun setSetupComplete(complete: Boolean) = write(Keys.setupComplete, complete)
 
@@ -67,7 +71,7 @@ class DataStoreDeviceStateStorage(
 
     private object Keys {
         val paired = booleanPreferencesKey("paired")
-        val batteryStepSkipped = booleanPreferencesKey("battery_step_skipped")
+        val setupStepsDone = intPreferencesKey("setup_steps_done")
         val setupComplete = booleanPreferencesKey("setup_complete")
     }
 

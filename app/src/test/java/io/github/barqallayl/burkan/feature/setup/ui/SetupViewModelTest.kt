@@ -54,12 +54,11 @@ class SetupViewModelTest {
         ownPackage,
     )
 
-    /** Everything up to pairing done, so the next step is Connect. */
+    /** Everything up to pairing finished by the user, so the current step is Connect. */
     private fun readyToConnect() {
-        checks.notifications = true
-        checks.developerOptions = true
         wirelessDebugging.on = true
         deviceState.isPaired.value = true
+        deviceState.setupStepsDone.value = SetupStep.Connect.ordinal
         // pm grant succeeding gives the app the permission.
         shell.beforeEach = { if (it == grant) wirelessDebugging.permitted = true }
     }
@@ -72,6 +71,75 @@ class SetupViewModelTest {
             val state = awaitState { it.done != null }
             assertEquals(SetupStep.Notifications, state.current)
             assertFalse(state.isUntestedModel)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `a step the phone already satisfies waits for the user to say it is done`() = runTest {
+        checks.notifications = true
+        // Further down the list, and not looked at until its turn.
+        checks.developerOptions = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            val met = awaitState { it.isCurrentMet }
+            assertEquals(SetupStep.Notifications, met.current)
+
+            containerHost.finishStep()
+            awaitState { it.current == SetupStep.DeveloperOptions && it.isCurrentMet }
+            assertEquals(1, deviceState.setupStepsDone.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `Done does nothing while the step's check fails`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.done != null }
+
+            containerHost.finishStep().join()
+
+            assertEquals(0, deviceState.setupStepsDone.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `nothing connects before the user reaches the connect step`() = runTest {
+        readyToConnect()
+        deviceState.setupStepsDone.value = SetupStep.Pair.ordinal
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            val state = awaitState { it.isCurrentMet }
+            assertEquals(SetupStep.Pair, state.current)
+            assertEquals(0, shellAccess.runs)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `without Wi-Fi the wireless debugging step says so`() = runTest {
+        wirelessDebugging.wifi = false
+        deviceState.setupStepsDone.value = SetupStep.WirelessDebugging.ordinal
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            val state = awaitState { it.isWifiMissing }
+            assertEquals(SetupStep.WirelessDebugging, state.current)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()
@@ -131,15 +199,19 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `once paired it connects and grants itself the permission without being asked`() = runTest {
+    fun `it connects on reaching the connect step, and grants the permission on reaching that one`() = runTest {
         readyToConnect()
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
 
-            val state = awaitState { it.current == SetupStep.Battery }
+            val state = awaitState { it.current == SetupStep.Connect && it.isCurrentMet }
             assertNull(state.failure)
             assertFalse(state.isConnecting)
+            assertEquals(listOf("echo ok"), shell.lines)
+
+            containerHost.finishStep()
+            awaitState { it.current == SetupStep.Permission && it.isCurrentMet }
             assertEquals(listOf("echo ok", grant.line), shell.lines)
 
             creating.cancel()
@@ -165,7 +237,7 @@ class SetupViewModelTest {
 
             shellAccess.failure = null
             containerHost.onAction(SetupStep.Connect)
-            awaitState { it.current == SetupStep.Battery }
+            awaitState { it.current == SetupStep.Connect && it.isCurrentMet }
             assertEquals(2, shellAccess.runs)
 
             creating.cancel()
@@ -176,6 +248,7 @@ class SetupViewModelTest {
     @Test
     fun `a grant that does not take leaves the permission step failed`() = runTest {
         readyToConnect()
+        deviceState.setupStepsDone.value = SetupStep.Permission.ordinal
         shell.beforeEach = {}
         shell.reply(grant, stderr = "Security exception\n", exitCode = 255)
 
@@ -184,9 +257,8 @@ class SetupViewModelTest {
 
             val failed = awaitState { it.failure != null }
             assertEquals(SetupError.GrantFailed, failed.failure)
-            containerHost.refresh()
-            val state = awaitState { it.current == SetupStep.Permission }
-            assertTrue(SetupStep.Connect in state.done.orEmpty())
+            assertEquals(SetupStep.Permission, failed.current)
+            assertFalse(failed.isCurrentMet)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()
@@ -196,7 +268,7 @@ class SetupViewModelTest {
     @Test
     fun `skipping the battery step completes setup`() = runTest {
         readyToConnect()
-        wirelessDebugging.permitted = true
+        deviceState.setupStepsDone.value = SetupStep.Battery.ordinal
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
@@ -206,6 +278,46 @@ class SetupViewModelTest {
 
             awaitState { it.done != null && it.current == null }
             assertTrue(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `finishing the last step completes setup`() = runTest {
+        readyToConnect()
+        deviceState.setupStepsDone.value = SetupStep.Battery.ordinal
+        checks.battery = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Battery && it.isCurrentMet }
+            assertFalse(deviceState.isSetupComplete.value)
+
+            containerHost.finishStep()
+
+            awaitState { it.done != null && it.current == null }
+            assertTrue(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `a pairing the phone dropped sends setup back to pairing`() = runTest {
+        readyToConnect()
+        deviceState.setupStepsDone.value = SetupStep.Battery.ordinal
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Battery }
+
+            deviceState.isPaired.value = false
+
+            awaitState { it.current == SetupStep.Pair }
+            assertEquals(SetupStep.Pair.ordinal, deviceState.setupStepsDone.value)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()

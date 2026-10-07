@@ -8,61 +8,27 @@ import kotlin.test.assertTrue
 
 class SetupStepsTest {
 
-    private val nothing = SetupFacts(
-        notificationsAllowed = false,
-        developerOptionsEnabled = false,
-        wirelessDebuggingOn = false,
-        paired = false,
-        connected = false,
-        permissionHeld = false,
-        batteryExempt = false,
-        batteryStepSkipped = false,
-    )
-
     @Test
-    fun `a fresh phone starts at the first step`() {
-        assertEquals(SetupStep.Notifications, nothing.doneSteps().currentStep())
+    fun `nothing is done before the user finishes a step`() {
+        assertEquals(SetupStep.Notifications, doneSteps(stepsDone = 0, paired = false).currentStep())
     }
 
     @Test
-    fun `the first step not done is current, even with later steps done`() {
-        val facts = nothing.copy(notificationsAllowed = true, wirelessDebuggingOn = true, batteryExempt = true)
+    fun `the steps done are the first ones, in order`() {
+        val done = doneSteps(stepsDone = 3, paired = false)
 
-        assertEquals(SetupStep.DeveloperOptions, facts.doneSteps().currentStep())
+        assertEquals(setOf(SetupStep.Notifications, SetupStep.DeveloperOptions, SetupStep.WirelessDebugging), done)
+        assertEquals(SetupStep.Pair, done.currentStep())
     }
 
     @Test
-    fun `holding the permission covers wireless debugging and the connection`() {
-        val done = nothing.copy(permissionHeld = true).doneSteps()
-
-        assertTrue(SetupStep.WirelessDebugging in done)
-        assertTrue(SetupStep.Connect in done)
-        assertTrue(SetupStep.Permission in done)
+    fun `a pairing the phone dropped is asked for again, however far setup had got`() {
+        assertEquals(SetupStep.Pair, doneSteps(stepsDone = 6, paired = false).currentStep())
     }
 
     @Test
-    fun `a pairing the phone dropped is asked for again, permission or not`() {
-        val facts = nothing.copy(
-            notificationsAllowed = true,
-            developerOptionsEnabled = true,
-            permissionHeld = true,
-            batteryExempt = true,
-        )
-
-        assertEquals(SetupStep.Pair, facts.doneSteps().currentStep())
-    }
-
-    @Test
-    fun `skipping the battery step finishes setup`() {
-        val facts = nothing.copy(
-            notificationsAllowed = true,
-            developerOptionsEnabled = true,
-            paired = true,
-            permissionHeld = true,
-            batteryStepSkipped = true,
-        )
-
-        assertNull(facts.doneSteps().currentStep())
+    fun `finishing every step finishes setup`() {
+        assertNull(doneSteps(stepsDone = SetupStep.entries.size, paired = true).currentStep())
     }
 
     @Test

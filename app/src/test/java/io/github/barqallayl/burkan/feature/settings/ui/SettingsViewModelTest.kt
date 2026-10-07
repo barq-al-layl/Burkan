@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
 class SettingsViewModelTest {
 
     private val settings = FakeSettingsStorage()
-    private val deviceState = FakeDeviceStateStorage(paired = true, setupComplete = true)
+    private val deviceState = FakeDeviceStateStorage(paired = true, setupStepsDone = 7, setupComplete = true)
     private val autoApplyStorage = FakeAutoApplyStorage()
     private val wifiWatch = FakeWifiWatch()
     private val autoApply = AutoApply(
@@ -129,6 +129,7 @@ class SettingsViewModelTest {
 
         assertFalse(deviceState.isPaired.value)
         assertFalse(deviceState.isSetupComplete.value)
+        assertEquals(0, deviceState.setupStepsDone.value)
     }
 
     @Test

@@ -13,32 +13,14 @@ enum class SetupStep {
     Battery,
 }
 
-/** What the app can detect about the phone. Nothing here is self-declared by the user. */
-data class SetupFacts(
-    val notificationsAllowed: Boolean,
-    val developerOptionsEnabled: Boolean,
-    val wirelessDebuggingOn: Boolean,
-    val paired: Boolean,
-    /** A shell command came back in this session. */
-    val connected: Boolean,
-    val permissionHeld: Boolean,
-    val batteryExempt: Boolean,
-    val batteryStepSkipped: Boolean,
-)
-
 /**
- * The steps that are done. Holding the permission implies the connection worked and lets the app switch wireless
- * debugging itself, so those steps count as done too; pairing is tracked on its own, because a key the phone stops
- * accepting sends setup back to it.
+ * The steps that are done: the first [stepsDone] of them, each finished by the user in its turn. A step is looked
+ * at only once the user is on it, so nothing further down is done ahead of time. Pairing is the exception that can
+ * be undone: a key the phone stops accepting sends setup back to it.
  */
-fun SetupFacts.doneSteps(): Set<SetupStep> = buildSet {
-    if (notificationsAllowed) add(SetupStep.Notifications)
-    if (developerOptionsEnabled) add(SetupStep.DeveloperOptions)
-    if (wirelessDebuggingOn || permissionHeld) add(SetupStep.WirelessDebugging)
-    if (paired) add(SetupStep.Pair)
-    if (connected || permissionHeld) add(SetupStep.Connect)
-    if (permissionHeld) add(SetupStep.Permission)
-    if (batteryExempt || batteryStepSkipped) add(SetupStep.Battery)
+fun doneSteps(stepsDone: Int, paired: Boolean): Set<SetupStep> {
+    val reached = if (paired) stepsDone else minOf(stepsDone, SetupStep.Pair.ordinal)
+    return SetupStep.entries.take(reached).toSet()
 }
 
 /** The first step not done, which is the one the user acts on; null once setup is complete. */
