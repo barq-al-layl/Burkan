@@ -50,12 +50,13 @@ interface SettingsStorage {
 
     /**
      * What a fresh install gets, and what previews render with. The style is the exception: a Samsung phone starts
-     * in One UI, which the storage decides from the phone it is on, and [appStyle] is what any other gets.
+     * in One UI, which the storage decides from the phone it is on, and [appStyle] is what any other gets. The
+     * colour goes with the style: [seedColor] is the one for [appStyle].
      */
     object Defaults {
         val appStyle: AppStyle = AppStyle.Material
         val themeMode: ThemeMode = ThemeMode.FollowSystem
-        val seedColor: SeedColors = SeedColors.Default
+        val seedColor: SeedColors = SeedColors.defaultFor(appStyle)
         val paletteStyle: PaletteStyles = PaletteStyles.Expressive
         const val APPLY_ON_BOOT: Boolean = true
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
@@ -78,8 +79,11 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override val themeMode: Flow<ThemeMode> =
         read { it.enumValue(Keys.themeMode) ?: SettingsStorage.Defaults.themeMode }
 
-    override val seedColor: Flow<SeedColors> =
-        read { it.enumValue(Keys.seedColor) ?: SettingsStorage.Defaults.seedColor }
+    /** Until the user chooses a colour, it is the one that goes with the style in use. */
+    override val seedColor: Flow<SeedColors> = read {
+        it.enumValue(Keys.seedColor)
+            ?: SeedColors.defaultFor(it.enumValue(Keys.appStyle) ?: AppStyle.defaultFor(Build.MANUFACTURER))
+    }
 
     override val paletteStyle: Flow<PaletteStyles> =
         read { it.enumValue(Keys.paletteStyle) ?: SettingsStorage.Defaults.paletteStyle }

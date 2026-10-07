@@ -67,7 +67,7 @@
     <string name="style_material">Material</string>
     <string name="style_one_ui">One UI</string>
     <string name="settings_theme">Dark theme</string>
-    <string name="settings_seed_color">Colour</string>
+    <string name="settings_seed_color">Color</string>
     <string name="settings_palette_style">Palette style</string>
     <string name="settings_section_setup">Setup</string>
     <string name="settings_redo_setup">Redo setup</string>

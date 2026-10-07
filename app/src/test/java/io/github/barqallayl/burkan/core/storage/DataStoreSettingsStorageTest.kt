@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
+import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import java.io.File
@@ -40,6 +41,20 @@ class DataStoreSettingsStorageTest {
         assertEquals(SettingsStorage.Defaults.themeMode, storage.themeMode.first())
         assertEquals(SettingsStorage.Defaults.seedColor, storage.seedColor.first())
         assertEquals(SettingsStorage.Defaults.paletteStyle, storage.paletteStyle.first())
+    }
+
+    @Test
+    fun `the colour nobody chose goes with the style, and a chosen one stays`() = runTest {
+        val storage = DataStoreSettingsStorage(dataStore())
+
+        storage.setAppStyle(AppStyle.OneUi)
+        assertEquals(SeedColors.Blue, storage.seedColor.first())
+        storage.setAppStyle(AppStyle.Material)
+        assertEquals(SeedColors.Wallpaper, storage.seedColor.first())
+
+        storage.setSeedColor(SeedColors.Teal)
+        storage.setAppStyle(AppStyle.OneUi)
+        assertEquals(SeedColors.Teal, storage.seedColor.first())
     }
 
     @Test

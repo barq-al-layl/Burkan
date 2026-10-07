@@ -67,7 +67,11 @@ enum class SeedColors(val color: Color?) {
     ;
 
     companion object {
-        val Default: SeedColors = Wallpaper
+        /**
+         * The colour a style gets until the user chooses one. Material takes the wallpaper's, as Android's own apps
+         * do. One UI's apps keep a blue of their own whatever the wallpaper is, so that style starts in blue.
+         */
+        fun defaultFor(style: AppStyle): SeedColors = if (style == AppStyle.OneUi) Blue else Wallpaper
     }
 }
 
