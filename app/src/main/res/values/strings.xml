@@ -239,7 +239,11 @@
     <string name="home_active_text">Everything is drawing with Vulkan.</string>
     <string name="home_not_applied_text">Everything is on OpenGL, as it is after every restart.</string>
     <string name="home_partly_text">Some of it is on Vulkan and some is still on OpenGL.</string>
-    <string name="home_unknown_text">The phone could not be asked.</string>
+    <string name="home_unknown_text">Burkan could not read which renderer is in use. The reason is below.</string>
+    <string name="home_headline_no_wifi">Not connected to Wi-Fi</string>
+    <string name="home_no_wifi_text">Burkan reads the status over wireless debugging, which works only on Wi-Fi.</string>
+    <string name="home_headline_debugging_off">Wireless debugging is off</string>
+    <string name="home_headline_not_paired">Burkan is no longer paired</string>
     <string name="home_headline_partly">Partly applied</string>
     <string name="home_headline_unknown">Unknown — cannot connect</string>
     <string name="home_checking">Checking…</string>
@@ -267,6 +271,13 @@
     <string name="restart_scope_recent_text">Only the apps you used last.</string>
     <string name="home_apply_now">Apply now</string>
     <string name="home_restart_all">Restart all apps</string>
+    <string name="home_restart_all_text">Closes every open app</string>
+    <string name="home_done">Done</string>
+    <string name="home_section_steps">Steps</string>
+    <string name="home_step_working">In progress</string>
+    <string name="home_step_done">Done</string>
+    <string name="home_step_failed">Failed</string>
+    <string name="home_step_stopped">Stopped</string>
     <string name="home_retry">Try again</string>
     <string name="home_cancel_run">Cancel</string>
     <string name="home_confirm_apply_title">The screen will lock for a moment</string>

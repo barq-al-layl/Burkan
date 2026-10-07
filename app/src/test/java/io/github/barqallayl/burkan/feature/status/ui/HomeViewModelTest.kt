@@ -231,6 +231,29 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `a run's steps stay, with how it ended, until the user has seen them`() = runTest {
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            this@runTest.runCurrent()
+
+            controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+            val finished = awaitState { it.finishedRun != null }
+            assertEquals(ApplyKind.Light, finished.finishedRun?.kind)
+            assertTrue(finished.runSteps.isNotEmpty(), "the steps the run went through")
+
+            containerHost.dismissRun()
+
+            val dismissed = awaitState { it.runSteps.isEmpty() }
+            assertEquals(null, dismissed.finishedRun)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `resuming soon after a read shows it as it is, and later reads again`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()

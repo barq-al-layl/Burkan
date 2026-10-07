@@ -16,9 +16,11 @@ import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.data.RunPhase
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
+import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
@@ -47,6 +49,13 @@ data class HomeState(
     val isRefreshing: Boolean = false,
     val lastRun: RunLogEntry? = null,
     val run: ApplyRunState = ApplyRunState.Idle,
+    /**
+     * What the run now under way has done so far, in order, ending with what it is doing. It is kept after the run
+     * ends, with [finishedRun], until the user has looked at it and says so.
+     */
+    val runSteps: List<RunPhase> = emptyList(),
+    /** How the run in [runSteps] ended. Null while it is under way. */
+    val finishedRun: RunLogEntry? = null,
     val isConfirmingApply: Boolean = false,
     val isConfirmingFullApply: Boolean = false,
     /** How many apps the full apply being confirmed restarts. Every app, each time, until the user picks fewer. */
@@ -104,6 +113,12 @@ class HomeViewModel(
                 state.copy(
                     lastRun = lastRun,
                     run = run,
+                    runSteps = state.runSteps.followedBy(run, wasRunning = state.run is ApplyRunState.Running),
+                    finishedRun = when {
+                        run is ApplyRunState.Running -> null
+                        runFinished && state.runSteps.isNotEmpty() -> lastRun
+                        else -> state.finishedRun
+                    },
                     waitingFor = auto.waitingFor,
                     systemUiAtNextLock = auto.systemUiAtNextLock,
                     applyOnBoot = user?.applyOnBoot,
@@ -171,6 +186,11 @@ class HomeViewModel(
 
     fun cancelRun() = intent { launcher.cancel() }
 
+    /** The user has seen how the run went: its steps make way for the status again. */
+    fun dismissRun() = intent {
+        if (state.run == ApplyRunState.Idle) reduce { state.copy(runSteps = emptyList(), finishedRun = null) }
+    }
+
     fun openLog() = intent { postSideEffect(HomeSideEffect.OpenLog) }
 
     fun openSettings() = intent { postSideEffect(HomeSideEffect.OpenSettings) }
@@ -207,3 +227,22 @@ class HomeViewModel(
         val FRESH_FOR = 30.seconds
     }
 }
+
+/**
+ * The steps with what [run] is doing now added: a new list when a run has just started, the same one when nothing
+ * has changed or no run is under way, and with its last entry replaced when the same step only reports a new count.
+ */
+private fun List<RunPhase>.followedBy(run: ApplyRunState, wasRunning: Boolean): List<RunPhase> {
+    val phase = (run as? ApplyRunState.Running)?.phase ?: return this
+    if (!wasRunning) return listOf(phase)
+    val last = lastOrNull() ?: return listOf(phase)
+    val sameStep = last is RunPhase.Step && phase is RunPhase.Step && last.kind.countsApps &&
+        last.kind::class == phase.kind::class
+    return when {
+        last == phase -> this
+        sameStep -> dropLast(1) + phase
+        else -> this + phase
+    }
+}
+
+private val StepKind.countsApps: Boolean get() = this is StepKind.StopApps || this is StepKind.RelaunchApps

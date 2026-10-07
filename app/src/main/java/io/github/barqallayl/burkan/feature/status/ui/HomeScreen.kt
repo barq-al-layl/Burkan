@@ -2,14 +2,20 @@ package io.github.barqallayl.burkan.feature.status.ui
 
 import android.content.Intent
 import android.provider.Settings as SystemSettings
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +29,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,22 +59,27 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Checks
 import com.composables.icons.tabler.outline.ExclamationMark
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CircleCheck
@@ -76,16 +90,20 @@ import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Hourglass
 import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Keyboard
+import com.composables.icons.tabler.outline.ListSearch
 import com.composables.icons.tabler.outline.Lock
+import com.composables.icons.tabler.outline.PlugConnected
 import com.composables.icons.tabler.outline.Power
 import com.composables.icons.tabler.outline.QuestionMark
 import com.composables.icons.tabler.outline.Refresh
 import com.composables.icons.tabler.outline.Settings
 import com.composables.icons.tabler.outline.ShieldCheck
 import com.composables.icons.tabler.outline.Stack2
+import com.composables.icons.tabler.outline.WifiOff
 import com.composables.icons.tabler.outline.X
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
@@ -183,6 +201,7 @@ fun HomeScreen() {
             onConfirmRestartAll = viewModel::confirmRestartAll,
             onDismissRestartAll = viewModel::dismissRestartAll,
             onCancelRun = viewModel::cancelRun,
+            onDismissRun = viewModel::dismissRun,
             onOpenLog = viewModel::openLog,
             onOpenSettings = viewModel::openSettings,
             onOpenDeveloperOptions = viewModel::openDeveloperOptions,
@@ -200,6 +219,7 @@ private class HomeActions(
     val onConfirmRestartAll: () -> Unit = {},
     val onDismissRestartAll: () -> Unit = {},
     val onCancelRun: () -> Unit = {},
+    val onDismissRun: () -> Unit = {},
     val onOpenLog: () -> Unit = {},
     val onOpenSettings: () -> Unit = {},
     val onOpenDeveloperOptions: () -> Unit = {},
@@ -207,7 +227,7 @@ private class HomeActions(
 
 @Composable
 private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
-    // In One UI the name starts large, in the upper part of the screen, and shrinks into the bar on scrolling.
+    val oneUi = LocalAppStyle.current == AppStyle.OneUi
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
     Scaffold(
@@ -231,7 +251,8 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 },
             )
         },
-        // The two actions stay at the bottom, in reach of the thumb, and never move whatever the state above is.
+        // Material keeps the two actions at the bottom, in reach of the thumb, where they never move whatever the
+        // state above is. One UI docks nothing: its action is in the summary card, as Samsung's own apps have it.
         bottomBar = {
             val idle = state.run == ApplyRunState.Idle
             // One UI sets a contained button's label heavier than a row's name.
@@ -243,7 +264,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             // Solid behind the buttons, fading out above them: what scrolls under the bar dims away rather than
             // being cut off at a line.
             val surface = MaterialTheme.colorScheme.surface
-            Column(
+            if (!oneUi) Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .drawBehind {
@@ -303,8 +324,8 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = innerPadding.listTop())
-                // The bar over the buttons already fades the lower edge.
-                .oneUiScrollFade(scrollState, bottom = false)
+                // Material's bar over the buttons already fades the lower edge.
+                .oneUiScrollFade(scrollState, bottom = oneUi)
                 .verticalScroll(scrollState)
                 .padding(top = innerPadding.listInset())
 
@@ -317,12 +338,12 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             // The status is always first and always the same size, whatever it has to say: checking, a run under
             // way, an answer, or none. Nothing above it comes and goes, so nothing on the screen jumps. What the
             // automatic apply is waiting for comes in under it, opening the room it needs.
-            if (LocalAppStyle.current == AppStyle.OneUi) {
-                // One UI's own arrangement: a summary card, then labelled lists, as its Settings screens have.
-                OneUiSummary(state)
+            if (oneUi) {
+                // One UI's own arrangement: a summary card that carries the action, then labelled lists. While a
+                // run is under way, and until the user has seen how it went, its steps take the surfaces' place.
+                OneUiSummary(state, actions)
                 Notices(state, actions.onOpenDeveloperOptions)
-                SectionLabel(R.string.home_section_surfaces)
-                OneUiSurfaces(state, actions.onRetry)
+                OneUiProgress(state, actions.onRetry)
                 SectionLabel(R.string.home_section_runs)
                 Details(state, zone, actions, showError)
             } else {
@@ -330,9 +351,9 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 Notices(state, actions.onOpenDeveloperOptions)
                 Spacer(Modifier.height(GroupGap))
                 Details(state, zone, actions, showError)
+                Spacer(Modifier.height(GroupGap))
+                ActionsNote()
             }
-            Spacer(Modifier.height(GroupGap))
-            ActionsNote()
             Spacer(Modifier.height(GroupGap))
         }
     }
@@ -476,7 +497,7 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                 }
             } else {
                 BurkanIconBadge(
-                    headline?.icon ?: Tabler.Outline.QuestionMark,
+                    headline?.icon ?: failed?.error.failureIcon(),
                     tone = tone,
                     size = BADGE_SIZE,
                 )
@@ -484,7 +505,7 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
             Text(
                 when {
                     run != null -> stringResource(run.kind.label)
-                    failed != null -> stringResource(R.string.home_headline_unknown)
+                    failed != null -> stringResource(failed.error.failureTitle())
                     headline == null -> stringResource(R.string.home_checking)
                     else -> stringResource(headline.title)
                 },
@@ -495,7 +516,7 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
             )
             val note = when {
                 run != null -> run.phase.label().text()
-                failed != null -> stringResource(R.string.home_unknown_text)
+                failed != null -> stringResource(failed.error.failureText())
                 headline == null -> ""
                 headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
                     stringResource(R.string.home_open_apps_note)
@@ -549,59 +570,94 @@ private fun SectionLabel(text: Int) {
 }
 
 /**
- * The status as One UI heads a screen with it: a badge in the answer's tone, the answer beside it in that tone's
- * colour, and two lines of explanation. It keeps this shape while the status is read and during a run, when the
- * badge turns and the words are the run and its current step.
+ * The status as One UI heads a screen with it: the answer in a few large words in its tone's colour, two lines of
+ * explanation, and the action as a pill, all centred. It keeps this shape in every state. During a run the words
+ * are the run and its current step and the pill stops it; when the run has ended the pill says so and puts the
+ * screen back. A glow of the state's colour spreads from under the card.
  */
 @Composable
-private fun OneUiSummary(state: HomeState) {
+private fun OneUiSummary(state: HomeState, actions: HomeActions) {
     val failed = state.status as? StatusState.Failed
     val headline = (state.status as? StatusState.Loaded)?.status?.headline()
     val run = state.run as? ApplyRunState.Running
-    val busy = run != null || (headline == null && failed == null)
-    val tone = if (busy) Tone.Neutral else headline?.tone ?: Tone.Neutral
-    BurkanSegment(index = 0, count = 1) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (busy) {
-                Box(
-                    modifier = Modifier
-                        .size(SUMMARY_BADGE_SIZE)
-                        .background(tone.colors.container, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    LoadingIndicator(modifier = Modifier.size(30.dp), color = tone.colors.content)
+    val tone = if (run != null) Tone.Neutral else headline?.tone ?: Tone.Neutral
+    val accent = MaterialTheme.colorScheme.primary
+    // The glow keeps its last colour while it fades out, so it dims away and does not turn grey on the way.
+    val glowTarget = when {
+        run != null -> accent
+        tone == Tone.Good -> StatusGreen
+        tone == Tone.HeldUp || tone == Tone.Bad -> StatusOrange
+        else -> null
+    }
+    var lastGlow by remember { mutableStateOf(glowTarget ?: accent) }
+    if (glowTarget != null) lastGlow = glowTarget
+    val glow by animateColorAsState(lastGlow, tween(GLOW_MILLIS), label = "summary glow")
+    val glowStrength by animateFloatAsState(
+        if (glowTarget == null) 0f else 1f,
+        tween(GLOW_MILLIS),
+        label = "summary glow strength",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                if (glowStrength == 0f) return@drawBehind
+                // Half an oval under the card's lower edge: the card covers the upper half.
+                val center = Offset(size.width / 2, size.height)
+                val radius = size.width * GLOW_REACH
+                scale(scaleX = 1f, scaleY = GLOW_FLATNESS, pivot = center) {
+                    drawCircle(
+                        Brush.radialGradient(
+                            listOf(glow.copy(alpha = GLOW_ALPHA * glowStrength), Color.Transparent),
+                            center = center,
+                            radius = radius,
+                        ),
+                        radius = radius,
+                        center = center,
+                    )
                 }
-            } else {
-                StatusMark(headline?.icon ?: Tabler.Outline.QuestionMark, tone, SUMMARY_BADGE_SIZE)
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            },
+    ) {
+        BurkanSegment(index = 0, count = 1) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 28.dp, bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // One line always: a longer answer is set smaller, so the card never grows a line.
                 Text(
                     when {
-                        run != null -> stringResource(run.kind.label)
-                        failed != null -> stringResource(R.string.home_headline_unknown)
+                        run != null -> stringResource(
+                            when (run.kind) {
+                                ApplyKind.Light -> R.string.apply_running_light_title
+                                ApplyKind.Full -> R.string.apply_running_full_title
+                            },
+                        )
+                        failed != null -> stringResource(failed.error.failureTitle())
                         headline == null -> stringResource(R.string.home_checking)
                         else -> stringResource(headline.title)
                     },
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
                     // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
-                    color = when (tone) {
-                        Tone.Good -> statusGreenText
-                        Tone.HeldUp -> noticeAccentColor
-                        Tone.Bad -> MaterialTheme.colorScheme.error
-                        Tone.Neutral -> MaterialTheme.colorScheme.onSurface
+                    color = when {
+                        run != null -> accent
+                        tone == Tone.Good -> statusGreenText
+                        tone == Tone.HeldUp -> noticeAccentColor
+                        tone == Tone.Bad -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurface
                     },
                 )
                 // Always two lines' room, used or not, so a longer or shorter sentence does not move what follows.
                 Text(
                     when {
                         run != null -> run.phase.label().text()
-                        failed != null -> stringResource(R.string.home_unknown_text)
+                        failed != null -> stringResource(failed.error.failureText())
                         headline == null -> ""
                         headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
                             stringResource(R.string.home_open_apps_note)
@@ -609,14 +665,234 @@ private fun OneUiSummary(state: HomeState) {
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                     minLines = 2,
+                    maxLines = 2,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                SummaryAction(
+                    action = when {
+                        run != null -> SummaryActions.Cancel
+                        state.runSteps.isNotEmpty() -> SummaryActions.Done
+                        else -> SummaryActions.Apply
+                    },
+                    actions = actions,
+                    modifier = Modifier.padding(top = 16.dp),
                 )
             }
         }
     }
 }
 
-private val SUMMARY_BADGE_SIZE = 52.dp
+private const val GLOW_MILLIS = 500
+private const val GLOW_ALPHA = 0.3f
+
+/** How far the glow reaches to each side, as a share of the card's width, and how flat its oval is. */
+private const val GLOW_REACH = 0.5f
+private const val GLOW_FLATNESS = 0.3f
+
+/** What the summary card's one button does: it starts a run, stops it, or puts away a run that has ended. */
+private enum class SummaryActions { Apply, Cancel, Done }
+
+/**
+ * The summary card's button, a pill only as wide as its word needs. Starting and stopping are grey, as One UI has a
+ * card's own action; "Done" is the accent, the one thing left to do.
+ */
+@Composable
+private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier: Modifier = Modifier) {
+    val shape = Modifier
+        .height(SUMMARY_ACTION_HEIGHT)
+        .widthIn(min = SUMMARY_ACTION_MIN_WIDTH)
+    val style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+    AnimatedContent(
+        targetState = action,
+        modifier = modifier,
+        transitionSpec = { fadeIn() togetherWith fadeOut() using SizeTransform(clip = false) },
+        contentAlignment = Alignment.Center,
+        label = "summary action",
+    ) { shown ->
+        // A button on its way out no longer does anything: a second tap must not land on the one replacing it.
+        val live = shown == action
+        if (shown == SummaryActions.Done) {
+            Button(onClick = { if (live) actions.onDismissRun() }, modifier = shape) {
+                Text(stringResource(R.string.home_done), style = style)
+            }
+        } else {
+            val applying = shown == SummaryActions.Apply
+            FilledTonalButton(
+                onClick = { if (live) (if (applying) actions.onApplyNow else actions.onCancelRun)() },
+                modifier = shape,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            ) {
+                Text(stringResource(if (applying) R.string.home_apply_now else R.string.home_cancel_run), style = style)
+            }
+        }
+    }
+}
+
+private val SUMMARY_ACTION_HEIGHT = 52.dp
+private val SUMMARY_ACTION_MIN_WIDTH = 160.dp
+
+/**
+ * Under the summary: the surfaces, or, from the start of a run until the user has seen how it went, the run's steps.
+ * One gives way to the other, with its label, and what is below follows the change in height.
+ */
+@Composable
+private fun OneUiProgress(state: HomeState, onRetry: () -> Unit) {
+    AnimatedContent(
+        targetState = state.runSteps.isNotEmpty(),
+        transitionSpec = {
+            fadeIn(tween(SWAP_IN_MILLIS, delayMillis = SWAP_OUT_MILLIS)) togetherWith
+                fadeOut(tween(SWAP_OUT_MILLIS)) using SizeTransform(clip = false)
+        },
+        label = "surfaces or steps",
+    ) { steps ->
+        Column {
+            SectionLabel(if (steps) R.string.home_section_steps else R.string.home_section_surfaces)
+            if (steps) RunChecklist(state) else OneUiSurfaces(state, onRetry)
+        }
+    }
+}
+
+private const val SWAP_OUT_MILLIS = 90
+private const val SWAP_IN_MILLIS = 220
+
+/**
+ * A run as a checklist, as One UI shows work under way: one row for each thing the run has done, in order, the last
+ * of them turning until it is done too. When the run has ended the last row says how: ticked, failed, or stopped.
+ */
+@Composable
+private fun RunChecklist(state: HomeState) {
+    // The steps are kept while the list gives way to the surfaces, so it does not empty before it has gone.
+    var steps by remember { mutableStateOf(state.runSteps) }
+    if (state.runSteps.isNotEmpty()) steps = state.runSteps
+    val running = state.run is ApplyRunState.Running
+    val result = state.finishedRun?.result
+    BurkanSegment(index = 0, count = 1) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
+        ) {
+            steps.forEachIndexed { index, phase ->
+                key(index) {
+                    ChecklistRow(
+                        phase = phase,
+                        mark = when {
+                            index != steps.lastIndex -> StepMarks.Done
+                            // Also for the moment between the run ending and its result arriving: no tick
+                            // before it is known that the step earned one.
+                            running || result == null -> StepMarks.Working
+                            result == RunResult.Failed -> StepMarks.Failed
+                            result == RunResult.Cancelled -> StepMarks.Stopped
+                            else -> StepMarks.Done
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class StepMarks(val label: Int) {
+    Working(R.string.home_step_working),
+    Done(R.string.home_step_done),
+    Failed(R.string.home_step_failed),
+    Stopped(R.string.home_step_stopped),
+}
+
+@Composable
+private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
+    val markLabel = stringResource(mark.label)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CHECKLIST_ROW_HEIGHT)
+            .padding(horizontal = 18.dp)
+            .semantics(mergeDescendants = true) { },
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            phase.icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // The step by its short name: the longer sentence about the one under way is in the summary card.
+        Text(
+            if (phase is RunPhase.Step) phase.kind.label().text() else phase.label().text(),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        // The spinner gives way to the mark in place. A glyph for each: never colour alone.
+        AnimatedContent(
+            targetState = mark,
+            modifier = Modifier
+                .size(24.dp)
+                .semantics { contentDescription = markLabel },
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            contentAlignment = Alignment.Center,
+            label = "step mark",
+        ) { shown ->
+            when (shown) {
+                StepMarks.Working -> LoadingIndicator(modifier = Modifier.size(24.dp))
+                StepMarks.Done -> Icon(Tabler.Outline.Check, contentDescription = null, tint = statusGreenText)
+                StepMarks.Failed -> Icon(
+                    Tabler.Outline.AlertTriangle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+
+                StepMarks.Stopped -> Icon(
+                    Tabler.Outline.X,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private val CHECKLIST_ROW_HEIGHT = 56.dp
+
+private val RunPhase.icon: ImageVector
+    get() = when (this) {
+        RunPhase.Connecting -> Tabler.Outline.PlugConnected
+        RunPhase.Reading -> Tabler.Outline.ListSearch
+        RunPhase.Checking -> Tabler.Outline.Checks
+        is RunPhase.Step -> when (kind) {
+            StepKind.RestartSystemUi -> Tabler.Outline.Stack2
+            StepKind.RestartLauncher -> Tabler.Outline.Home
+            StepKind.RestartKeyboard -> Tabler.Outline.Keyboard
+            is StepKind.RestoreSetting -> Tabler.Outline.Settings
+            StepKind.SetRenderer, is StepKind.StopApps, is StepKind.RelaunchApps -> Tabler.Outline.Apps
+        }
+    }
+
+/**
+ * Why the status could not be read, as the card's headline: the cause by name where it is one the user can see
+ * and put right, and "cannot connect" only when it is not.
+ */
+private fun AppError.failureTitle(): Int = when (type()) {
+    AppErrorType.NoWifi -> R.string.home_headline_no_wifi
+    AppErrorType.WirelessDebuggingOff, AppErrorType.WirelessDebuggingRefused -> R.string.home_headline_debugging_off
+    AppErrorType.NotAuthorised -> R.string.home_headline_not_paired
+    else -> R.string.home_headline_unknown
+}
+
+private fun AppError.failureText(): Int = when (type()) {
+    AppErrorType.NoWifi -> R.string.home_no_wifi_text
+    else -> R.string.home_unknown_text
+}
+
+private fun AppError?.failureIcon(): ImageVector =
+    if (this?.type() == AppErrorType.NoWifi) Tabler.Outline.WifiOff else Tabler.Outline.QuestionMark
 
 /**
  * One UI's own colours for a state: green for what is as it should be, orange for what needs attention. They are
@@ -974,11 +1250,24 @@ private fun NextLockNotice() {
 @Composable
 private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showError: Boolean) {
     val applyOnBoot = state.applyOnBoot
-    val count = if (applyOnBoot == null) 1 else 2
+    val oneUi = LocalAppStyle.current == AppStyle.OneUi
+    // In One UI the heavier action is a row here: nothing is docked at the bottom for it.
+    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (oneUi) 1 else 0)
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
     SegmentedColumn(modifier = Modifier.animateContentSize()) {
         LastRun(state.lastRun, zone, count, actions.onOpenLog, showError)
-        if (applyOnBoot != null) {
+        if (applyOnBoot != null && oneUi) {
+            // One UI writes a setting's value under its name, in the accent.
+            BurkanSegmentItem(
+                index = 1,
+                count = count,
+                headline = stringResource(R.string.settings_apply_on_boot),
+                supporting = stringResource(if (applyOnBoot) R.string.value_on else R.string.value_off),
+                supportingColor = MaterialTheme.colorScheme.primary,
+                onClick = actions.onOpenSettings,
+                leading = { BurkanIconBadge(Tabler.Outline.Power) },
+            )
+        } else if (applyOnBoot != null) {
             BurkanSegmentItem(
                 index = 1,
                 count = count,
@@ -994,6 +1283,18 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                         tone = if (applyOnBoot) Tone.Good else Tone.Neutral,
                     )
                 },
+            )
+        }
+        if (oneUi) {
+            val idle = state.run == ApplyRunState.Idle
+            BurkanSegmentItem(
+                index = count - 1,
+                count = count,
+                headline = stringResource(R.string.home_restart_all),
+                supporting = stringResource(R.string.home_restart_all_text),
+                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
+                onClick = { if (idle) actions.onRestartAll() },
+                leading = { BurkanIconBadge(Tabler.Outline.Refresh) },
             )
         }
     }
@@ -1092,10 +1393,14 @@ private fun sample(
     run: ApplyRunState = ApplyRunState.Idle,
     confirming: Boolean = false,
     waitingFor: WaitReason? = null,
+    runSteps: List<RunPhase> = emptyList(),
+    finishedRun: RunLogEntry? = null,
 ) = HomeState(
     status = status,
     lastRun = lastRun,
     run = run,
+    runSteps = runSteps,
+    finishedRun = finishedRun,
     isConfirmingFullApply = confirming,
     waitingFor = waitingFor,
     applyOnBoot = true,
@@ -1187,6 +1492,56 @@ private fun HomeRunningPreview() = HomePreviewContent(
         lastRun = sampleLightRun,
     ),
 )
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeNoWifiPreview() = HomePreviewContent(sample(status = StatusState.Failed(ConnectionError.NoWifi)))
+
+@BurkanPreview
+@Composable
+private fun HomeNoWifiOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        HomePreviewContent(sample(status = StatusState.Failed(ConnectionError.NoWifi)))
+    }
+}
+
+private val sampleSteps = listOf(
+    RunPhase.Connecting,
+    RunPhase.Reading,
+    RunPhase.Step(StepKind.SetRenderer),
+    RunPhase.Step(StepKind.RestartLauncher),
+)
+
+@BurkanPreview
+@Composable
+private fun HomeRunningOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                run = ApplyRunState.Running(ApplyKind.Light, RunTrigger.Manual, sampleSteps.last()),
+                runSteps = sampleSteps,
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeRunFinishedOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
+                ),
+                lastRun = sampleLightRun,
+                runSteps = sampleSteps + RunPhase.Step(StepKind.RestartKeyboard) + RunPhase.Checking,
+                finishedRun = sampleLightRun,
+            ),
+        )
+    }
+}
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
