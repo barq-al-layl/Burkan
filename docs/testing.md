@@ -108,18 +108,22 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] Reboot: the launcher and keyboard switch at once, and the phone is not locked.
 - [ ] After the reboot, Home says System UI switches at the next lock.
 - [x] Lock the phone: System UI is on Vulkan when it is unlocked, and wireless debugging is off again.
+- [x] The same with System UI's edge lighting helper process running. (The restart used to take the helper and
+      leave System UI on OpenGL, and the run failed with "System UI came back, but not on Vulkan". The command
+      now names the main process: after a reboot, with the helper running, the run at the lock restarted System
+      UI itself and all three surfaces ended on Vulkan.)
 - [ ] Locking with the screen-off timeout rather than the power button, and with a lock delay set: does the wait
       still catch the lock?
 - [ ] The foreground notification while waiting for the lock, and its Cancel.
 - [ ] Lock, then unlock within a few seconds: System UI is not restarted in front of the user, the log shows
       "System UI at lock · Left for the next lock", wireless debugging is off again, and the next lock restarts it.
-- [ ] The time from the lock to `am crash` at the lock. Record it (about 7 seconds before this change).
+- [x] The time from the lock to `am crash` at the lock. (5 seconds.)
 - [ ] With "keep wireless debugging on" set, the run at the lock connects after the 3-second settle without failing.
 - [ ] The log shows the run after a restart as "After restart", then the run at the lock as "System UI at lock".
 - [ ] The run at the lock lists only "Restart System UI": the property, set by the first part, is not set again.
 - [x] Install with no reboot: no run starts, and the log gains no "After restart" entry.
 - [x] `Settings.Global.BOOT_COUNT` reads on the phone.
-- [ ] It goes up by one across a reboot.
+- [x] It goes up by one across a reboot.
 - [ ] Opening Home twice within 30 seconds raises "Wireless debugging connected" once.
 - [ ] After a run, Home shows the result without a new "Wireless debugging connected" notification.
 - [x] `cmd package resolve-activity --brief` and `cmd role get-role-holders` print the formats in the device notes,

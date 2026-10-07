@@ -95,7 +95,7 @@ class ApplyControllerTest {
 
         assertEquals(RunResult.Succeeded, outcome?.result)
         assertTrue(outcome?.systemUiDeferred == true)
-        assertTrue("am crash com.android.systemui" !in shell.lines)
+        assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" !in shell.lines)
         assertTrue(shell.lines.any { it.startsWith("am force-stop com.sec.android.app.launcher;") })
     }
 
@@ -113,7 +113,7 @@ class ApplyControllerTest {
                 "getprop debug.hwui.renderer",
                 "dumpsys gfxinfo com.android.systemui",
                 "setprop debug.hwui.renderer skiavk",
-                "am crash com.android.systemui",
+                "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"",
             ),
             shell.lines.take(4),
         )
@@ -236,7 +236,7 @@ class ApplyControllerTest {
             LoggedStep(StepKind.RestartKeyboard, AppErrorType.ConnectionLost),
             log.runs.value.single().steps.last(),
         )
-        assertTrue("am crash com.android.systemui" !in shell.lines)
+        assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" !in shell.lines)
     }
 
     @Test
@@ -331,7 +331,7 @@ class ApplyControllerTest {
             listOf(
                 "getprop debug.hwui.renderer",
                 "dumpsys gfxinfo com.android.systemui",
-                "am crash com.android.systemui",
+                "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"",
             ),
             shell.lines.take(3),
         )

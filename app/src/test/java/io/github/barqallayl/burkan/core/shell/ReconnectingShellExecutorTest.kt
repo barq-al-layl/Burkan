@@ -47,7 +47,7 @@ class ReconnectingShellExecutorTest {
 
         assertEquals(ok, executor.run(ShellCommands.gfxInfo(ShellCommands.SystemUi)))
         assertEquals(1, reconnects)
-        assertEquals(listOf("am crash com.android.systemui", "dumpsys gfxinfo com.android.systemui"), shell.lines)
+        assertEquals(listOf("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"", "dumpsys gfxinfo com.android.systemui"), shell.lines)
     }
 
     @Test

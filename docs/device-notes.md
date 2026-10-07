@@ -50,12 +50,17 @@ This is where the original scripts were wrong, so read it carefully.
 | `am force-stop <package>` on an ordinary app | Process killed. It starts on Vulkan next time it is opened | Measured |
 | `am force-stop com.android.systemui` | **Nothing.** Same process ID before and after; still `Skia (OpenGL)` | Measured |
 | `am crash com.android.systemui` | Restarts SystemUI. On a phone with a secure lock, the lock screen appears (section 11) | Measured |
+| `am crash com.android.systemui`, with the helper process `com.android.systemui:edgelighting` running | Crashed the helper, which came straight back, and left SystemUI itself running: same process ID, still `Skia (OpenGL)` | Measured |
+| `am crash "$(pidof -s com.android.systemui)"` in the same state | Restarted SystemUI itself, on `Skia (Vulkan)`, and left the helper alone. On a phone with Secure Folder it also prints that the shell may not crash packages for that user, and exits with 0 | Measured |
 | `am force-stop com.sec.android.app.launcher`, then launching it | Launcher restarted on `Skia (Vulkan)` | Measured |
 | Leaving the keyboard alone | Samsung Keyboard stayed on `Skia (OpenGL)` | Measured |
 | `am crash <keyboard package>` | Restarts Samsung Keyboard, which stayed the default input method | Measured |
 
 - **SystemUI is a persistent system process and `force-stop` skips it.** It must be crashed. The status bar,
   notification shade, quick settings and lock screen stay on OpenGL otherwise.
+- **Crash a process by its ID, not by its package.** `am crash <package>` takes whichever of the package's processes
+  Android comes to first, and SystemUI has more than one. `pidof` matches the whole process name, and the main
+  process is the one named exactly as the package. The app does this for the keyboard as well.
 - **Never `force-stop` an input method.** The scripts exclude keyboards from the bulk stop to avoid resetting the
   default keyboard. Restart the current one with `am crash` instead, and verify that on the device.
 - **Force-stopping an app disables its accessibility service** and can reset auto-rotation and Edge panel

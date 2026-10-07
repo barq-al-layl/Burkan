@@ -26,7 +26,7 @@ class ApplyPlanTest {
                 "setprop debug.hwui.renderer skiavk",
                 "am force-stop com.sec.android.app.launcher; sleep 2; " +
                     "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
-                "am crash com.samsung.android.honeyboard",
+                "am crash \"\$(pidof -s com.samsung.android.honeyboard || echo com.samsung.android.honeyboard)\"",
             ),
             plan.steps.map { it.command.line },
         )

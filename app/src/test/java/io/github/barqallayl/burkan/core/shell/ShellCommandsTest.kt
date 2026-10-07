@@ -75,6 +75,16 @@ class ShellCommandsTest {
     }
 
     @Test
+    fun `a crash names the main process by its id, and falls back to the package when it is not running`() {
+        val line = ShellCommands.crash(ShellCommands.SystemUi).line
+        // Stand-ins for the phone's two commands: `am` prints what it was asked to crash.
+        val am = "am() { printf %s \"\$2\"; }; "
+
+        assertEquals("4394", sh("pidof() { echo 4394; }; $am$line"), "System UI itself, not a helper process")
+        assertEquals("com.android.systemui", sh("pidof() { return 1; }; $am$line"))
+    }
+
+    @Test
     fun `launching looks the launcher activity up and starts it by name`() {
         assertEquals(
             "c=\$(cmd package resolve-activity --brief -a android.intent.action.MAIN " +

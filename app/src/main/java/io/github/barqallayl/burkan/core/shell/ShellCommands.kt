@@ -62,9 +62,19 @@ object ShellCommands {
      * Restarts a process the system brings back by itself, without clearing it as a default (keyboard). Not
      * repeatable: crashing System UI twice in a row makes One UI turn off its customisation modules, and crashing it
      * at all restarts adbd, so the connection that sent it is usually gone before the answer.
+     *
+     * The process is named by its id, not by its package. `am crash <package>` crashes whichever of the package's
+     * processes Android comes to first, and System UI has more than one: on a Galaxy S23 it took the edge lighting
+     * helper and left System UI itself running on its old renderer. `pidof` matches the whole process name, which
+     * for the main process is the package name and nothing more. When nothing by that name is running, the package
+     * name is passed as before, for `am` to say so.
      */
     fun crash(packageName: PackageName): ShellCommand =
-        ShellCommand("am crash $packageName", ShortTimeout, repeatable = false)
+        ShellCommand(
+            "am crash \"\$(pidof -s $packageName || echo $packageName)\"",
+            ShortTimeout,
+            repeatable = false,
+        )
 
     fun forceStop(packageName: PackageName): ShellCommand = ShellCommand("am force-stop $packageName", ShortTimeout)
 

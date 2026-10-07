@@ -57,10 +57,10 @@ class ApplyFlowTest {
                     "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
                 // The default keyboard before and after its restart: it is put back if the restart changed it.
                 "settings get secure default_input_method",
-                "am crash com.samsung.android.honeyboard",
+                "am crash \"\$(pidof -s com.samsung.android.honeyboard || echo com.samsung.android.honeyboard)\"",
                 "settings get secure default_input_method",
                 // Last, because it locks the screen; then asked until it is back on Vulkan.
-                "am crash com.android.systemui",
+                "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"",
                 "dumpsys gfxinfo com.android.systemui",
             ),
             shell.lines,
@@ -131,7 +131,7 @@ class ApplyFlowTest {
                         "-c android.intent.category.LAUNCHER >/dev/null 2>&1;; esac; "
                 } + "true",
                 "settings get secure default_input_method",
-                "am crash com.samsung.android.honeyboard",
+                "am crash \"\$(pidof -s com.samsung.android.honeyboard || echo com.samsung.android.honeyboard)\"",
                 "settings get secure default_input_method",
                 // edge_panels_enabled was unset, so it is not written back.
                 "settings put system accelerometer_rotation '1'",
@@ -141,7 +141,7 @@ class ApplyFlowTest {
                 "settings put secure edge_enable '1'",
                 "settings get secure edge_enable",
                 // Last of all, after the restore, because it locks the screen and drops the connection.
-                "am crash com.android.systemui",
+                "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"",
                 "dumpsys gfxinfo com.android.systemui",
             ),
             shell.lines,

@@ -85,7 +85,7 @@ class ApplyRunnerTest {
             ),
             records,
         )
-        assertTrue("am crash com.android.systemui" !in shell.lines)
+        assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" !in shell.lines)
     }
 
     @Test
@@ -99,7 +99,7 @@ class ApplyRunnerTest {
 
         assertEquals(
             restoreLines + listOf(
-                "am crash com.android.systemui",
+                "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"",
                 "dumpsys gfxinfo com.android.systemui",
                 "dumpsys gfxinfo com.android.systemui",
                 "dumpsys gfxinfo com.android.systemui",
@@ -176,7 +176,7 @@ class ApplyRunnerTest {
             ),
             records,
         )
-        assertEquals(2, shell.lines.count { it == "am crash com.android.systemui" })
+        assertEquals(2, shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" })
     }
 
     @Test

@@ -347,7 +347,7 @@ class AutoApplyTest {
         lockEvents.lock()
         waiting.await()
 
-        assertEquals(1, shell.lines.count { it == "am crash com.android.systemui" })
+        assertEquals(1, shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" })
         assertFalse(storage.state.value.systemUiAtNextLock)
         assertEquals(
             listOf(RunResult.Succeeded, RunResult.Postponed),
