@@ -1,26 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A "V" inside a circular arrow: Vulkan, put back after every restart. Kept inside the 66 dp safe zone. -->
+<!-- A volcano with a drop of lava over its crater: "burkan" is Arabic for volcano. Kept inside the 66 dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:pathData="M76.55,45.79 A24,24 0 1,1 62.21,31.45"
-        android:strokeWidth="5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M59.25,25.11 L62.21,31.45 L55.87,34.41"
-        android:strokeWidth="5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M44,45 L54,65 L64,45"
-        android:strokeWidth="6.5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.82"
+        android:scaleY="0.82">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M31,74.25H77C79.2,74.25 80.2,71.6 78.4,70Q67.5,60 64.6,47.2Q64,44.7 61.6,44.7H58.2Q57.2,44.7 57.5,45.7L58.1,47.9Q58.4,49.2 57.2,49.2H50.8Q49.6,49.2 49.9,47.9L50.5,45.7Q50.8,44.7 49.8,44.7H46.4Q44,44.7 43.4,47.2Q40.5,60 29.6,70C27.8,71.6 28.8,74.25 31,74.25Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,33.6C55,33.6 57.85,36.2 57.85,38.3A3.85,3.85 0 0,1 50.15,38.3C50.15,36.2 53,33.6 54,33.6Z" />
+    </group>
 </vector>
