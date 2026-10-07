@@ -118,12 +118,12 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     /**
      * libadb reports pairing failures as plain exceptions. A refused connection means the pairing dialog, which owns
-     * the port, is closed; a failed key exchange means the code was wrong. These are expected, not verified on a
-     * device.
+     * the port, is closed; a failed key exchange means the code was wrong. On a Galaxy S23 (Android 16) a wrong code
+     * fails one step later, when the two sides cannot read each other's details with the key the code gave them.
      */
     private fun pairingError(e: Exception): PairingError = when {
         e is ConnectException || e is NoRouteToHostException -> PairingError.DialogClosed
-        e is IOException && e.message == KEY_EXCHANGE_FAILED -> PairingError.WrongCode
+        e is IOException && e.message in WRONG_CODE_MESSAGES -> PairingError.WrongCode
         else -> PairingError.Failed.also { Logger.w(e) { "Pairing failed" } }
     }
 
@@ -146,6 +146,8 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
         /** The name the phone lists this app under, in Wireless debugging's paired devices. */
         const val DEVICE_NAME = "Burkan"
         const val CONNECT_TIMEOUT_SECONDS = 10L
-        const val KEY_EXCHANGE_FAILED = "Exchanging message wasn't successful."
+
+        /** How libadb words the two failures a wrong code can cause. */
+        val WRONG_CODE_MESSAGES = setOf("Exchanging message wasn't successful.", "Could not exchange peer info.")
     }
 }
