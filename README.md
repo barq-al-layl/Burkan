@@ -9,7 +9,15 @@ re-applies Vulkan by itself after each restart. No root, no Shizuku, no network 
 to itself.
 
 > **Status: early.** Setup, applying, and the automatic run after a restart have been verified on a Galaxy S23
-> (Android 16). What is still unchecked is listed in [`docs/testing.md`](docs/testing.md).
+> (Android 16, One UI 8.5). What is still unchecked is listed in [`docs/testing.md`](docs/testing.md).
+
+In the One UI style, which a Samsung phone starts in:
+
+| Home | A run under way | The run finished | Settings |
+|---|---|---|---|
+| <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeActiveOneUiPreview.WITH_BACKGROUND.png" width="160" alt="Home in the One UI style, showing Vulkan active"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeRunningOneUiDarkPreview.WITH_BACKGROUND.png" width="160" alt="Home during a run, with its steps as a checklist"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeRunFinishedOneUiDarkPreview.WITH_BACKGROUND.png" width="160" alt="Home after a run, every step ticked and a Done button"> | <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.settings.ui.SettingsScreenKt.SettingsOneUiDarkPreview.WITH_BACKGROUND.png" width="160" alt="Settings in the One UI style"> |
+
+In the Material style:
 
 | Setup | Home | Home, dark | Settings | Log |
 |---|---|---|---|---|
@@ -24,12 +32,16 @@ The pictures are the app's screenshot tests, rendered from its previews with sam
   launcher and the keyboard so they pick it up, and switches wireless debugging off again. If the phone is not on
   Wi-Fi yet, it waits and applies when it connects.
 - **Shows what is really running**: the renderer new apps will get, and the one System UI, the launcher and the
-  keyboard are using now.
+  keyboard are using now. When it cannot find out, it says why: no Wi-Fi, wireless debugging off, or a pairing
+  the phone no longer accepts.
 - **Apply now** does the same as the restart run. **Restart all apps** also restarts every other app so each one
   comes back on Vulkan, then puts back what that disturbs (auto-rotation, accessibility services, Edge panels).
   Apps you choose in Settings are never restarted.
+- **Shows a run as it goes**, step by step, and how it ended.
 - **Keeps a log** of the last 50 runs, step by step. It can be shared as a `.log` file and never contains package names
   or the app's key.
+- **Looks like the phone it is on.** On a Samsung it starts in a One UI style, after Samsung's own apps; anywhere
+  else, in Material 3. Either can be chosen in Settings, with a light or dark theme and a color.
 
 ## Requirements
 
@@ -40,21 +52,24 @@ The pictures are the app's screenshot tests, rendered from its previews with sam
 
 ## Setting it up
 
-Install the app and open it. It walks you through a checklist and moves on by itself as each step is done:
+Install the app and open it. It walks you through a checklist, one step at a time. A step is checked only once
+you are on it, and when its check passes you tap **Done** to move to the next:
 
 1. **Allow notifications.** The pairing code is typed into a notification, and failures are reported there.
 2. **Turn on Developer options**: Settings › About phone › Software information, tap *Build number* seven times.
-3. **Turn on Wireless debugging** in Developer options, and tick *Always allow on this network*.
+3. **Turn on Wireless debugging** in Developer options, and tick *Always allow on this network*. The phone has to
+   be on Wi-Fi for this; the step says so when it is not.
 4. **Pair.** In Wireless debugging, tap *Pair device with pairing code*, then pull down the notification shade
    and type the six-digit code into Burkan's notification. Do not leave the pairing dialog: Android closes
    it when you leave Settings.
-5. **Connect** and **permission** happen on their own: Burkan connects and grants itself the permission to
-   switch wireless debugging on and off.
-6. **Battery.** Allow Burkan to ignore battery optimisation, so the run after a restart is not held back.
+5. **Connect.** Burkan connects to wireless debugging by itself when you reach this step.
+6. **Permission.** Burkan grants itself the permission to switch wireless debugging on and off, also by itself.
+7. **Battery.** Allow Burkan to ignore battery optimisation, so the run after a restart is not held back.
    You can skip this.
 
 From then on, there is nothing to do. Home shows the result; if a run cannot happen yet, a card says what it is
-waiting for.
+waiting for. Setup can be gone through again from Settings, which forgets the pairing and starts at the first
+step.
 
 ## Privacy
 
