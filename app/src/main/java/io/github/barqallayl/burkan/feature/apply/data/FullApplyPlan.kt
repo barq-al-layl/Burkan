@@ -98,7 +98,13 @@ object FullApplyPlan {
                     add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(launcher)))
                 }
                 if (relaunched.isNotEmpty()) {
-                    add(ApplyStep.Run(StepKind.RelaunchApps(relaunched.size), ShellCommands.launchAll(relaunched)))
+                    // The user started this from Burkan and comes back to it, not to the last app reopened.
+                    add(
+                        ApplyStep.Run(
+                            StepKind.RelaunchApps(relaunched.size),
+                            ShellCommands.launchAll(relaunched, front = self),
+                        ),
+                    )
                 }
                 if (inputs.keyboard != null && before.status.keyboard != Renderer.Vulkan) {
                     add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(inputs.keyboard)))

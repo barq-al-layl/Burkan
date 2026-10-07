@@ -115,7 +115,7 @@ class ApplyFlowTest {
                     "true",
                 "am force-stop com.sec.android.app.launcher; sleep 2; " +
                     "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
-                // What was running or backs a widget, and was stopped.
+                // What was running or backs a widget, and was stopped; then Burkan itself, to be left in front.
                 listOf(
                     "com.google.android.googlequicksearchbox",
                     "com.samsung.android.app.dressroom",
@@ -123,6 +123,7 @@ class ApplyFlowTest {
                     "com.example.notes.widget",
                     "org.example.weather",
                     "org.example.chat",
+                    FixtureDevice.Self.value,
                 ).joinToString(separator = "") { packageName ->
                     "c=\$(cmd package resolve-activity --brief -a android.intent.action.MAIN " +
                         "-c android.intent.category.LAUNCHER $packageName | tail -n 1); " +

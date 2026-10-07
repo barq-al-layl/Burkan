@@ -91,9 +91,12 @@ object ShellCommands {
     /** Makes [component] (`package/class`) the default keyboard. */
     fun setInputMethod(component: String): ShellCommand = ShellCommand("ime set ${quote(component)}", ShortTimeout)
 
-    /** Launches each package. A package with no launcher activity is passed over. */
-    fun launchAll(packages: List<PackageName>): ShellCommand =
-        ShellCommand(packages.joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
+    /**
+     * Launches each package. A package with no launcher activity is passed over. [front] is launched last, so it
+     * is the one left in front: without it, whichever app was reopened last stays on the screen.
+     */
+    fun launchAll(packages: List<PackageName>, front: PackageName? = null): ShellCommand =
+        ShellCommand((packages + listOfNotNull(front)).joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
 
     /** What new processes will render with: `skiavk` when Vulkan is set, an empty line when nothing is. */
     fun getRenderer(): ShellCommand = ShellCommand("getprop debug.hwui.renderer", ShortTimeout)

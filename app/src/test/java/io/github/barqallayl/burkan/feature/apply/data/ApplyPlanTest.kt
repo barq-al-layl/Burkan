@@ -185,8 +185,12 @@ class ApplyPlanTest {
         )
 
         val relaunch = plan.steps.single { it.kind is StepKind.RelaunchApps }
+        // Burkan itself is launched last, so it is what the user comes back to.
         assertEquals(
-            ShellCommands.launchAll(names("org.example.running", "org.example.provider", "org.example.host")),
+            ShellCommands.launchAll(
+                names("org.example.running", "org.example.provider", "org.example.host"),
+                front = FixtureDevice.Self,
+            ),
             relaunch.command,
         )
     }

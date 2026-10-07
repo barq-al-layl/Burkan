@@ -50,9 +50,12 @@
                 android:resource="@xml/shared_files" />
         </provider>
 
+        <!-- One copy of the screen, whoever starts it: a full apply brings the app back to the front from the
+             shell, and a second copy on top of the first would have lost the run it was showing. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Burkan"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
