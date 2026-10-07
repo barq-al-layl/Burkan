@@ -5,7 +5,10 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +34,10 @@ fun BurkanTheme(
     appStyle: AppStyle = AppStyle.Material,
     content: @Composable () -> Unit,
 ) {
+    // Each style builds its theme its own way, so the content sits at a different place in each. Moved between
+    // them, it keeps its state: changing the style must not start the app again from its first screen.
+    val currentContent by rememberUpdatedState(content)
+    val content = remember { movableContentOf { currentContent() } }
     CompositionLocalProvider(LocalAppStyle provides appStyle) {
         when (appStyle) {
             AppStyle.Material -> {

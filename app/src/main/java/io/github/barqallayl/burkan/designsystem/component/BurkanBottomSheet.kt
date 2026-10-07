@@ -1,6 +1,5 @@
 package io.github.barqallayl.burkan.designsystem.component
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -30,9 +29,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.materialkolor.material3.ktx.animateColorScheme
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
+import io.github.barqallayl.burkan.designsystem.RevealParticipant
 import io.github.barqallayl.burkan.designsystem.recordsRevealOrigin
 import kotlinx.coroutines.launch
 
@@ -44,8 +43,8 @@ import kotlinx.coroutines.launch
  * [content] is handed `hide`, which slides the sheet away and then runs what it is given. Something that changes
  * the screen underneath, or removes the sheet, goes there so it happens once the sheet has gone.
  *
- * A sheet is a window of its own, which the circle a change of theme spreads in does not reach: its colours fade
- * to the new scheme instead.
+ * A sheet is a window of its own, so it joins the circle a change of theme or style spreads in: the new look
+ * inside the circle, the old outside it, as on the screen behind.
  */
 @Composable
 fun BurkanBottomSheet(
@@ -64,11 +63,7 @@ fun BurkanBottomSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
-        val colors = animateColorScheme(
-            MaterialTheme.colorScheme,
-            animationSpec = { tween(SCHEME_FADE_MILLIS) },
-        )
-        MaterialTheme(colorScheme = colors) {
+        RevealParticipant {
             val oneUi = LocalAppStyle.current == AppStyle.OneUi
             Surface(
                 modifier = Modifier
@@ -101,9 +96,6 @@ fun BurkanBottomSheet(
 }
 
 private val OneUiSheetShape = RoundedCornerShape(34.dp)
-
-/** About as long as the circle takes to cross the screen behind the sheet. */
-private const val SCHEME_FADE_MILLIS = 350
 
 /** The space between a sheet and the edges of the screen. */
 private val SheetMargin = 12.dp
