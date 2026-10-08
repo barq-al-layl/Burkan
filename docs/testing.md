@@ -3,7 +3,8 @@
 Unit tests and screenshot tests run on any machine (see `CONTRIBUTING.md`). What follows cannot: it needs a real
 Galaxy S23, and an emulator does not stand in for it. A ticked item was observed on an S23 (SM-S911B, Android 16);
 the results are recorded in [`device-notes.md`](device-notes.md). An open item has not been checked yet. The last
-full pass was on One UI 8.5, with a debug build and the USB cable plugged in.
+full pass was on One UI 8.5, with a debug build and the USB cable plugged in. The 1.0.0 release build was then
+tried on an S23 (SM-S911) and an S23 Ultra (SM-S918).
 
 When you check one, tick it here and record what you saw in the device notes.
 
@@ -88,8 +89,8 @@ When you check one, tick it here and record what you saw in the device notes.
 
 ## Release build and appearance
 
-- [ ] A minified release build installs, pairs, connects and applies: R8 has removed nothing that libadb,
-      Conscrypt or spake2 look up at run time.
+- [x] A minified release build installs, pairs, connects and applies: R8 has removed nothing that libadb,
+      Conscrypt or spake2 look up at run time. (The 1.0.0 release APK, on an S23 and an S23 Ultra.)
 - [ ] The launcher icon looks right on the One UI home screen, and as a themed icon. (Seen so far only in the
       system's App info, where it sits correctly inside Samsung's icon shape.)
 - [x] Every screen in the dark theme on the phone itself, in the One UI style.
@@ -134,8 +135,8 @@ When you check one, tick it here and record what you saw in the device notes.
       front.
 - [ ] If restarting the keyboard ever changes the default keyboard, `ime set` puts it back.
 - [ ] Apply now, force-stop Burkan, open it and Apply now again within a minute: System UI is left alone.
-- [ ] In a minified release build, Settings › Open-source licences lists the libraries, and opening one shows its
-      licence.
+- [x] In a minified release build, Settings › Open-source licences lists the libraries, and opening one shows its
+      licence. (The 1.0.0 release APK, on an S23 and an S23 Ultra.)
 - [ ] App icons and labels in the exclusions picker, including for the fixed exclusions; scrolling the list stays
       smooth with every app's icon.
 - [ ] Moving between screens slides and fades on the shared X axis with no flash of the background, and the
