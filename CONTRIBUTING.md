@@ -407,6 +407,13 @@ Metro, one graph:
   comment why it is dropped.
 - **Opt-ins go in `compilerOptions.optIn`** at module level, not as `@OptIn` scattered through the source.
 - **Context parameters are not used.**
+- **A release is one task.** Raise `versionName` and `versionCode`, add the changelog as
+  `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, commit on `main`, then run
+  `./gradlew :app:githubRelease`. It checks that the tree is clean, the changelog and the signing key are there
+  and the version is not out already; then it tags the commit `v<versionName>`, builds the signed release, pushes
+  the branch and the tag, and publishes the APK on GitHub with that changelog. `./gradlew :app:checkRelease`
+  runs the checks alone and changes nothing. F-Droid takes a new version from the same tag, so never push a
+  `v…` tag for anything that is not a release.
 - Release builds are minified and resource-shrunk. Keep rules that a library needs go in
   `app/src/main/keepRules/`, as `.keep` files; resources that are only read by name at run time are kept in
   `res/raw/keep.xml`.

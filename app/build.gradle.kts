@@ -3,7 +3,9 @@ import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.ByteArrayOutputStream
 import java.util.Properties
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.aboutLibraries.android)
@@ -183,4 +185,130 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+// Releasing. `./gradlew :app:githubRelease` tags the commit that is checked out as v<versionName>, builds the
+// release from it, pushes the branch and the tag, and publishes a GitHub release with the APK and the version's
+// changelog. F-Droid picks a new version up from the same tag, so a tag is a release: nothing here runs without
+// being asked to. `:app:checkRelease` is the first half alone: it says what stands in the way and changes nothing.
+
+/** What the two release tasks share: the version, and running `git` and `gh` from the repository's root. */
+abstract class ReleaseTask : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @get:Input
+    abstract val versionName: Property<String>
+
+    @get:Input
+    abstract val versionCode: Property<Int>
+
+    @get:Internal
+    abstract val repository: DirectoryProperty
+
+    @get:Internal
+    val tag: String get() = "v${versionName.get()}"
+
+    @get:Internal
+    val changelog: File
+        get() = repository.file("fastlane/metadata/android/en-US/changelogs/${versionCode.get()}.txt").get().asFile
+
+    /** What the command printed, or null when it failed. */
+    protected fun output(vararg command: String): String? {
+        val printed = ByteArrayOutputStream()
+        val result = execOperations.exec {
+            workingDir = repository.get().asFile
+            commandLine(*command)
+            standardOutput = printed
+            errorOutput = ByteArrayOutputStream()
+            isIgnoreExitValue = true
+        }
+        return printed.toString().trim().takeIf { result.exitValue == 0 }
+    }
+
+    /** Runs the command, showing what it prints, and stops the build if it fails. */
+    protected fun run(vararg command: String) {
+        execOperations.exec {
+            workingDir = repository.get().asFile
+            commandLine(*command)
+        }
+    }
+}
+
+/** Everything that must hold before a release is made, checked before the long build and before anything is pushed. */
+abstract class CheckRelease : ReleaseTask() {
+    @get:Input
+    abstract val hasReleaseKey: Property<Boolean>
+
+    @TaskAction
+    fun check() {
+        val problems = buildList {
+            if (!hasReleaseKey.get()) add("keystore.properties is missing, so the release would not be signed.")
+            if (!changelog.exists()) add("There is no changelog for version code ${versionCode.get()}: ${changelog.path}")
+            if (output("git", "status", "--porcelain") != "") add("There are changes that are not committed.")
+            if (output("git", "rev-parse", "--abbrev-ref", "HEAD") != "main") add("The branch checked out is not main.")
+            if (output("gh", "auth", "status") == null) add("The GitHub CLI is not installed or not signed in.")
+            val head = output("git", "rev-parse", "HEAD")
+            val tagged = output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag^{commit}")
+            if (tagged != null && tagged != head) {
+                add("$tag already exists on another commit. Raise versionName and versionCode, or check that commit out.")
+            }
+            if (output("gh", "release", "view", tag) != null) add("$tag is already released on GitHub.")
+        }
+        if (problems.isNotEmpty()) {
+            throw GradleException("Not releasing $tag:\n" + problems.joinToString(separator = "\n") { "  - $it" })
+        }
+        logger.lifecycle("$tag is ready to release.")
+    }
+}
+
+abstract class GithubRelease : ReleaseTask() {
+    @get:InputFile
+    abstract val apk: RegularFileProperty
+
+    @get:OutputFile
+    abstract val namedApk: RegularFileProperty
+
+    @TaskAction
+    fun release() {
+        val name = "Burkan ${versionName.get()}"
+        apk.get().asFile.copyTo(namedApk.get().asFile, overwrite = true)
+        if (output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag") == null) {
+            run("git", "tag", "--sign", tag, "--message", name)
+        }
+        run("git", "push", "origin", "main", tag)
+        run(
+            "gh", "release", "create", tag, namedApk.get().asFile.path,
+            "--verify-tag", "--title", name, "--notes-file", changelog.path,
+        )
+    }
+}
+
+val releaseVersionName = android.defaultConfig.versionName!!
+val releaseVersionCode = android.defaultConfig.versionCode!!
+
+val checkRelease by tasks.registering(CheckRelease::class) {
+    group = "release"
+    description = "Says what stands in the way of releasing this commit. Changes nothing."
+    versionName = releaseVersionName
+    versionCode = releaseVersionCode
+    repository = rootProject.layout.projectDirectory
+    hasReleaseKey = keystoreProperties != null
+    // It reads the state of the repository, which Gradle cannot see: never up to date.
+    outputs.upToDateWhen { false }
+}
+
+// The checks come before the build, so a release that cannot go out fails in seconds.
+tasks.configureEach { if (name == "assembleRelease") mustRunAfter(checkRelease) }
+
+tasks.register<GithubRelease>("githubRelease") {
+    group = "release"
+    description = "Tags this commit, builds the release, pushes both and publishes it on GitHub with its changelog."
+    dependsOn(checkRelease, "assembleRelease")
+    versionName = releaseVersionName
+    versionCode = releaseVersionCode
+    repository = rootProject.layout.projectDirectory
+    apk = layout.buildDirectory.file("outputs/apk/release/app-release.apk")
+    namedApk = layout.buildDirectory.file("release/Burkan-$releaseVersionName.apk")
+    outputs.upToDateWhen { false }
 }
