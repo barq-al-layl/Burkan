@@ -21,9 +21,10 @@ builds the app itself from this repository and signs it with its own key, so eve
 ## Still to do
 
 1. **Make the repository public.** F-Droid cannot build from, or review, a private one.
-2. **Push the tag.** The release is tagged `v1.0.0`, and the recipe names the commit it points at by its full
-   hash, which F-Droid asks for in place of the tag's name. Later versions are picked up from their tags by
-   themselves, as long as each raises `versionCode` and is tagged `v` and the version.
+2. **Nothing more for the tag.** The release is tagged `v1.0.0` and published on GitHub, and the recipe names
+   the commit the tag points at by its full hash, which F-Droid asks for in place of the tag's name. Later
+   versions are picked up from their tags by themselves, as long as each raises `versionCode` and is tagged `v`
+   and the version; `./gradlew :app:githubRelease` does the tagging.
 3. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 4. **Try the whole build.** Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata), copy the recipe to
    `metadata/io.github.barqallayl.burkan.yml`, and run `fdroid build -v -l io.github.barqallayl.burkan` on
