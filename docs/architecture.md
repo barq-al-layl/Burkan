@@ -33,7 +33,8 @@ Burkan does it on the phone, by itself, after every restart.
   (see `docs/device-notes.md`, section 10).
 - Devices other than the S23 family. The app warns on other models and lets the user continue; it makes no
   claim about them.
-- Any network use beyond the loopback connection. No analytics, no crash upload, no update check.
+- Any network use beyond the connection to the phone itself and the local service discovery that finds its port.
+  No analytics, no crash upload, no update check.
 
 ## Constraints that shape the design
 
@@ -55,9 +56,10 @@ Six destinations. `App.kt` chooses the start: `SetupRoute` until setup is comple
 
 ### Setup (`SetupRoute`)
 
-A checklist the user works down. Each step shows done, current or waiting, and the current step has one action.
+A checklist the user works down, one step at a time. The steps that are done collapse into one row, the current
+step carries its instructions and its action, and the ones still to come wait under it.
 
-| Step | Action | Done when |
+| Step | Action | Its check passes when |
 |---|---|---|
 | Notifications | Request `POST_NOTIFICATIONS` | Granted |
 | Developer options | Open About phone and explain how to unlock Developer options there (the Developer options screen cannot open while they are locked) | `development_settings_enabled` is 1 |
@@ -65,36 +67,53 @@ A checklist the user works down. Each step shows done, current or waiting, and t
 | Pair | Start the pairing service and open Developer options; tell the user to tap "Pair device with pairing code" and type the code into Burkan's notification | Pairing succeeded |
 | Connect | Automatic | A shell command returns |
 | Permission | Automatic: the app grants itself `WRITE_SECURE_SETTINGS` over the connection | The permission is held |
-| Battery | Ask to be exempt from battery optimisation, with one sentence saying why | Exempt, or skipped |
+| Battery | Ask to be exempt from battery optimisation, with one sentence saying why | Exempt. It can also be skipped |
 
-- Steps the app can detect are detected, never self-declared with a "Done" button.
+- A step is looked at only once it is the current one. Nothing further down is checked, or done, ahead of time:
+  Connect connects when the user reaches it, and Permission grants when the user reaches that.
+- What passes the check is detected, never self-declared; but a step is finished only when the user taps Done.
+  A step the phone already satisfies shows that it does, and still waits.
+- How far the user has got is stored as a count of finished steps, with the phone's own state, which is never
+  backed up. Redoing setup puts it back to none.
 - A failed step shows what failed and how to retry. Wrong code, pairing timed out, no Wi-Fi and "the pairing
   dialog was closed" are distinct messages.
-- Leaving and returning resumes at the first incomplete step.
+- On the two steps done in the Wireless debugging screen, a phone that is not on Wi-Fi is told so before it goes
+  there: Android offers that switch only on Wi-Fi.
+- Leaving and returning resumes at the current step and checks it again.
+- A pairing the phone no longer accepts sends setup back to the Pair step, and the steps after it are gone
+  through again.
 - If the device model is not SM-S911*, SM-S916* or SM-S918*, a notice at the top says the app is only tested on
   the S23 family. It does not block.
 
 ### Home (`HomeRoute`)
 
-The status, and the two actions.
+The status, and the two actions. The two styles lay it out differently; what it says is the same.
 
-- **Headline**: one of *Vulkan is active*, *OpenGL — not applied since the last restart*, *Partly applied*,
-  *Unknown — cannot connect*. With an icon and words, never colour alone.
+- **Headline**: one of *Vulkan is active*, *Vulkan is not applied*, *Partly applied*, or, when the status cannot
+  be read, the cause by name where it is one the user can put right (*Not connected to Wi-Fi*, *Wireless
+  debugging is off*, *Burkan is no longer paired*) and *Unknown — cannot connect* otherwise. In words, never
+  colour alone.
 - **Detail rows**: New apps (from the property), System UI, Launcher, Keyboard — each "Vulkan", "OpenGL" or
   "Unknown", from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
   stay in place with placeholders; while a run is in progress the card says its values are being changed.
 - **Last run**: when, what triggered it (boot or manual), and its result.
-- **Apply now** — the light apply. The primary button. When System UI is to be restarted, a confirmation says
-  first that the screen will lock for a moment.
+- **Apply now** — the light apply. When System UI is to be restarted, a confirmation says first that the screen
+  will lock for a moment.
 - **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app, takes
-  about a minute, the screen will flash, and it locks for a moment at the end.
+  about a minute, the screen will flash, and, when System UI is to be restarted, it locks for a moment at the end.
   The confirmation also asks how far to go: every app, which it starts from each time, or only the 30 or 70 used
   most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
   says which apps are recent only to an app with usage access, which the app allows itself over its own connection
   the first time a limited run needs it. If Android still names none, the run fails rather than restart
   everything.
-- While a run is in progress: a progress indicator, the current step in words, a Cancel button, and both apply
-  buttons disabled. The run's notification carries Cancel too.
+  At its end the full apply brings Burkan back to the front.
+- **In the Material style** the two actions are buttons docked at the bottom. While a run is in progress the card
+  shows a progress indicator and the current step in words, and the second button becomes Cancel.
+- **In the One UI style** nothing is docked: a summary card at the top carries the state in large words and the
+  two actions side by side. During a run the card's one button is Cancel, and the surfaces give way to the run's
+  steps as a checklist, each ticked as it ends; a step that failed is marked. When the run has ended the button
+  is Done, which puts the surfaces back.
+- The run's notification carries Cancel too.
 - If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for.
   When the run after a restart left System UI for the next lock, a card says so.
 - After a run, Home shows the status the run read at its end, without connecting again. It reads the status when
@@ -109,10 +128,12 @@ The status, and the two actions.
   own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
   apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
   where it is installed. Listing the apps has its own loading, empty and failed states.
-- Appearance: style (Material or One UI), dark theme, seed colour and, in the Material style, palette style, each
-  chosen in a bottom sheet. A change applies at once.
+- Appearance: style (Material or One UI), dark theme, colour and, in the Material style, palette style, each
+  chosen in a bottom sheet. A Samsung phone starts in One UI, and that style starts in blue; Material starts from
+  the wallpaper's colour. A change applies at once, in a circle that spreads from the tap across the screen and
+  the sheet alike, and leaves the user on the screen they were on.
   The options and defaults are in `CONTRIBUTING.md`.
-- Redo setup: forgets the pairing and returns to Setup, after a confirmation.
+- Redo setup: forgets the pairing and returns to Setup at its first step, after a confirmation.
 - About: version, a link to the source on GitHub, the app's licence (Apache-2.0), and the
   libraries' licences on their own screen (`LicencesRoute`). That list is generated at build time from the
   dependencies (AboutLibraries) and read from the app's resources: no network at run time.
@@ -135,8 +156,8 @@ The code structure and conventions are in `CONTRIBUTING.md`. These are the parts
 
 | Feature | Holds |
 |---|---|
-| `setup` | The checklist screen, pairing notification service, step detection |
-| `connection` | Key pair, pairing, connecting, enabling wireless debugging; the ADB `ShellExecutor` |
+| `setup` | The checklist screen and its step checks |
+| `connection` | Key pair, the pairing notification service, pairing, connecting, enabling wireless debugging; the ADB client |
 | `apply` | The light and full flows, the output parsers, state capture and restore, the boot receiver and service |
 | `status` | Reading renderer state; the Home screen |
 | `settings` | The Settings screen and its storage |
@@ -178,6 +199,9 @@ A flow is a function that returns the list of steps, and a runner that executes 
   restore step runs when a full apply fails or is cancelled.
 - Tests assert on the plan (exact commands, in order) without running anything, and on the runner with a fake
   shell that fails at a chosen step.
+- A process that has to be crashed to restart, System UI and the keyboard, is named by its process ID, found by
+  its exact name. Named by package, `am crash` takes whichever of the package's processes it comes to first,
+  and System UI has helpers (`docs/device-notes.md`, section 2).
 
 ### Connection
 
@@ -243,6 +267,8 @@ run is limited to recent apps).
 A `FileProvider` hands the exported log, written to the cache, to the app it is shared with; nothing else is
 reachable through it.
 
+- The one activity is `singleTask`: started again from the shell at the end of a full apply, it comes to the
+  front as it is, where a second copy would have lost the run it was showing.
 - `minSdk` 33: the S23 shipped with Android 13, and it removes every pre-13 branch. `targetSdk` and `compileSdk`
   37.
 - Backup: exclude the ADB key and the pairing state from cloud backup and device transfer.
@@ -250,10 +276,13 @@ reachable through it.
 ## Decisions
 
 - **`minSdk` 33.** The S23 shipped with Android 13, and it removes every pre-13 branch.
-- **English only.** Material 3 Expressive components in segmented groups, with the colours, the font and the text
-  size chosen in Settings.
+- **English only.** Two styles over the same shared components: Material 3 Expressive, in Roboto, and One UI, in
+  the phone's own font. The style, the theme and the colour are chosen in Settings; the text size is the phone's.
 - **Apache-2.0.** `libadb-android`, offered under Apache-2.0 or GPL-3.0-or-later, is used under Apache-2.0. Its
   pairing helper `spake2-java` is LGPL-3.0, which a differently licensed app may link to as long as the library
   can be replaced; the app being open source, anyone can rebuild it with their own copy.
 - **Distributed outside the Play Store.** `QUERY_ALL_PACKAGES`, the `specialUse` foreground service and a
   permission granted over ADB are a poor fit for it.
+- **Released from a tag, on GitHub and F-Droid.** `./gradlew :app:githubRelease` tags a commit, builds it and
+  publishes the APK; F-Droid rebuilds the same tag and ships that APK only if its own build is identical, so the
+  build names its NDK and carries 64-bit ARM code only. [`f-droid.md`](f-droid.md) has the detail.
