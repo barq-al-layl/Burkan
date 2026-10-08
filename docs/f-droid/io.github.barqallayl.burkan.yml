@@ -9,6 +9,7 @@ AutoName: Burkan
 
 RepoType: git
 Repo: https://github.com/barq-al-layl/Burkan.git
+Binaries: https://github.com/barq-al-layl/Burkan/releases/download/v%v/Burkan-%v.apk
 
 Builds:
   - versionName: 1.0.0
@@ -18,14 +19,14 @@ Builds:
     sudo:
       - apt-get update
       - apt-get install -y openjdk-25-jdk-headless
-      - update-java-alternatives -a
+      - update-alternatives --auto java
     gradle:
       - yes
-    prebuild:
-      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
-      - sed -i -e '/^toolchainUrl/d' ../gradle/gradle-daemon-jvm.properties
-    gradleprops:
-      - org.gradle.java.installations.auto-download=false
+    rm:
+      - gradle/gradle-daemon-jvm.properties
+    prebuild: sed -i -e '/foojay/d' ../settings.gradle.kts
+
+AllowedAPKSigningKeys: 53a1ee8e69a05a6c6cdd9ac8db4a9e2ba1433574135394ece2a505318948093b
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
