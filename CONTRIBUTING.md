@@ -414,6 +414,12 @@ Metro, one graph:
   the branch and the tag, and publishes the APK on GitHub with that changelog. `./gradlew :app:checkRelease`
   runs the checks alone and changes nothing. F-Droid takes a new version from the same tag, so never push a
   `v…` tag for anything that is not a release.
+- **A release is built with the NDK named in `app/build.gradle.kts`.** The app compiles nothing with it, but the
+  build strips its dependencies' native libraries with it, and F-Droid ships a release only if its own build
+  comes out identical. Install that version from Android Studio's SDK Manager; `checkRelease` says when it is
+  missing. When it changes, the `ndk` line in F-Droid's recipe changes with it.
+- **The APK carries 64-bit ARM code only.** Running it on an x86 emulator needs the `abiFilters` line taken out
+  for that build.
 - Release builds are minified and resource-shrunk. Keep rules that a library needs go in
   `app/src/main/keepRules/`, as `.keep` files; resources that are only read by name at run time are kept in
   `res/raw/keep.xml`.

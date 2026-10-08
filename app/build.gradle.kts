@@ -27,6 +27,10 @@ android {
     compileSdk {
         version = release(37)
     }
+    // Nothing here is compiled with the NDK, but the build uses it to strip the debug symbols from the native
+    // libraries the app's dependencies bring. F-Droid rebuilds each release and ships it only if its build is
+    // identical, so a release has to be made with this very version: its recipe names the same one, as r28c.
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "io.github.barqallayl.burkan"
@@ -34,6 +38,10 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
+        // Every phone the app is for is 64-bit ARM. The libraries' copies for other processors were half the APK.
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     signingConfigs {
@@ -240,10 +248,19 @@ abstract class CheckRelease : ReleaseTask() {
     @get:Input
     abstract val hasReleaseKey: Property<Boolean>
 
+    @get:Input
+    abstract val ndkVersion: Property<String>
+
+    @get:Internal
+    abstract val sdk: DirectoryProperty
+
     @TaskAction
     fun check() {
         val problems = buildList {
             if (!hasReleaseKey.get()) add("keystore.properties is missing, so the release would not be signed.")
+            if (!sdk.dir("ndk/${ndkVersion.get()}").get().asFile.isDirectory) {
+                add("NDK ${ndkVersion.get()} is not installed, so the APK would not match the one F-Droid builds.")
+            }
             if (!changelog.exists()) add("There is no changelog for version code ${versionCode.get()}: ${changelog.path}")
             if (output("git", "status", "--porcelain") != "") add("There are changes that are not committed.")
             if (output("git", "rev-parse", "--abbrev-ref", "HEAD") != "main") add("The branch checked out is not main.")
@@ -294,6 +311,8 @@ val checkRelease by tasks.registering(CheckRelease::class) {
     versionCode = releaseVersionCode
     repository = rootProject.layout.projectDirectory
     hasReleaseKey = keystoreProperties != null
+    ndkVersion = android.ndkVersion
+    sdk = androidComponents.sdkComponents.sdkDirectory
     // It reads the state of the repository, which Gradle cannot see: never up to date.
     outputs.upToDateWhen { false }
 }

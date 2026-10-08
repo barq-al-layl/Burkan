@@ -15,9 +15,9 @@ builds the app itself from this repository and signs it with its own key, so eve
 - **F-Droid's own checks pass**, run with its tools (`fdroidserver` 2.4.5) against this repository: `fdroid lint`
   has no complaint, `fdroid rewritemeta` changes nothing, and `fdroid scanner` finds 0 problems in the source.
 - **The recipe asks for a reproducible build.** F-Droid builds the app, checks that its build is the same as
-  the APK published on GitHub, and then ships that APK, signed with this project's own key. Built again from the
-  tag on the Mac that made the release, every file in the APK but one came out identical; the odd one records the
-  git commit, and differed only because that copy was not a git checkout.
+  the APK published on GitHub, and then ships that APK, signed with this project's own key.
+- **The merge request's pipeline passes.** F-Droid's build server built 1.0.0 from the tagged commit and found
+  its APK identical to the published one.
 - **Nothing F-Droid forbids.** The licence is Apache-2.0, every library is open source, and the libraries come from
   Maven Central, Google's repository and JitPack, all of which F-Droid trusts. There is no Google Play Services,
   Firebase, advertising or analytics, and the licence list is generated without the network.
@@ -30,31 +30,25 @@ builds the app itself from this repository and signs it with its own key, so eve
    versions are picked up from their tags by themselves, as long as each raises `versionCode` and is tagged `v`
    and the version; `./gradlew :app:githubRelease` does the tagging.
 3. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
-4. **Try the whole build.** Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata), copy the recipe to
-   `metadata/io.github.barqallayl.burkan.yml`, and run `fdroid build -v -l io.github.barqallayl.burkan` on
-   F-Droid's build server image. Their merge request runs the same build, so this step can also be left to it.
-5. **Open a merge request** on fdroiddata with the recipe. Once it is merged the app appears in a day or two.
+4. **Wait for the merge request** on fdroiddata to be reviewed and merged. Once it is, the app appears in a day
+   or two.
 
-## Where the build may stumble
+## What the build needed
 
-None of this has been tried on F-Droid's build server. What has been tried, on a Mac with a JDK 25 already
-installed: F-Droid's scanner checked the source out and removed the signing configuration from
-`app/build.gradle.kts`, as it does for every app. From a copy of the tagged commit with the recipe's `rm` and
-`prebuild` applied, `assembleRelease` built `app-release-unsigned.apk` without fetching a JDK. That APK holds no
-Google Play Services or Firebase code, and the only binary file in the repository is the Gradle wrapper, which
-F-Droid removes and replaces with its own.
+F-Droid's build server (Debian 13) built the app at the first attempt: it had the JDK 25 package, Android
+platform 37 and the Gradle version the wrapper names. Its scanner removes the signing configuration from
+`app/build.gradle.kts`, as it does for every app, and the Gradle wrapper, which it replaces with its own.
 
-- **The build may not come out the same on Linux.** The comparison above was Mac against Mac. If F-Droid's
-  build differs from the published APK, its pipeline says so before anything is merged; the cause is then fixed
-  here, or the two reproducible-build lines come out of the recipe and F-Droid signs with its own key.
+- **The NDK decides whether the build is reproducible.** The first attempt built, but its APK differed from the
+  published one in a single library, `libdatastore_shared_counter.so`. A release build strips the debug symbols
+  from native libraries, and needs the NDK to do it: the Mac that made the release had one, the build server
+  did not, so the server packaged that library as it came. With `ndk: r28c` in the recipe the two builds are
+  identical. `app/build.gradle.kts` now names the same version, and `:app:checkRelease` refuses to release
+  without it installed.
 - **The JDK.** The project builds with JDK 25 and lets Gradle fetch one, which F-Droid does not allow. The recipe
-  installs JDK 25 from Debian and removes what would fetch one. Debian 13 (trixie) has the package
-  `openjdk-25-jdk-headless`; Debian 12 does not. If the build server runs an older Debian, the toolchain in
-  `app/build.gradle.kts` and `gradle/gradle-daemon-jvm.properties` has to come down to a version it does have.
-- **The Android platform.** The app compiles against platform 37. The build server needs that platform as an
-  official release.
-- **The Gradle version.** F-Droid runs the Gradle version named in the wrapper from its own verified copies. A
-  version newer than its list has to be added there first.
+  installs JDK 25 from Debian and removes what would fetch one.
+- **A new version must reproduce too.** A release whose APK F-Droid cannot rebuild identically is not published
+  there until it can. Changing the NDK, the JDK or the build tools is what to look at first if one does not.
 
 ## The recipe, line by line
 
@@ -65,6 +59,7 @@ F-Droid removes and replaces with its own.
 - `rm`: removes the file that tells the Gradle daemon which JDK to run on, and where to fetch it from.
 - `prebuild`: takes out the plugin that would fetch a JDK. Both this and `rm` are written the way F-Droid's
   other recipes write them.
+- `ndk`: installs the NDK the release was built with, so native libraries are stripped the same way.
 - `Binaries` and `AllowedAPKSigningKeys`: where the APK of each release is published, and the fingerprint of
   the certificate it must be signed with. Together they ask for the reproducible build. The task
   `:app:githubRelease` publishes each APK under the name `Binaries` expects.
@@ -81,7 +76,8 @@ If the reproducible build is dropped, F-Droid signs with its own key instead, an
 with the other: someone who installed from one has to uninstall before installing from the other, and sets the
 app up again. That choice cannot be reversed later.
 
-## For a later release
+## From the next release
 
-- **A smaller APK.** About 7 MB of the 15 MB is native code for processors no Galaxy S23 has (x86, x86_64 and
-  32-bit ARM). Limiting the build to 64-bit ARM would roughly halve it. F-Droid's checklist asks about this.
+- **A smaller APK.** About 7 MB of the 15 MB of 1.0.0 is native code for processors no Galaxy S23 has (x86,
+  x86_64 and 32-bit ARM). The build is now limited to 64-bit ARM, which F-Droid's checklist asks about, so the
+  release after 1.0.0 is about half the size.
