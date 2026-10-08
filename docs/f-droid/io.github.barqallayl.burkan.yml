@@ -13,7 +13,7 @@ Repo: https://github.com/barq-al-layl/Burkan.git
 Builds:
   - versionName: 1.0.0
     versionCode: 1
-    commit: REPLACE_WITH_THE_FULL_HASH_OF_v1.0.0
+    commit: df439af44f6c1ab95c4c64d256092bd582bb1590
     subdir: app
     sudo:
       - apt-get update

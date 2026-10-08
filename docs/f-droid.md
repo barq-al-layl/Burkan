@@ -21,9 +21,8 @@ builds the app itself from this repository and signs it with its own key, so eve
 ## Still to do
 
 1. **Make the repository public.** F-Droid cannot build from, or review, a private one.
-2. **Tag the release.** `git tag -s v1.0.0` on the release commit and push it. The recipe names that commit by
-   its full hash, which F-Droid asks for in place of the tag's name: put the output of
-   `git rev-parse 'v1.0.0^{commit}'` where the recipe says so. Later versions are picked up from their tags by
+2. **Push the tag.** The release is tagged `v1.0.0`, and the recipe names the commit it points at by its full
+   hash, which F-Droid asks for in place of the tag's name. Later versions are picked up from their tags by
    themselves, as long as each raises `versionCode` and is tagged `v` and the version.
 3. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 4. **Try the whole build.** Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata), copy the recipe to
