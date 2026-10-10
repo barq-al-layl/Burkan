@@ -104,10 +104,22 @@ class AdbShellExecutorTest {
         assertEquals(ShellResult(0, "hello", ""), decoder.result())
     }
 
+    @Test
+    fun `a packet of a length adbd could not send is a lost connection, not a crash`() = runTest {
+        val negative = byteArrayOf(1, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0)
+        val enormous = byteArrayOf(1, 0, 0, 0, 0x7F, 0)
+        listOf(negative, enormous).forEach { bytes ->
+            val executor = AdbShellExecutor({ BytesStream(bytes) }, StandardTestDispatcher(testScheduler))
+
+            assertEquals(ShellError.ConnectionLost.left(), executor.run(command))
+        }
+    }
+
     /** Never delivers data; closing it wakes the read with an IOException, as libadb's stream does. */
     private class BlockingStream : ShellStream {
         private val released = CountDownLatch(1)
-        @Volatile var closed = false
+        @Volatile
+        var closed = false
 
         override fun read(buffer: ByteArray): Int {
             released.await()

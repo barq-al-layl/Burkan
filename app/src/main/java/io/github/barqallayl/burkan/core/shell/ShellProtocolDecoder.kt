@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.core.shell
 
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 /**
  * Decodes adb's shell protocol v2, which keeps stdout and stderr apart and ends with the exit code. Each packet is
@@ -17,7 +18,12 @@ class ShellProtocolDecoder {
     var exitCode: Int? = null
         private set
 
-    /** Feeds the next [count] bytes of [bytes], which may end anywhere inside a packet. */
+    /**
+     * Feeds the next [count] bytes of [bytes], which may end anywhere inside a packet.
+     *
+     * @throws IOException when a packet gives a length adbd could not have sent: what answers is not speaking this
+     * protocol, and nothing after that length can be trusted either.
+     */
     fun feed(bytes: ByteArray, count: Int = bytes.size) {
         ensureCapacity(pendingSize + count)
         bytes.copyInto(pending, destinationOffset = pendingSize, endIndex = count)
@@ -25,6 +31,7 @@ class ShellProtocolDecoder {
         var offset = 0
         while (exitCode == null && pendingSize - offset >= HEADER_SIZE) {
             val length = littleEndianInt(offset + 1)
+            if (length !in 0..MAX_PACKET_LENGTH) throw IOException("Shell packet of impossible length $length")
             if (pendingSize - offset - HEADER_SIZE < length) break
             val dataStart = offset + HEADER_SIZE
             when (pending[offset].toInt()) {
@@ -60,5 +67,8 @@ class ShellProtocolDecoder {
         const val ID_EXIT = 3
         const val HEADER_SIZE = 5
         private const val INITIAL_CAPACITY = 64 * 1024
+
+        /** The most adb carries in one message, so a shell packet inside one is never longer. */
+        private const val MAX_PACKET_LENGTH = 1024 * 1024
     }
 }
