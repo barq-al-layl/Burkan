@@ -17,6 +17,7 @@ import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -139,8 +140,14 @@ class AdbShellAccess(
         if (wirelessDebugging.isOn()) return false
         ensure(wirelessDebugging.isWifiConnected()) { ConnectionError.NoWifi }
         ensure(wirelessDebugging.set(true)) { ConnectionError.WirelessDebuggingOff }
-        // The system may refuse (an untrusted network, or Wi-Fi lost) and put the switch back by itself.
-        delay(SETTLE_TIME)
+        try {
+            // The system may refuse (an untrusted network, or Wi-Fi lost) and put the switch back by itself.
+            delay(SETTLE_TIME)
+        } catch (e: CancellationException) {
+            // The switch is on by now, and a run cancelled here leaves nothing behind that would switch it off.
+            withContext(NonCancellable) { switchOff() }
+            throw e
+        }
         ensure(wirelessDebugging.isOn()) { ConnectionError.WirelessDebuggingRefused }
         return true
     }
@@ -175,8 +182,12 @@ class AdbShellAccess(
         } else {
             loopback
         }
-        // The daemon no longer accepts the key, so setup has to pair again.
-        if (result == Either.Left(ConnectionError.NotAuthorised)) deviceState.setPaired(false)
+        // The daemon no longer accepts the key, so setup has to pair again: it is no longer complete, and `App`
+        // goes back to it.
+        if (result == Either.Left(ConnectionError.NotAuthorised)) {
+            deviceState.setPaired(false)
+            deviceState.setSetupComplete(false)
+        }
         return result
     }
 

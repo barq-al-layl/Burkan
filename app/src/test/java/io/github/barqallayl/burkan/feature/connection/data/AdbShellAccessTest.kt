@@ -164,12 +164,14 @@ class AdbShellAccessTest {
     }
 
     @Test
-    fun `an unauthorised key sends setup back to pairing`() = runTest {
+    fun `an unauthorised key sends setup back to pairing, also once setup was complete`() = runTest {
         wirelessDebugging.on = true
+        deviceState.isSetupComplete.value = true
         client.connectResults["127.0.0.1"] = ConnectionError.NotAuthorised.left()
 
         assertEquals(ConnectionError.NotAuthorised.left(), access().withShell { })
         assertFalse(deviceState.isPaired.value)
+        assertFalse(deviceState.isSetupComplete.value, "so that App shows Setup again, at the Pair step")
         assertEquals(listOf("connect 127.0.0.1:37215"), client.calls)
     }
 
@@ -193,6 +195,20 @@ class AdbShellAccessTest {
 
         assertEquals("disconnect", client.calls.last())
         assertEquals(listOf(true, false), wirelessDebugging.writes)
+    }
+
+    @Test
+    fun `a run cancelled while the switch settles switches it off again`() = runTest {
+        val access = access()
+        val run = launch { access.withShell { } }
+        advanceTimeBy(1.seconds)
+
+        run.cancel()
+        run.join()
+
+        assertEquals(listOf(true, false), wirelessDebugging.writes)
+        assertFalse(wirelessDebugging.on)
+        assertEquals(emptyList(), client.calls, "it never got as far as connecting")
     }
 
     @Test
