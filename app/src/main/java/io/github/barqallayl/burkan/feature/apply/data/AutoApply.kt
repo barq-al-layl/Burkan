@@ -75,10 +75,20 @@ class AutoApply(
             stopWaiting()
             return
         }
-        // The network the last attempt failed on would fail the same way again.
+        // The network the last attempt failed on would fail the same way again. The watch is used up by having said
+        // so; it is started again when it is next due, and tells of whichever network is up then.
         if (network != null && network == current.triedNetwork) return
         storage.set(current.copy(triedNetwork = network))
         start()
+    }
+
+    /**
+     * The watch for Wi-Fi is due to be started again: Android lets go of it once it has told of one network, which
+     * may have been the one already tried. Started again for as long as something is waited for, and stopped for
+     * good otherwise.
+     */
+    suspend fun onWifiWatchDue() {
+        if (storage.state.first().waitingFor != null && isEnabled()) wifiWatch.start() else wifiWatch.stop()
     }
 
     /** A run has ended. Decides what the automatic apply waits for next, and what the user is told. */
@@ -93,7 +103,7 @@ class AutoApply(
             trigger == RunTrigger.Manual -> if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)
             outcome.error == ConnectionError.NoWifi -> waitFor(WaitReason.Wifi, tried)
             outcome.error == ConnectionError.WirelessDebuggingRefused -> {
-                waitFor(WaitReason.TrustedNetwork, tried ?: wifiWatch.activeNetwork())
+                waitFor(WaitReason.TrustedNetwork, tried ?: wifiWatch.wifiNetwork())
                 alerts.showFailure(outcome.error)
             }
             outcome.result == RunResult.Failed -> {

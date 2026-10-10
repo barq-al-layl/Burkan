@@ -177,6 +177,40 @@ class AutoApplyTest {
 
     @Test
     fun `Wi-Fi coming up with nothing to wait for stops the watch`() = runTest {
+    @Test
+    fun `a watch that is due is started again while something is waited for`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = HOME_NETWORK)
+        wifiWatch.start()
+
+        autoApply.onWifiWatchDue()
+
+        assertEquals(2, wifiWatch.starts, "the one Android let go of is replaced")
+        assertEquals(0, launcher.automaticStarts, "starting the watch again is not an attempt")
+    }
+
+    @Test
+    fun `a watch that is due with nothing waited for is stopped, and the wait for the lock is left alone`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+        wifiWatch.watching = true
+
+        autoApply.onWifiWatchDue()
+
+        assertFalse(wifiWatch.watching)
+        assertEquals(0, wifiWatch.starts)
+        assertEquals(AutoApplyState(systemUiAtNextLock = true), storage.state.value)
+    }
+
+    @Test
+    fun `a watch that is due after the automatic apply was turned off is stopped`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi)
+        wifiWatch.watching = true
+        settings.applyOnBoot.value = false
+
+        autoApply.onWifiWatchDue()
+
+        assertFalse(wifiWatch.watching)
+    }
+
         wifiWatch.watching = true
 
         autoApply.onWifiAvailable(HOME_NETWORK)
@@ -347,7 +381,10 @@ class AutoApplyTest {
         lockEvents.lock()
         waiting.await()
 
-        assertEquals(1, shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" })
+        assertEquals(
+            1,
+            shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" },
+        )
         assertFalse(storage.state.value.systemUiAtNextLock)
         assertEquals(
             listOf(RunResult.Succeeded, RunResult.Postponed),

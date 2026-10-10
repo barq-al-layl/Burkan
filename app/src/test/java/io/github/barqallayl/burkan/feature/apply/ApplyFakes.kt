@@ -74,11 +74,15 @@ class FakeWifiWatch(var active: Long? = null) : WifiWatch {
         watching = true
     }
 
+    /** How many times the watch was started, the first time and again. */
+    var starts = 0
+
     override fun stop() {
         watching = false
+        starts++
     }
 
-    override fun activeNetwork(): Long? = active
+    override fun wifiNetwork(): Long? = active
 }
 
 class FakeRunAlerts : RunAlerts {

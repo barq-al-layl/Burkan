@@ -11,6 +11,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.android.BroadcastReceiverKey
 import io.github.barqallayl.burkan.feature.apply.data.AutoApply
+import io.github.barqallayl.burkan.feature.apply.data.ConnectivityWifiWatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,13 +33,20 @@ class BootReceiver(private val autoApply: AutoApply) : BroadcastReceiver() {
     }
 }
 
-/** Receives the Wi-Fi network callback registered by the automatic apply while it waits. */
+/**
+ * Receives the Wi-Fi network callback registered by the automatic apply while it waits, and the alarm that starts
+ * that callback again.
+ */
 @Inject
 @BroadcastReceiverKey
 @ContributesIntoMap(AppScope::class, binding = binding<BroadcastReceiver>())
 class NetworkReceiver(private val autoApply: AutoApply) : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ConnectivityWifiWatch.ACTION_RENEW) {
+            goAsync { autoApply.onWifiWatchDue() }
+            return
+        }
         val network = intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK, Network::class.java)
         goAsync { autoApply.onWifiAvailable(network?.networkHandle) }
     }
