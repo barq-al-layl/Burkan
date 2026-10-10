@@ -2,7 +2,6 @@ package io.github.barqallayl.burkan.core.di
 
 import android.app.Application
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.AppScope
@@ -12,6 +11,7 @@ import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.storage.DataStoreDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.preferencesStore
 
 @ContributesTo(AppScope::class)
 @BindingContainer
@@ -21,14 +21,12 @@ object StorageBindings {
     @Provides
     @SingleIn(AppScope::class)
     fun provideSettingsDataStore(application: Application): DataStore<Preferences> =
-        PreferenceDataStoreFactory.create { application.preferencesDataStoreFile("settings") }
+        preferencesStore { application.preferencesDataStoreFile("settings") }
 
     /** A separate file, so the backup rules can leave it out. */
     @Provides
     @SingleIn(AppScope::class)
     @Named(DataStoreDeviceStateStorage.DEVICE_STATE_STORE)
     fun provideDeviceStateDataStore(application: Application): DataStore<Preferences> =
-        PreferenceDataStoreFactory.create {
-            application.preferencesDataStoreFile(DataStoreDeviceStateStorage.DEVICE_STATE_STORE)
-        }
+        preferencesStore { application.preferencesDataStoreFile(DataStoreDeviceStateStorage.DEVICE_STATE_STORE) }
 }
