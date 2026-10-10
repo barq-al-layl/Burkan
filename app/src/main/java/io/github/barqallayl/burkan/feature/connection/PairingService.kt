@@ -56,8 +56,19 @@ class PairingService(
         if (starting) startSession()
         val code = intent?.takeIf { it.action == ACTION_REPLY }?.let(PairingNotifications::codeFrom)
         // The outcome reaches the notification and the Setup screen through the status, not the return value.
-        if (code != null) scope.launch { pairing.pair(code) }
+        if (code != null) scope.launch { answer(code) }
         return START_NOT_STICKY
+    }
+
+    /**
+     * Pairs with the code typed into the notification, then posts the notification again. Android keeps the reply
+     * field waiting until it is, and the status alone does not always see to that: the same mistake twice in a row
+     * leaves the status as it was, so nothing that follows it would post anything.
+     */
+    private suspend fun answer(code: String) {
+        pairing.pair(code)
+        // Once paired the session has ended, and taken the notification with it.
+        if (session?.isActive == true) notifications.update(pairing.status.value)
     }
 
     private fun startSession() {
