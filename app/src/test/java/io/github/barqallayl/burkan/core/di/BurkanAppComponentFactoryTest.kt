@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.core.di
 import android.app.Application
 import dev.zacsweers.metrox.android.MetroApplication
 import io.github.barqallayl.burkan.RoborazziTestApplication
+import io.github.barqallayl.burkan.feature.crash.ui.CrashActivity
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -29,5 +30,13 @@ class BurkanAppComponentFactoryTest {
         val application = factory.instantiateApplicationCompat(loader, RoborazziTestApplication::class.java.name)
 
         assertIs<MetroApplication>(application)
+    }
+
+    @Test
+    fun `the crash screen is created without the graph`() {
+        // No application has been handed to the factory, so there is no graph to ask.
+        val activity = factory.instantiateActivityCompat(loader, CrashActivity::class.java.name, null)
+
+        assertIs<CrashActivity>(activity)
     }
 }

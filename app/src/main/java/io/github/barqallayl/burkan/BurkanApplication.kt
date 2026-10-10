@@ -5,6 +5,7 @@ import dev.zacsweers.metro.createGraphFactory
 import dev.zacsweers.metrox.android.MetroAppComponentProviders
 import dev.zacsweers.metrox.android.MetroApplication
 import io.github.barqallayl.burkan.core.di.AppGraph
+import io.github.barqallayl.burkan.feature.crash.CrashHandler
 
 class BurkanApplication : Application(), MetroApplication {
 
@@ -12,4 +13,9 @@ class BurkanApplication : Application(), MetroApplication {
 
     override val appComponentProviders: MetroAppComponentProviders
         get() = appGraph
+
+    override fun onCreate() {
+        super.onCreate()
+        CrashHandler.install(this)
+    }
 }

@@ -65,6 +65,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Shown after a crash, in a process of its own: it starts when the app's has died, and needs nothing
+             of the app to be in working order. -->
+        <activity
+            android:name=".feature.crash.ui.CrashActivity"
+            android:exported="false"
+            android:process=":crash"
+            android:theme="@style/Theme.Burkan" />
+
         <service
             android:name=".feature.apply.ApplyService"
             android:exported="false"
