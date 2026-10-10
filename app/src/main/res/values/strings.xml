@@ -293,7 +293,7 @@
     <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
     <string name="home_confirm_lock_text">At the end the screen locks for a moment while System UI restarts.</string>
     <string name="home_confirm_action">Restart</string>
-    <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts.</string>
+    <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts. To know which apps you used last, Burkan gives itself usage access, which stays on until you turn it off in the phone’s Settings.</string>
     <string name="home_confirm_dismiss">Not now</string>
 
     <plurals name="log_run_count">
