@@ -21,11 +21,13 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Executes an [ApplyPlan] through the shell. [shell] should reconnect by itself: restarting System UI brings up the
  * lock screen, which restarts adbd under the run. [mayRestartSystemUi] is asked immediately before System UI is
- * crashed; the run at the lock passes whether the phone is still locked.
+ * crashed; the run at the lock passes whether the phone is still locked. [captured] keeps what the plan has to put
+ * back until it is back, and writes it back where the shell no longer can.
  */
 class ApplyRunner(
     private val shell: ShellExecutor,
     private val cooldown: SystemUiCooldown,
+    private val captured: CapturedSettings,
     private val mayRestartSystemUi: () -> Boolean = { true },
 ) {
 
@@ -40,6 +42,8 @@ class ApplyRunner(
     suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit): Boolean {
         var failed = false
         try {
+            // Kept from before the first step, so that a run whose process dies under it can still be undone.
+            captured.keep(plan.restore.associate { it.setting to it.value })
             for (step in plan.steps) {
                 onStepStarted(step.kind)
                 val failure = if (step.kind == StepKind.RestartKeyboard) keepingDefaultKeyboard(step) else execute(step)
@@ -51,12 +55,15 @@ class ApplyRunner(
             }
         } finally {
             withContext(NonCancellable) {
+                var allBack = true
                 plan.restore.forEach { step ->
                     onStepStarted(step.kind)
                     val failure = restore(step)
-                    if (failure != null) failed = true
+                    if (failure != null) allBack = false
                     onStep(StepRecord(step.kind, failure))
                 }
+                // One that is not back stays kept, to be tried again when the app next opens or runs.
+                if (allBack) captured.letGo() else failed = true
             }
         }
         if (plan.restartSystemUi && !failed) {
@@ -122,24 +129,33 @@ class ApplyRunner(
 
     /**
      * Writes the value and reads it back, retrying with a pause while it does not match: the original scripts needed
-     * this for rotation and accessibility. A lost connection ends the step at once.
+     * this for rotation and accessibility. When the shell does not answer, the app writes the value itself.
      */
     private suspend fun restore(step: ApplyStep.RestoreSetting): AppError? {
         val key = step.setting.key
         var failure: AppError = ApplyError.SettingNotRestored(step.setting)
         repeat(RESTORE_ATTEMPTS) { attempt ->
             if (attempt > 0) delay(RESTORE_PAUSE)
-            val written = shell.run(ShellCommands.putSetting(key, step.value)).getOrElse { return it }
+            val written = shell.run(ShellCommands.putSetting(key, step.value))
+                .getOrElse { return withoutShell(step, it) }
             if (written.exitCode != 0) {
                 failure = ApplyError.CommandFailed(written.exitCode, written.stderr)
                 return@repeat
             }
-            val readBack = shell.run(ShellCommands.getSetting(key)).getOrElse { return it }
+            val readBack = shell.run(ShellCommands.getSetting(key)).getOrElse { return withoutShell(step, it) }
             if (parseSettingValue(readBack.stdout) == step.value) return null
             failure = ApplyError.SettingNotRestored(step.setting)
         }
         return failure
     }
+
+    /**
+     * The shell did not answer: the connection has gone and would not come back, or the command hung. The app
+     * writes the value itself. [lost] is the step's failure when Android will not take the value from the app
+     * either.
+     */
+    private fun withoutShell(step: ApplyStep.RestoreSetting, lost: ShellError): AppError? =
+        if (captured.putBack(step.setting, step.value)) null else lost
 
     private companion object {
         const val RESTORE_ATTEMPTS = 3

@@ -2,8 +2,11 @@ package io.github.barqallayl.burkan.feature.apply
 
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.BootCount
+import io.github.barqallayl.burkan.feature.apply.data.CapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.data.DeviceSettings
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RecentApps
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
@@ -12,6 +15,7 @@ import io.github.barqallayl.burkan.feature.apply.data.WifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
+import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,16 +74,16 @@ class FakeBootCount(var count: Int? = 1) : BootCount {
 class FakeWifiWatch(var active: Long? = null) : WifiWatch {
     var watching = false
 
-    override fun start() {
-        watching = true
-    }
-
     /** How many times the watch was started, the first time and again. */
     var starts = 0
 
+    override fun start() {
+        watching = true
+        starts++
+    }
+
     override fun stop() {
         watching = false
-        starts++
     }
 
     override fun wifiNetwork(): Long? = active
@@ -126,5 +130,24 @@ class FakeSystemUiRestarts : SystemUiRestarts {
 
     override suspend fun record(at: Instant) {
         last = at
+    }
+}
+
+/** Takes every write, unless it [refuses]: Android will not let the app write, and nothing is written. */
+class FakeDeviceSettings(var refuses: Boolean = false) : DeviceSettings {
+    val written = mutableListOf<Pair<SettingKey, String>>()
+
+    override fun put(key: SettingKey, value: String): Boolean {
+        if (refuses) return false
+        written += key to value
+        return true
+    }
+}
+
+class FakeCapturedSettingsStorage(var kept: Map<RestoredSetting, String> = emptyMap()) : CapturedSettingsStorage {
+    override suspend fun get(): Map<RestoredSetting, String> = kept
+
+    override suspend fun set(values: Map<RestoredSetting, String>) {
+        kept = values
     }
 }

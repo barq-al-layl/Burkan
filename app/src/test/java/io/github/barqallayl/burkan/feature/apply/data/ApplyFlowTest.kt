@@ -9,6 +9,8 @@ import io.github.barqallayl.burkan.core.shell.RendererReader
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
@@ -34,7 +36,11 @@ class ApplyFlowTest {
         thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
     }
     private val reader = ApplyInputsReader(shell)
-    private val runner = ApplyRunner(shell, SystemUiCooldown(FakeSystemUiRestarts(), FixedClock))
+    private val runner = ApplyRunner(
+        shell,
+        SystemUiCooldown(FakeSystemUiRestarts(), FixedClock),
+        CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings()),
+    )
     private val records = mutableListOf<StepRecord>()
 
     @Test

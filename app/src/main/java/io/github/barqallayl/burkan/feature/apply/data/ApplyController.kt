@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -81,6 +83,7 @@ class ApplyController(
     private val runLog: RunLogStorage,
     private val settings: SettingsStorage,
     private val cooldown: SystemUiCooldown,
+    private val captured: CapturedSettings,
     private val lockEvents: LockEvents,
     private val recentApps: RecentApps,
     private val clock: Clock,
@@ -95,6 +98,9 @@ class ApplyController(
 
     /** The status the last run read at its end. Home shows it rather than connecting again. */
     val verified: StateFlow<VerifiedStatus?> = mutableVerified.asStateFlow()
+
+    /** Held while settings an earlier run left changed are put back, so that no run starts in the middle of it. */
+    private val puttingBack = Mutex()
 
     /**
      * Returns how the run ended, or null without running when another run is in progress. A light apply restarts only
@@ -123,6 +129,9 @@ class ApplyController(
             mutableState.value = ApplyRunState.Running(kind, trigger, phase)
         }
         try {
+            // What a full apply left changed when the app's process died under it goes back first, before this run
+            // reads the phone and takes that for how it was.
+            puttingBack.withLock { captured.putBackKept() }
             show(RunPhase.Connecting)
             // Locking restarted adbd, which takes about a second to accept connections again.
             val outcome = shellAccess.withShell(settle = if (atLock) ADBD_SETTLE else Duration.ZERO) { shell ->
@@ -152,7 +161,7 @@ class ApplyController(
                         return@either
                     }
                     val mayRestartSystemUi: () -> Boolean = if (atLock) lockEvents::isLocked else ({ true })
-                    systemUiLeft = ApplyRunner(shell, cooldown, mayRestartSystemUi)
+                    systemUiLeft = ApplyRunner(shell, cooldown, captured, mayRestartSystemUi)
                         .run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
                     show(RunPhase.Checking)
                     status = RendererReader(shell).read().getOrNull()?.status
@@ -193,6 +202,15 @@ class ApplyController(
                 )
             }
         }
+    }
+
+    /**
+     * Puts back the settings a full apply left changed when the app's process died under it. Home asks when it
+     * opens. Nothing is done while a run is in progress: what is kept then is the run's own, which it has still to
+     * put back itself.
+     */
+    suspend fun putBackInterrupted() = puttingBack.withLock {
+        if (!running.get()) captured.putBackKept()
     }
 
     /**

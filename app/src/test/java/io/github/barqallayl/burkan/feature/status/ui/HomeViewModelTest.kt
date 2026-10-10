@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.status.ui
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
@@ -10,10 +11,13 @@ import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
+import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
+import io.github.barqallayl.burkan.feature.apply.data.CapturedSettings
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.data.SystemUiCooldown
@@ -21,6 +25,7 @@ import io.github.barqallayl.burkan.feature.apply.data.TestClock
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
+import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
@@ -55,8 +60,19 @@ class HomeViewModelTest {
     private val settings = FakeSettingsStorage()
     private val clock = TestClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
-    private val controller =
-        ApplyController(access, log, settings, cooldown, FakeLockEvents(), FakeRecentApps(), clock, FixtureDevice.Self)
+    private val deviceSettings = FakeDeviceSettings()
+    private val kept = FakeCapturedSettingsStorage()
+    private val controller = ApplyController(
+        access,
+        log,
+        settings,
+        cooldown,
+        CapturedSettings(kept, deviceSettings),
+        FakeLockEvents(),
+        FakeRecentApps(),
+        clock,
+        FixtureDevice.Self,
+    )
     private val launcher = FakeApplyLauncher()
     private val autoApply = FakeAutoApplyStorage()
 
@@ -73,6 +89,21 @@ class HomeViewModelTest {
     private val notApplied = StatusState.Loaded(
         RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
     )
+
+    @Test
+    fun `opening Home puts back the settings a run left changed when the app died under it`() = runTest {
+        kept.kept = mapOf(RestoredSetting.EdgeEnabled to "1")
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            runCurrent()
+
+            assertEquals(listOf(SettingKey.EdgeEnabled to "1"), deviceSettings.written)
+            assertEquals(emptyMap(), kept.kept)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
 
     @Test
     fun `refreshing reads the status`() = runTest {

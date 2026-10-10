@@ -11,6 +11,8 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
@@ -36,7 +38,10 @@ class ApplyRunnerTest {
     }
     private val clock = TestClock()
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
-    private val runner = ApplyRunner(shell, cooldown)
+    private val deviceSettings = FakeDeviceSettings()
+    private val kept = FakeCapturedSettingsStorage()
+    private val captured = CapturedSettings(kept, deviceSettings)
+    private val runner = ApplyRunner(shell, cooldown, captured)
     private val records = mutableListOf<StepRecord>()
 
     private val restoreLines = listOf(
@@ -58,7 +63,7 @@ class ApplyRunnerTest {
             }
             val records = mutableListOf<StepRecord>()
 
-            ApplyRunner(shell, cooldown).run(plan) { records += it }
+            ApplyRunner(shell, cooldown, captured).run(plan) { records += it }
 
             // Nothing after the restore: System UI is not restarted after a failure. The keyboard's restart reads
             // the default keyboard first.
@@ -176,7 +181,10 @@ class ApplyRunnerTest {
             ),
             records,
         )
-        assertEquals(2, shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" })
+        assertEquals(
+            2,
+            shell.lines.count { it == "am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" },
+        )
     }
 
     @Test
@@ -197,7 +205,7 @@ class ApplyRunnerTest {
                 }
                 val records = mutableListOf<StepRecord>()
 
-                ApplyRunner(reconnecting, SystemUiCooldown(FakeSystemUiRestarts(), clock)).run(plan) {
+                ApplyRunner(reconnecting, SystemUiCooldown(FakeSystemUiRestarts(), clock), captured).run(plan) {
                     records += it
                 }
 
@@ -263,8 +271,39 @@ class ApplyRunnerTest {
     }
 
     @Test
-    fun `a restore that cannot reach the shell does not stop the other restores`() = runTest {
+    fun `a setting the shell cannot write is written by the app itself, and the other restores go on`() = runTest {
+        shell.fail(ShellCommands.putSetting(SettingKey.AutoRotation, "1"), ShellError.NotConnected)
+
+        runner.run(restoreOnly(RestoredSetting.AutoRotation to "1", RestoredSetting.EdgeEnabled to "1")) {
+            records += it
+        }
+
+        assertEquals(listOf(SettingKey.AutoRotation to "1"), deviceSettings.written)
+        assertEquals(
+            listOf(
+                StepRecord(StepKind.RestoreSetting(RestoredSetting.AutoRotation)),
+                StepRecord(StepKind.RestoreSetting(RestoredSetting.EdgeEnabled)),
+            ),
+            records,
+        )
+        assertEquals("settings put secure edge_enable '1'", shell.lines[1], "the next one tries the shell again")
+        assertEquals(emptyMap(), kept.kept)
+    }
+
+    @Test
+    fun `a read-back the shell cannot make is settled by the app writing the value`() = runTest {
+        shell.fail(ShellCommands.getSetting(SettingKey.AutoRotation), ShellError.ConnectionLost)
+
+        runner.run(restoreOnly(RestoredSetting.AutoRotation to "1")) { records += it }
+
+        assertEquals(listOf(SettingKey.AutoRotation to "1"), deviceSettings.written)
+        assertEquals(listOf(StepRecord(StepKind.RestoreSetting(RestoredSetting.AutoRotation))), records)
+    }
+
+    @Test
+    fun `a setting neither the shell nor the app can write fails its step, and stays kept for later`() = runTest {
         shell.fail(ShellCommands.putSetting(SettingKey.AutoRotation, "1"), ShellError.TimedOut)
+        deviceSettings.refuses = true
 
         runner.run(restoreOnly(RestoredSetting.AutoRotation to "1", RestoredSetting.EdgeEnabled to "1")) {
             records += it
@@ -277,6 +316,41 @@ class ApplyRunnerTest {
             ),
             records,
         )
+        assertEquals(mapOf(RestoredSetting.AutoRotation to "1", RestoredSetting.EdgeEnabled to "1"), kept.kept)
+    }
+
+    @Test
+    fun `what a full apply has to put back is kept from before its first step until it is back`() = runTest {
+        val plan = fullPlan()
+        var keptAtFirstCommand: Map<RestoredSetting, String>? = null
+        shell.beforeEach = { if (keptAtFirstCommand == null) keptAtFirstCommand = kept.kept }
+
+        runner.run(plan) { records += it }
+
+        assertEquals(
+            mapOf(
+                RestoredSetting.AutoRotation to "1",
+                RestoredSetting.AccessibilityServices to FixtureDevice.ACCESSIBILITY,
+                RestoredSetting.EdgeEnabled to "1",
+            ),
+            keptAtFirstCommand,
+        )
+        assertEquals(emptyMap(), kept.kept)
+    }
+
+    @Test
+    fun `a run cancelled part way lets go of what it kept once the settings are back`() = runTest {
+        val plan = fullPlan()
+        val stopAll = plan.steps.single { it.kind is StepKind.StopApps }.command
+        shell.beforeEach = { if (it == stopAll) awaitCancellation() }
+
+        val run = launch { runner.run(plan) { records += it } }
+        runCurrent()
+        assertEquals(3, kept.kept.size, "kept while the apps are being stopped")
+        run.cancel()
+        run.join()
+
+        assertEquals(emptyMap(), kept.kept)
     }
 
     private suspend fun fullPlan(): ApplyPlan {

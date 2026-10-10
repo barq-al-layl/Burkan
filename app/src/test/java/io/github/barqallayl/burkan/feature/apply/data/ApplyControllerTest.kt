@@ -5,10 +5,13 @@ import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
@@ -59,8 +62,19 @@ class ApplyControllerTest {
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
     private val lockEvents = FakeLockEvents()
     private val recentApps = FakeRecentApps()
-    private val controller =
-        ApplyController(access, log, settings, cooldown, lockEvents, recentApps, clock, FixtureDevice.Self)
+    private val deviceSettings = FakeDeviceSettings()
+    private val kept = FakeCapturedSettingsStorage()
+    private val controller = ApplyController(
+        access,
+        log,
+        settings,
+        cooldown,
+        CapturedSettings(kept, deviceSettings),
+        lockEvents,
+        recentApps,
+        clock,
+        FixtureDevice.Self,
+    )
 
     @Test
     fun `a light run is logged with its steps`() = runTest {
@@ -182,7 +196,10 @@ class ApplyControllerTest {
         val allow = ShellCommands.allowUsageAccess(FixtureDevice.Self)
         shell.beforeEach = { if (it == allow) recentApps.allowed = true }
 
-        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)?.result)
+        assertEquals(
+            RunResult.Succeeded,
+            controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)?.result,
+        )
 
         assertTrue(allow.line in shell.lines)
         // The most recent first; one that is never stopped and one no longer installed are left out.
@@ -260,6 +277,54 @@ class ApplyControllerTest {
         assertTrue(entry.steps.any { it.kind == StepKind.RestoreSetting(RestoredSetting.AutoRotation) })
         assertTrue(shell.lines.any { it.startsWith("settings put system accelerometer_rotation") })
         assertEquals(ApplyRunState.Idle, controller.state.value)
+    }
+
+    @Test
+    fun `settings a run left changed when the app died are put back before the next run reads the phone`() = runTest {
+        kept.kept = mapOf(RestoredSetting.AutoRotation to "1")
+        var writtenByFirstCommand: List<Pair<SettingKey, String>>? = null
+        shell.beforeEach = { writtenByFirstCommand = writtenByFirstCommand ?: deviceSettings.written.toList() }
+
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        assertEquals(listOf(SettingKey.AutoRotation to "1"), writtenByFirstCommand)
+        assertEquals(emptyMap(), kept.kept)
+    }
+
+    @Test
+    fun `when the app opens, settings a run left changed when the app died are put back`() = runTest {
+        kept.kept = mapOf(RestoredSetting.EdgeEnabled to "1")
+
+        controller.putBackInterrupted()
+
+        assertEquals(listOf(SettingKey.EdgeEnabled to "1"), deviceSettings.written)
+        assertEquals(emptyMap(), kept.kept)
+    }
+
+    @Test
+    fun `settings kept by a run in progress are left for that run to put back`() = runTest {
+        val stopping = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        shell.beforeEach = { command ->
+            if (command.line.startsWith("am force-stop com.android.systemui;")) {
+                stopping.complete(Unit)
+                release.await()
+            }
+        }
+        val run = async { controller.run(ApplyKind.Full, RunTrigger.Manual) }
+        stopping.await()
+
+        controller.putBackInterrupted()
+
+        assertEquals(emptyList(), deviceSettings.written)
+        assertEquals(
+            setOf(RestoredSetting.AutoRotation, RestoredSetting.AccessibilityServices, RestoredSetting.EdgeEnabled),
+            kept.kept.keys,
+        )
+        release.complete(Unit)
+        run.await()
+        assertEquals(emptyMap(), kept.kept, "back through the shell, so nothing is kept any longer")
+        assertEquals(emptyList(), deviceSettings.written)
     }
 
     @Test

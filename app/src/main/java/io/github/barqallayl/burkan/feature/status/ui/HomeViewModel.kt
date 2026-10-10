@@ -96,6 +96,8 @@ class HomeViewModel(
             keptCount = settings.settings.value?.exclusions?.size ?: 0,
         ),
     ) {
+        // A full apply that died with the app's process left settings changed. They go back now the app is open.
+        controller.putBackInterrupted()
         var logRead = false
         var lockWaitArmed = false
         combine(

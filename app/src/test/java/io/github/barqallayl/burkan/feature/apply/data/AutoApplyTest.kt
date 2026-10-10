@@ -10,6 +10,8 @@ import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeBootCount
+import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
+import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
@@ -176,8 +178,6 @@ class AutoApplyTest {
     }
 
     @Test
-    fun `Wi-Fi coming up with nothing to wait for stops the watch`() = runTest {
-    @Test
     fun `a watch that is due is started again while something is waited for`() = runTest {
         storage.state.value = AutoApplyState(WaitReason.TrustedNetwork, triedNetwork = HOME_NETWORK)
         wifiWatch.start()
@@ -211,6 +211,8 @@ class AutoApplyTest {
         assertFalse(wifiWatch.watching)
     }
 
+    @Test
+    fun `Wi-Fi coming up with nothing to wait for stops the watch`() = runTest {
         wifiWatch.watching = true
 
         autoApply.onWifiAvailable(HOME_NETWORK)
@@ -358,7 +360,10 @@ class AutoApplyTest {
         val access = FakeShellAccess(shell)
         val log = FakeRunLogStorage()
         val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
-        val controller = ApplyController(access, log, settings, cooldown, lockEvents, FakeRecentApps(), FixedClock, FixtureDevice.Self)
+        val captured = CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings())
+        val controller = ApplyController(
+            access, log, settings, cooldown, captured, lockEvents, FakeRecentApps(), FixedClock, FixtureDevice.Self,
+        )
         storage.state.value = AutoApplyState(systemUiAtNextLock = true)
 
         val waiting = async {
