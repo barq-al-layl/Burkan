@@ -102,7 +102,7 @@ fun SettingsScreen() {
             SettingsSideEffect.Back -> navigator.pop()
             SettingsSideEffect.OpenExclusions -> navigator.push(ExclusionsRoute)
             SettingsSideEffect.OpenLicences -> navigator.push(LicencesRoute)
-            is SettingsSideEffect.OpenUrl -> uriHandler.openUri(effect.url)
+            is SettingsSideEffect.OpenUrl -> uriHandler.openIfPossible(effect.url)
         }
     }
     SettingsContent(

@@ -287,10 +287,10 @@ private fun LibrarySheet(library: Library) {
             BurkanSheetActions(
                 modifier = Modifier.padding(top = 4.dp),
                 dismiss = website?.let { stringResource(R.string.licences_open_website) },
-                onDismiss = { website?.let(uriHandler::openUri) },
+                onDismiss = { website?.let(uriHandler::openIfPossible) },
                 dismissIcon = Tabler.Outline.ExternalLink,
                 confirm = licence?.let { stringResource(R.string.licences_open_licence) },
-                onConfirm = { licence?.let(uriHandler::openUri) },
+                onConfirm = { licence?.let(uriHandler::openIfPossible) },
                 confirmIcon = Tabler.Outline.FileText,
             )
         }
