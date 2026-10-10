@@ -43,6 +43,8 @@ One UI cannot be tested without the device.
   whole line.
 - **`null` from `settings get` means "unset".** Never write it back.
 - **Read device state before changing it and restore it afterwards**, including when a run fails or is cancelled.
+  What was read is kept on the phone until it is back, so it also goes back when the connection is lost for good
+  or the app's process dies under the run.
 - **Wireless debugging is switched off again after a run** when the app was the one that switched it on.
 - **The ADB private key never leaves encrypted storage**: not in logs, not in exports, not in backups.
 - **Nothing private goes into the repository**: no serial numbers, and no list of apps taken from a real phone.
@@ -69,7 +71,8 @@ One UI cannot be tested without the device.
 | Settings storage | DataStore Preferences |
 | Secret storage | KSafe |
 | Logging | Kermit |
-| Icons | Tabler outline (`com.composables:icons-tabler-outline-cmp`) |
+| Icons | Tabler outline (`com.composables:icons-tabler-outline-cmp`), and Tabler filled (`icons-tabler-filled-cmp`) in Material's top bars |
+| Blur | Haze (`dev.chrisbanes.haze:haze`, `haze-blur`), for the Material style's frosted bars |
 | ADB client | `libadb-android` with Conscrypt |
 | Serialization | kotlinx-serialization (routes, stored models) |
 | Screenshots | Roborazzi through the Compose preview scanner, on Robolectric |
@@ -192,11 +195,14 @@ Navigation 3, used directly:
 - One `entryProvider` maps every route to its screen.
 - **Every route round-trips through serialization in a test**, so a route that cannot be saved fails a test
   instead of crashing on the first rotation.
-- **Every destination change uses `slideTransition`** in `core/navigation/ScreenTransition.kt`, passed to
-  `NavDisplay` for going forward, going back and the back gesture alike: both screens slide the full width on one
-  spring, and nothing fades or scales. A screen does not set its own transition.
+- **Every destination change uses the style's transition** in `core/navigation/ScreenTransition.kt`:
+  `slideTransition` in the Material style and `oneUiTransition` in One UI, passed to `NavDisplay` for going forward,
+  going back and the back gesture alike. What each one does is under UI, below. A screen does not set its own
+  transition.
 - **A Settings screen opens as Settings' own window** (`Context.openSettings`), not inside the app's entry under
   recent apps.
+- **A link opens with `openIfPossible`** (`feature/settings/ui/Links.kt`), not with Compose's own `openUri`, which
+  throws on a phone that has nothing to open a link with.
 
 ---
 
@@ -261,6 +267,8 @@ Metro, one graph:
 ## Storage
 
 - **DataStore holds settings**: apply on boot, the user's exclusions, the appearance preferences, the run log.
+  A file is opened with `preferencesStore` (`core/storage/`), which replaces one that can no longer be read with an
+  empty one: left as it was, it would fail every write as well as every read.
 - **KSafe holds secrets**: the ADB private key and certificate. Encrypted, excluded from backup.
 - **Reads that touch disk are flows**, collected by a store or a ViewModel. Never a blocking read in a composition or in a
   ViewModel constructor.
@@ -285,6 +293,57 @@ Metro, one graph:
 - **Material 3 Expressive components**, Expressive variants where one exists (buttons, loading and progress
   indicators, app bars). Colours come from the scheme and type from the theme; nothing is styled at a call site.
   `ExperimentalMaterial3ExpressiveApi` is opted in module-wide.
+- **A button is one of the design system's** (`designsystem/component/BurkanButtons.kt`): `BurkanButton`,
+  `BurkanTonalButton`, `BurkanTextButton` and `BurkanIconButton`. In the Material style they are round and turn
+  squarer while pressed, with Material's 16 dp beside the label; One UI's stay pills. A screen's main actions are
+  Material's medium size: give the button `heightIn(min = ActionHeight)`, `burkanButtonShapes(ActionHeight)` and
+  the label `ButtonDefaults.textStyleFor(ActionHeight)`. The height is a least height, never a fixed one: at a
+  large text size the label has to be able to grow. One filled button to a screen where that can be had.
+  A quieter button takes `burkanTonalButtonColors()`: Material's secondary container in the Material style, grey
+  in One UI. Neither is set at a call site.
+- **Text that stands out takes `emphasis(base, emphasized)`** (`designsystem/Emphasis.kt`): Material's emphasized
+  twin of the style in the Material style, a heavier weight of the same style in One UI. No `fontWeight` is set
+  on a Material screen.
+- **A wait of a few seconds turns Material's loading indicator; a longer one, a progress indicator.** Reading the
+  status and the light apply are the first kind, restarting every app the second.
+- **Material's bars are frosted glass** (`designsystem/component/Glass.kt`, built on Haze). A screen's list runs
+  under its top bar, and under a bar of buttons at the bottom, and shows through them blurred and washed with the
+  screen's colour. The screen marks its scrolling content with `Modifier.glassSource(appBar)`; `BurkanTopBar`
+  frosts itself, and a bottom bar takes `Modifier.glass(appBar, risingOver = GlassRise)` with that much padding
+  above its buttons. A screen does not set a bar's colours. A large title still shrinks into its bar, through
+  `rememberBurkanAppBar(large = true)` and `Modifier.topBarScroll` on the scaffold. One UI's bars are not glass:
+  its content fades out under them.
+  Previews draw the glass without its blur, as an all but solid wash: the screenshot tests' renderer cannot
+  compile the blur's shader.
+- **Motion comes from `burkanMotion`** (`designsystem/Motion.kt`), not from a spring or a tween written at a call
+  site. In the Material style what moves, changes size or changes colour rides the theme's motion scheme: a
+  spatial spring for the first two, an effects spring for colour. A fade that makes way for another is timed
+  (`vanish()`, then `appear()`), because the second has to wait for the first and a spring cannot wait. In One UI
+  they are that style's fixed curve. Going from one screen to the next, Material slides a short way and fades
+  (`slideTransition`); One UI slides the new screen over the old (`oneUiTransition`). Both turn round in a
+  right-to-left layout. A whole screen slides on `slide()`, never on a scheme's spring as it comes: that one does
+  not know when a position is close enough, and runs on long after the screen has visibly stopped.
+- **A control that changes the app's look holds still until the look changes.** The old look is pictured the
+  moment the control is tapped, so anything of it still moving would be frozen half way in the picture. Such a
+  control draws no ripple, does not change shape while pressed, and shows its own new state through
+  `heldUntilRevealed(value)`. `BurkanChoiceList(changesLook = true)` does all three.
+- **What a screen reader needs is said in the design system.** A bar's title, a group's title and a sheet's
+  title are headings (`semantics { heading() }`), set in `BurkanTopBar`, `BurkanSectionTitle` and the sheet's
+  parts. Text that changes by itself, as Home's status and its notices do, is a polite live region.
+- **Material's margin follows the window**: `ScreenMargin` and `ContentMargin` are 16 dp in a compact window and
+  24 dp from 600 dp of width up. One UI's do not change.
+- **A sheet or a dialog frosts the screens behind it**, in both styles: it calls `GlassBehindWindow()`, and `App`
+  blurs its screens for as long as one is open (`glassBackdrop`). The blur is the app's own. Android's blur behind
+  a window (`FLAG_BLUR_BEHIND`) does nothing on the Galaxy S23, which is not built with it.
+- **What floats over the content in One UI is a piece of glass** (`Modifier.glassPane`): the round buttons of its
+  bar, and its floating search. It blurs less than a bar and keeps half of its own colour, so that a line of
+  text passing under it still shows.
+- **A screen's content keeps to a readable width.** Whatever holds it ends its modifiers with
+  `Modifier.readableWidth()` (`designsystem/component/ReadableWidth.kt`), after any scrolling: on a phone held
+  sideways or in a wide window the content is centred at 640 dp, and the bars still span the screen.
+- **A row's value is its trailing text**, not a pill, where it only informs: a version, On or Off, a renderer. A
+  second line that is an identifier, a package name above all, takes `supportingOneLine` and is shortened in its
+  middle instead of wrapping.
 - **Content sits in segmented groups.** Related rows form one group whose outer corners are large and whose inner
   corners are small, with a 2 dp gap between segments (`designsystem/component/BurkanSegment.kt`). A row of a list
   is a `BurkanSegmentItem`; anything else goes in a `BurkanSegment`. Pass each its index and the group's count.
@@ -312,13 +371,15 @@ Metro, one graph:
   `SettingsStorage.appearance()` combines their flows into one `Appearance`; `App.kt` collects it through
   `AppViewModel` and passes the values to `BurkanTheme`. The scheme is always generated under Material's 2026
   colour spec. A change of theme or colour is revealed in a circle growing from where the user tapped
-  (`ThemeReveal`); a sheet, being a window of its own, fades its colours instead. `App` reports whether the
+  (`ThemeReveal`); a sheet, being a window of its own, joins the same circle as a `RevealParticipant`. `App` reports whether the
   app is dark through `onThemeChange`, and `MainActivity` colours the system bars' icons to match. Defaults live
   in one `Defaults` object in the storage class, so a preview and a fresh install agree.
 - **A list row is `BurkanSegmentItem`**, Material's segmented list item: a pressed row and a selected or ticked one
   change shape as well as colour. A setting that is switched on is not a selected row; only its switch shows it.
-- **A choice is made in a bottom sheet** (`BurkanBottomSheet`): a card floating above the bottom of the screen,
-  open in full or closed, never half open.
+- **A choice is made in a bottom sheet** (`BurkanBottomSheet`), open in full or closed, never half open. In the
+  Material style it is Material's: as wide as the screen, docked to the bottom, in `surfaceContainerLow`, with
+  its groups a tone higher. In One UI it is a card floating above the bottom of the screen. A preview draws a
+  sheet's content inside `BurkanSheetPreview`, so it is on the sheet's own colour.
   One option out of several is a `BurkanChoiceList` of radio segments and applies at once with the sheet left
   open.
 - **Fonts are bundled, not downloaded**: the files are in `res/font`, each under the SIL Open Font License, and
@@ -329,7 +390,8 @@ Metro, one graph:
   ViewModel.
 - Use `start`/`end`, never `left`/`right`.
 - **Icons are Tabler outline.** Do not hand-roll a vector the set has. Anything that points — back, a chevron,
-  an arrow — is `Icons.AutoMirrored.Outlined.*`.
+  an arrow — is `Icons.AutoMirrored.Outlined.*`. The one exception is a Material top bar, whose action icons are
+  Tabler's filled ones where the set has them; One UI's stay in outline.
 - **Never colour alone** to carry meaning. Pair a status colour with an icon or a label: "Vulkan" and "OpenGL"
   are written out, not shown as green and red dots.
 - **Status colours are fixed, not generated**, because the Material scheme follows a seed the user chooses. They
@@ -430,5 +492,12 @@ Metro, one graph:
   performance note on a configuration cache miss; the cache entry is still stored and reused.
 - JitPack is declared with a content filter so only `com.github.MuntashirAkon` (and its `spake2-java` group)
   resolves from it.
+- **What JitPack serves is checked against `gradle/verification-metadata.xml`.** JitPack builds an artifact from
+  its source when it is first asked for, and could build it again; Google's repository and Maven Central do not
+  change a file once it is published, so everything else is trusted without a checksum. When libadb's version
+  changes, record the new checksums with `./gradlew --write-verification-metadata sha256 :app:assembleDebug`.
+- **The wrapper checks the Gradle it downloads** against `distributionSha256Sum` in
+  `gradle/wrapper/gradle-wrapper.properties`. A new Gradle version needs its own checksum, from
+  `https://gradle.org/release-checksums/`: pass it to the `wrapper` task as `--gradle-distribution-sha256-sum`.
 - Conscrypt's Android artifact is left off the unit-test runtime classpath: its native code is Android-only, and on
   the JVM it shadows the Conscrypt Robolectric installs for itself.

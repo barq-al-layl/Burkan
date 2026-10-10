@@ -35,6 +35,15 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] Connect starts by itself when its step is reached, and so does Permission.
 - [x] Reinstalled over a restored backup, the app starts setup from its first step, while the log and the
       settings come back: the pairing is not claimed on the strength of a backup.
+- [ ] With setup complete, forget Burkan under Wireless debugging's paired devices, then open the app: it leaves
+      Home for Setup at the Pair step, and pairing again leads through Connect, Permission and Battery back to
+      Home. (Covered by tests only.)
+- [ ] Type a code that is not six digits into the notification twice in a row: the reply field stops waiting both
+      times. (It used to go on waiting the second time. Seen on an emulator with Android 17; not on a phone.)
+- [ ] With wireless debugging off, tap Apply now and then Cancel within two seconds: wireless debugging is off
+      again afterwards. (It used to stay on. Covered by a test only.)
+- [ ] On Wi-Fi that has no internet behind it, with mobile data on: the status reads and Apply now works, and
+      neither says the phone is not on Wi-Fi.
 
 ## Applying and status
 
@@ -63,6 +72,12 @@ When you check one, tick it here and record what you saw in the device notes.
       the log records it.
 - [x] Cancel from Home stops the run and the settings are put back.
 - [ ] Cancel from the notification does the same.
+- [ ] Switch Wi-Fi off in the middle of Restart all apps: auto-rotation, the accessibility services and the Edge
+      panel setting are still put back, by the app itself, and the log shows their steps as done. Check
+      `edge_enable` in particular: it is Samsung's own key, and whether the app may write it is expected, not
+      measured (device notes, section 4).
+- [ ] Force-stop Burkan from Settings in the middle of Restart all apps, then open it again: the same settings
+      are put back as Home opens.
 - [ ] Opening Home with wireless debugging off refreshes the status, and wireless debugging is off again after.
 - [x] In One UI, a run shows as a list of steps in place of the surfaces, each ticked as it ends, and Done puts
       the surfaces back.
@@ -73,6 +88,8 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] Reboot on a trusted Wi-Fi network: Vulkan is applied with no interaction, and wireless debugging is off
       again afterwards.
 - [ ] Reboot with Wi-Fi off, then switch Wi-Fi on later: it applies then.
+- [ ] The same with mobile data on: it applies as Wi-Fi connects, and does not fail with "not on Wi-Fi" in the
+      moment before Wi-Fi becomes the phone's way to the internet.
 - [ ] Reboot on an untrusted network: the app explains instead of failing silently.
 - [x] How long after unlock it finishes. Record it. (`BOOT_COMPLETED` 36 seconds after the first unlock, then
       9 seconds for the first phase; System UI at the next lock. Device notes, section 12.)
@@ -81,7 +98,11 @@ When you check one, tick it here and record what you saw in the device notes.
       does it fall back to the "Wi-Fi is connected" notification? Record which, with and without the battery
       exemption.
 - [ ] On a refused network, the notification explains and the Home card shows; connecting to a trusted network
-      afterwards applies by itself.
+      afterwards applies by itself: at once when the phone was off Wi-Fi in between, and otherwise within about a
+      quarter of an hour of the phone being awake. Record how long it took. (The wait used to end with the first
+      network it was told of. Expected from Android's source, device notes section 12; not seen on a phone.)
+- [ ] While it waits, `dumpsys alarm` lists one alarm of Burkan's that does not wake the phone, and none once it
+      has applied or the automatic apply is switched off.
 - [ ] An automatic run when Vulkan is already active logs "Already applied" and restarts nothing.
 - [x] The exclusions picker lists the installed apps, with their icons.
 - [ ] An app ticked there survives Restart all apps.
@@ -97,6 +118,59 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] Every screen at the largest text size, and in the light theme.
 - [x] Changing the style in Settings changes it in place. (It used to throw the user back to Home; fixed and
       seen working since.)
+- [x] Tapping a colour in its sheet, in the Material style: the row draws no ripple and stays as it was, the new
+      look spreads from the tap, and the row's mark turns on inside the circle. (Seen frame by frame on an S23,
+      10 Oct 2026. The circle shows about an eighth of a second after the touch; there used to be a fixed wait
+      of 120 ms on top of that, for the ripple and the mark to settle. What is left is the setting being saved.)
+- [ ] The same for a theme and a style, and all three in the One UI style. The row already chosen still ripples.
+- [x] Tapping one colour and then another straight away: the second circle starts from the second tap, inside
+      the first, which is pictured as far as it had got. (Seen frame by frame on an S23, Material style, with
+      150 ms between the taps. The order of events is covered by `ThemeRevealTest`.)
+- [x] Going from Home to Settings in the Material style: the old screen fades out, then the new one fades in
+      while it slides a short way. (Seen frame by frame on an S23.)
+- [ ] The same in a right-to-left language: the slide runs the other way, in both styles. (Not seen on a device.)
+- [ ] With TalkBack on: each screen's title, each group's title and each sheet's title is a heading; Home's
+      status is read out when it changes, and a notice when it comes. (Not seen on a device.)
+- [ ] At the largest text size the buttons at the bottom of Home, the crash screen and a sheet grow with their
+      labels. (Not seen on a device.)
+- [ ] In a window 600 dp wide or more, Material's side margins are 24 dp. (Not seen on a device; the previews
+      draw 16 dp.)
+- [ ] Settings › Report a problem opens the issue form in the browser. (Not reachable on the emulator, where
+      setup cannot finish; covered by a view model test only.)
+- [ ] With no browser on the phone, or every browser disabled, the links in Settings and in a library's sheet do
+      nothing and the app goes on. (It used to stop.)
+- [ ] The question before Restart all apps says that Burkan gives itself usage access. (Seen in previews only.)
+- [x] A crash with the app in front shows the crash screen with the report; Share opens the share sheet and
+      Report a problem the browser. (On an emulator, with `am crash`; not yet on a phone, nor in a minified
+      release build.)
+- [x] A crash with the app in the background shows nothing and is left to Android; the report is still written.
+      (On an emulator.)
+- [ ] The crash screen on a Galaxy, where it is drawn in the One UI style.
+- [ ] In the Material style: buttons turn squarer while pressed, and Restart all apps turns a progress ring where
+      Apply now turns the loading shape.
+- [x] In the Material style the top bar is frosted glass: content scrolling under it shows through blurred. (On
+      an emulator, on Setup and the crash screen.)
+- [x] The bar of buttons at the bottom is frosted too, the frost coming in over its upper edge. (On an emulator,
+      on the crash screen only.)
+- [ ] The same on Home, Log, Settings and the two lists, on a phone: the bars stay readable over every card and
+      the notice's amber, in both themes, and scrolling stays smooth with the blur on.
+- [ ] Home in the Material style: the surfaces as a list, Restart all apps as its last row, and Apply now alone
+      at the bottom, turning into Cancel during a run. A second tap on Apply now does not cancel the run it
+      started. (Seen in previews only.)
+- [ ] The phone held sideways: every screen's content is centred at a readable width, and the bars span the
+      screen. (Seen in one preview of Home only.)
+- [ ] In the Material style, going from one screen to the next slides a short way and fades, and the back gesture
+      carries the same change with the finger; a notice, a step and a run's steps open and close on Material's
+      spring without the content jumping. (Not seen on a device.)
+- [x] The screens behind a sheet and behind a confirmation are blurred as well as dimmed. (On an S23, in the One
+      UI style. Android's own blur behind a window was tried first and does nothing there:
+      `ro.surface_flinger.supports_background_blur` is unset, so the app blurs its own screens.)
+- [ ] The same in the Material style, behind its sheet and its dialog.
+- [x] In One UI the bar's round buttons and the floating search are glass: what scrolls under them shows through
+      blurred. (On an S23, on Home and the exclusions list.)
+- [ ] In the Material style: a bottom sheet is as wide as the screen and docked to its bottom edge, its content
+      clear of the navigation bar, and it still joins the circle a change of theme spreads in. (Seen only in
+      previews, which draw a sheet without its window.)
 
 ## The lock screen, the launcher and the screens
 

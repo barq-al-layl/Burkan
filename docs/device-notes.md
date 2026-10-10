@@ -165,7 +165,7 @@ The port of the script's full flow, for a phone that has been running on OpenGL 
    them. All of it is read before anything is changed.
 5. `setprop debug.hwui.renderer skiavk`.
 6. `am force-stop <package>` for each remaining package.
-7. `am force-stop com.sec.android.app.launcher`, wait about two seconds, launch it with `monkey`.
+7. `am force-stop <home package>`, wait about two seconds, start home again (section 2).
 8. Relaunch the remembered running apps and the widget packages with `am start`.
 9. `am crash <current keyboard package>`.
 10. Restore the state from section 4.
@@ -237,6 +237,19 @@ Rules, each of which was a real bug in the scripts:
   rotation and accessibility.
 
 The accessibility value is a `:`-separated list of `package/class` components.
+
+**When the shell is gone.** A run that loses its connection for good (Wi-Fi drops, and the system switches
+wireless debugging off with it) can no longer send `settings put`, and one whose process dies never gets to. The
+captured values are therefore kept in the app's own state file from before the first step, and the app writes
+them back itself, through the content resolver:
+
+| Fact | Status |
+|---|---|
+| An app holding `WRITE_SECURE_SETTINGS` can write `Settings.Secure` keys, `edge_enable` and `edge_panels_enabled` among them, through the content resolver | Expected — from the settings provider's source. The app writes `adb_wifi_enabled` in `Settings.Global` the same way, which is measured (section 9) |
+| The same permission lets it write `Settings.System` `accelerometer_rotation` without holding `WRITE_SETTINGS` | Expected — from the settings provider's source |
+
+This is only the way back when the shell does not answer. With a connection, the settings go back through the
+shell as before, and are read back.
 
 The light apply force-stops only the launcher, so it does not need the capture and restore.
 
@@ -349,7 +362,7 @@ recorded.
 | adbd accepts `shell,v2,raw:<command>` on a stream opened by libadb-android, and answers with v2 packets ending in the exit code | Measured: the grant and the light apply ran through it |
 | libadb-android reports a wrong pairing code as an `IOException` with the message `Could not exchange peer info.` | Measured. The library's source (3.1.1) also has `Exchanging message wasn't successful.` for a failure one step earlier; the app takes either to mean a wrong code |
 | libadb-android reports a closed pairing dialog as a refused connection | Expected — read from the library's source, version 3.1.1 |
-| libadb-android's `AbsAdbConnectionManager.close()` destroys the private key | Read from the library's source; the app only ever calls `disconnect()` |
+| libadb-android asks the private key to destroy itself in `AbsAdbConnectionManager.close()`, and also at the end of `disconnect()`, which closes the connection with `AdbConnection.close()` | Read from the library's bytecode, version 3.1.1. The app calls `disconnect()` after every run and connects again with the same key, which is measured to work (section 11): so the key Android makes does not let itself be destroyed, and the app depends on that |
 
 **The pairing dialog closes when the user leaves the Settings screen**, so the code cannot be typed into the
 app's own activity. (Measured: typing the code into the notification from the shade, with the dialog still open,
@@ -434,6 +447,22 @@ What follows for the app:
   handled. If it is the same, it applies nothing and only resumes what this boot was waiting for.
 - The run at the lock is logged as its own entry, "System UI at lock", after the "After restart" run it continues.
 
+**Waiting for Wi-Fi.** None of this has been seen on the phone yet.
+
+| Fact | Status |
+|---|---|
+| A network callback registered with a `PendingIntent` is sent once: for the first network that satisfies it, and at once when one already does | Expected — from Android's `ConnectivityService` source (`mPendingIntentSent`), read in the Android 11 version |
+| About five seconds after it is sent, the system releases the request, and with it one registered again with an equal intent inside those seconds | Expected — same source (`releasePendingNetworkRequestWithDelay`) |
+| For a moment after Wi-Fi connects, and for as long as it has no internet behind it, the phone's default network is still mobile data | Expected |
+| An alarm of type `ELAPSED_REALTIME` set with `AlarmManager.set` needs no permission, may be delivered late, and is not delivered to a sleeping phone until it wakes | Expected — from Android's documentation |
+
+What follows for the app:
+
+- A callback registered while the network just tried is still connected is used up at once, by news of that same
+  network. While it waits, the app registers the callback again from an alarm, about every quarter of an hour.
+- Whether the phone is on Wi-Fi is asked of the Wi-Fi network itself, not of the network the phone reaches the
+  internet through.
+
 ## 13. A full pass with Vulkan already active
 
 Measured on One UI 8.5 with a debug build, the USB cable plugged in, on a Wi-Fi network marked "Always allow", with
@@ -452,3 +481,14 @@ Vulkan already active on every surface.
 | A wrong pairing code leaves the system's pairing dialog open with the same code, and the right code typed next pairs | Measured |
 | After a reinstall, the run log and the settings came back from Android's backup and setup started from its first step, as the state file that holds the pairing is excluded from backups | Observed; that it was a backup restore is inferred from what came back and what did not |
 | Every new connection raises the system's "Wireless debugging connected" notification as a banner over the top of the screen for a few seconds, and tapping it opens Developer options | Measured |
+
+## 14. What the screen can and cannot do
+
+Not about the shell, but measured on the same phone and easy to get wrong from Android's documentation.
+
+| Finding | Status |
+|---|---|
+| Android's blur behind a window (`FLAG_BLUR_BEHIND`, `blurBehindRadius`) does nothing on the S23: `ro.surface_flinger.supports_background_blur` is unset and `dumpsys window` reports `mBlurEnabled=false`. A sheet that asks for it is only dimmed | Measured |
+| A blur the app draws of its own content (a render effect on its own layers) works, behind a sheet's window as well | Measured |
+| A ripple is animated by the system's render thread. Drawn again into a bitmap, it is drawn from its start, so a picture taken that way of a screen being tapped shows the ripple reset. A copy of the window (`PixelCopy`) shows it as it is, a few frames late | Measured, frame by frame from a screen recording |
+| `adb shell monkey … 1` writes `accelerometer_rotation=1` as it exits, whatever app it launches. `dumpsys settings` keeps the last five writes to a setting, with the time and the package that made each, which is how two such launches from other work on the phone were found | Measured |

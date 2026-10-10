@@ -34,7 +34,7 @@ Burkan does it on the phone, by itself, after every restart.
 - Devices other than the S23 family. The app warns on other models and lets the user continue; it makes no
   claim about them.
 - Any network use beyond the connection to the phone itself and the local service discovery that finds its port.
-  No analytics, no crash upload, no update check.
+  No analytics, no crash upload, no update check. A crash report stays on the phone until its user shares it.
 
 ## Constraints that shape the design
 
@@ -81,7 +81,8 @@ step carries its instructions and its action, and the ones still to come wait un
   there: Android offers that switch only on Wi-Fi.
 - Leaving and returning resumes at the current step and checks it again.
 - A pairing the phone no longer accepts sends setup back to the Pair step, and the steps after it are gone
-  through again.
+  through again. That holds once setup is complete as well: setup is then no longer complete, so the app leaves
+  Home for Setup, and nothing is applied after a restart until it has been finished again.
 - If the device model is not SM-S911*, SM-S916* or SM-S918*, a notice at the top says the app is only tested on
   the S23 family. It does not block.
 
@@ -91,8 +92,8 @@ The status, and the two actions. The two styles lay it out differently; what it 
 
 - **Headline**: one of *Vulkan is active*, *Vulkan is not applied*, *Partly applied*, or, when the status cannot
   be read, the cause by name where it is one the user can put right (*Not connected to Wi-Fi*, *Wireless
-  debugging is off*, *Burkan is no longer paired*) and *Unknown — cannot connect* otherwise. In words, never
-  colour alone.
+  debugging is off*) and *Unknown — cannot connect* otherwise. In words, never colour alone. A pairing the phone
+  has dropped reads *Burkan is no longer paired* only for as long as Home takes to give way to Setup.
 - **Detail rows**: New apps (from the property), System UI, Launcher, Keyboard — each "Vulkan", "OpenGL" or
   "Unknown", from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
   stay in place with placeholders; while a run is in progress the card says its values are being changed.
@@ -104,11 +105,14 @@ The status, and the two actions. The two styles lay it out differently; what it 
   The confirmation also asks how far to go: every app, which it starts from each time, or only the 30 or 70 used
   most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
   says which apps are recent only to an app with usage access, which the app allows itself over its own connection
-  the first time a limited run needs it. If Android still names none, the run fails rather than restart
-  everything.
+  the first time a limited run needs it, and the confirmation says so. If Android still names none, the run fails
+  rather than restart everything.
   At its end the full apply brings Burkan back to the front.
-- **In the Material style** the two actions are buttons docked at the bottom. While a run is in progress the card
-  shows a progress indicator and the current step in words, and the second button becomes Cancel.
+- **In the Material style** the screen reads from the top as the answer, then lists: the status card, the four
+  surfaces as a list with each renderer at the end of its row, then the last run, After a restart, and Restart
+  all apps as a row that opens its confirmation. Apply now is the one button, docked at the bottom. While a run
+  is in progress the card shows a progress indicator and the current step in words, that button becomes Cancel,
+  and the Restart all apps row is dimmed and does not react.
 - **In the One UI style** nothing is docked: a summary card at the top carries the state in large words and the
   two actions side by side. During a run the card's one button is Cancel, and the surfaces give way to the run's
   steps as a checklist, each ticked as it ends; a step that failed is marked. When the run has ended the button
@@ -134,9 +138,11 @@ The status, and the two actions. The two styles lay it out differently; what it 
   the sheet alike, and leaves the user on the screen they were on.
   The options and defaults are in `CONTRIBUTING.md`.
 - Redo setup: forgets the pairing and returns to Setup at its first step, after a confirmation.
-- About: version, a link to the source on GitHub, the app's licence (Apache-2.0), and the
-  libraries' licences on their own screen (`LicencesRoute`). That list is generated at build time from the
+- About: Report a problem, a link to the source on GitHub, the app's licence (Apache-2.0), the libraries'
+  licences on their own screen (`LicencesRoute`), and the version last. That list is generated at build time from the
   dependencies (AboutLibraries) and read from the app's resources: no network at run time.
+  Report a problem opens the browser on a new GitHub issue, started from the form in
+  `.github/ISSUE_TEMPLATE/bug_report.yml`. Nothing is filled in for the user and nothing is sent by the app.
 
 ### Log (`LogRoute`)
 
@@ -147,6 +153,20 @@ The status, and the two actions. The two styles lay it out differently; what it 
   version, then each run on a line with its steps marked done or failed beneath. It never contains the ADB key,
   and no package names: steps are recorded with counts ("Stop 612 apps"), so there is nothing to warn about
   before sharing.
+
+### After a crash (`CrashActivity`)
+
+- When the app crashes with one of its screens showing, it shows a screen of its own in place of Android's
+  "Burkan keeps stopping": that it stopped, the report, **Share the report** and **Report a problem**.
+- The report is text: the app's version, the phone's maker, model and Android version, the time, the thread, and
+  the error with its causes. It is shared as text through Android's share sheet, to be pasted into an issue.
+- A crash with no screen showing, such as during a run after a restart, is left to Android, which handles it
+  without a dialog. An app may not open a screen from the background. The report is still written.
+- The screen runs in a process of its own (`:crash`), which starts after the app's has died. It is built by its
+  own constructor, not by the graph, and reads no setting, so it opens even when what crashed is the graph or the
+  settings. It is therefore drawn in the look a fresh install has on that phone, not the one the user chose. The
+  handler is not installed in that process: a crash there goes to Android.
+- One report is kept, the newest, in the cache (`feature/crash/CrashReport.kt`).
 
 ## How it is built
 
@@ -162,6 +182,7 @@ The code structure and conventions are in `CONTRIBUTING.md`. These are the parts
 | `status` | Reading renderer state; the Home screen |
 | `settings` | The Settings screen and its storage |
 | `log` | Run history and the Log screen |
+| `crash` | The uncaught-exception handler, the report and the screen that shows it |
 
 `ShellExecutor` itself is in `core/shell/` because `apply` and `status` both use it.
 
@@ -197,6 +218,10 @@ A flow is a function that returns the list of steps, and a runner that executes 
   package, keyboard package).
 - `ApplyRunner` executes steps through `ShellExecutor`, records each result in the log, and guarantees the
   restore step runs when a full apply fails or is cancelled.
+- What a full apply has to put back is kept in the phone's state file from before its first step until it is back
+  (`CapturedSettings`). Where the shell no longer answers, the app writes a value back itself, which
+  `WRITE_SECURE_SETTINGS` lets it do. A run whose process died under it is undone the same way, the next time a run
+  starts or Home opens.
 - Tests assert on the plan (exact commands, in order) without running anything, and on the runner with a fake
   shell that fails at a chosen step.
 - A process that has to be crashed to restart, System UI and the keyboard, is named by its process ID, found by
@@ -213,7 +238,9 @@ A flow is a function that returns the list of steps, and a runner that executes 
   address as fallback. Retry discovery for up to 30 seconds after wireless debugging is switched on.
 - **Enabling wireless debugging**: write `Settings.Global` `adb_wifi_enabled` through the content resolver. Read
   it back after two seconds: if it is 0 again, the system refused (no Wi-Fi, or network not trusted) and the
-  result is a specific error, not a retry loop.
+  result is a specific error, not a retry loop. A run cancelled in those two seconds switches it off again.
+  "On Wi-Fi" means connected to a Wi-Fi network, whether or not the phone reaches the internet through it: for a
+  moment after Wi-Fi connects, and for as long as it has no internet behind it, that is still mobile data.
 - **One connection at a time**, owned by a single class, behind a mutex. A run holds it from start to finish.
 - **A lost connection is picked up again.** adbd restarts on every keyguard change, on a new port. The shell a block
   gets waits a second, finds the port again and reconnects, for up to 30 seconds. A command that never reached the
@@ -235,7 +262,11 @@ A flow is a function that returns the list of steps, and a runner that executes 
    the same boot. The callback covers the rest of the boot without holding a
    foreground service. A network the system refused wireless debugging on
    is remembered and not tried again until a different network connects. If Android does not let the callback
-   start the service from the background, a notification with an "Apply" action starts it instead.
+   start the service from the background, a notification with an "Apply" action starts it instead. Android tells
+   such a callback of one network, the one already up when there is one, and then lets go of it. So while the app
+   waits, an alarm registers the callback again about every quarter of an hour; it does not wake the phone, and
+   waits for it to be awake. A different network is noticed at once when the phone was off Wi-Fi in between, and
+   when the callback is next registered otherwise.
 5. Enable wireless debugging, connect, run the light apply without System UI, verify, disable wireless debugging
    if the app enabled it, write the log entry. The user has just unlocked the phone, and restarting System UI would
    lock it again, so if System UI is not on Vulkan the service stays in the foreground, with a notification saying
