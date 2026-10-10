@@ -76,6 +76,8 @@ private val SwitchThumbInset = 2.5.dp
  * One UI's search: a pill floating over the foot of a list, in reach of the thumb, rather than a field at the
  * list's head. It is short while it only waits, and takes the width of the screen once it is typed in. Place it
  * over the list, at the bottom, and give the list [FloatingSearchRoom] more at its end so the last rows clear it.
+ *
+ * Given the screen's [glass], it is a piece of glass: the rows that pass beneath show through it, blurred.
  */
 @Composable
 fun BurkanFloatingSearch(
@@ -84,6 +86,7 @@ fun BurkanFloatingSearch(
     placeholder: String,
     clearLabel: String,
     modifier: Modifier = Modifier,
+    glass: BurkanAppBar? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val share by animateFloatAsState(
@@ -97,16 +100,19 @@ fun BurkanFloatingSearch(
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
+        val fill = MaterialTheme.colorScheme.surfaceContainerHigh
+        val size = Modifier
+            .fillMaxWidth(share)
+            .height(SearchHeight)
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(share)
-                .height(SearchHeight),
+            modifier = if (glass != null) size.glassPane(glass, fill, CircleShape) else size,
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            // As glass it has no fill of its own, and no shadow, which would show dark through it.
+            color = if (glass != null) Color.Transparent else fill,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            // A faint rim and a shadow: what lifts it off the rows that pass beneath.
+            // A faint rim, and a shadow where it is solid: what lifts it off the rows that pass beneath.
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-            shadowElevation = 8.dp,
+            shadowElevation = if (glass != null) 0.dp else 8.dp,
         ) {
             Row(
                 modifier = Modifier.padding(start = 18.dp, end = 6.dp),

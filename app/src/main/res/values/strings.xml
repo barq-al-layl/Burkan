@@ -263,7 +263,7 @@
     <string name="home_after_restart_off_text">Nothing is applied until you tap Apply now.</string>
     <string name="value_on">On</string>
     <string name="value_off">Off</string>
-    <string name="home_actions_note">Apply now switches new apps and the system\'s own surfaces. Restart all apps also closes every open app, so they come back on Vulkan.</string>
+    <string name="home_restart_all_text">Also closes every open app, so each comes back on Vulkan</string>
     <plurals name="home_confirm_kept">
         <item quantity="one">%1$d app you chose stays running.</item>
         <item quantity="other">%1$d apps you chose stay running.</item>

@@ -55,6 +55,9 @@ import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
+import io.github.barqallayl.burkan.designsystem.component.BurkanSheetPreview
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
@@ -150,9 +153,11 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                     // The bar's height is kept clear here, not in the content padding, so the fade starts under it.
                     modifier = Modifier
                         .fillMaxSize()
+                        .glassSource(appBar)
                         .padding(top = innerPadding.listTop())
                         .oneUiScrollFade(listState)
-                        .padding(horizontal = ScreenMargin),
+                        .padding(horizontal = ScreenMargin)
+                        .readableWidth(),
                     state = listState,
                     contentPadding = PaddingValues(
                         bottom = innerPadding.calculateBottomPadding() + GroupGap + FloatingSearchRoom,
@@ -208,6 +213,7 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                         onSearch = { query = it },
                         placeholder = stringResource(R.string.licences_search),
                         clearLabel = stringResource(R.string.search_clear),
+                        glass = appBar,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .imePadding()
@@ -333,7 +339,8 @@ private fun LicencesPreview() = LicencesContent(LicencesState(sampleLibraries), 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun LicencesLibrarySheetPreview() = LibrarySheet(sampleLibraries.libraries.first())
+private fun LicencesLibrarySheetPreview() =
+    BurkanSheetPreview { LibrarySheet(sampleLibraries.libraries.first()) }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

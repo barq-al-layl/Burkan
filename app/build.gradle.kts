@@ -177,6 +177,9 @@ dependencies {
     implementation(libs.metrox.viewmodel.compose)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
+    implementation(libs.tabler.icons.filled)
     implementation(libs.tabler.icons.outline)
 
     testImplementation(platform(libs.androidx.compose.bom))

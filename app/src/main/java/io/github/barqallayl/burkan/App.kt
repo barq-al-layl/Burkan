@@ -6,7 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -21,7 +24,12 @@ import io.github.barqallayl.burkan.core.navigation.rememberNavigator
 import io.github.barqallayl.burkan.core.navigation.oneUiTransition
 import io.github.barqallayl.burkan.core.navigation.slideTransition
 import io.github.barqallayl.burkan.designsystem.AppStyle
+import io.github.barqallayl.burkan.designsystem.BurkanMotion
 import io.github.barqallayl.burkan.designsystem.BurkanTheme
+import io.github.barqallayl.burkan.designsystem.burkanMotion
+import io.github.barqallayl.burkan.designsystem.component.GlassBackdrop
+import io.github.barqallayl.burkan.designsystem.component.LocalGlassBackdrop
+import io.github.barqallayl.burkan.designsystem.component.glassBackdrop
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
@@ -56,7 +64,13 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
                 paletteStyle = colours.paletteStyle.style,
                 appStyle = colours.appStyle,
             ) {
-                Surface(modifier = Modifier.recordsRevealOrigin()) { AppNavigation(isSetupComplete) }
+                // A sheet or a dialog frosts the screens behind it for as long as it is open.
+                val backdrop = remember { GlassBackdrop() }
+                CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+                    Surface(modifier = Modifier.recordsRevealOrigin().glassBackdrop(backdrop)) {
+                        AppNavigation(isSetupComplete)
+                    }
+                }
             }
         }
     }
@@ -75,6 +89,8 @@ private data class ThemeColours(
 private fun AppNavigation(isSetupComplete: Boolean) {
     // Each style changes screen its own way.
     val style = LocalAppStyle.current
+    val motion = burkanMotion
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val navigator = rememberNavigator(start = if (isSetupComplete) HomeRoute else SetupRoute)
     CompositionLocalProvider(LocalNavigator provides navigator) {
         NavDisplay(
@@ -84,15 +100,20 @@ private fun AppNavigation(isSetupComplete: Boolean) {
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
-            transitionSpec = { screenTransition(style, forward = true) },
-            popTransitionSpec = { screenTransition(style, forward = false) },
-            predictivePopTransitionSpec = { screenTransition(style, forward = false) },
+            transitionSpec = { screenTransition(style, motion, forward = true, rtl) },
+            popTransitionSpec = { screenTransition(style, motion, forward = false, rtl) },
+            predictivePopTransitionSpec = { screenTransition(style, motion, forward = false, rtl) },
             entryProvider = ::appEntryProvider,
         )
     }
 }
 
-private fun screenTransition(style: AppStyle, forward: Boolean): ContentTransform = when (style) {
-    AppStyle.Material -> slideTransition(forward)
-    AppStyle.OneUi -> oneUiTransition(forward)
+private fun screenTransition(
+    style: AppStyle,
+    motion: BurkanMotion,
+    forward: Boolean,
+    rtl: Boolean,
+): ContentTransform = when (style) {
+    AppStyle.Material -> slideTransition(forward, motion, rtl)
+    AppStyle.OneUi -> oneUiTransition(forward, rtl)
 }

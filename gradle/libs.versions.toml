@@ -13,6 +13,7 @@ composeBom = "2026.09.00"
 conscrypt = "2.7.0"
 coreKtx = "1.19.1"
 datastore = "1.2.1"
+haze = "2.0.1"
 junit = "4.13.2"
 kermit = "2.2.0"
 kotlin = "2.4.21"
@@ -54,6 +55,8 @@ arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk15to18", version.ref = "bouncycastle" }
 composable-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composablePreviewScanner" }
 conscrypt-android = { module = "org.conscrypt:conscrypt-android", version.ref = "conscrypt" }
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -71,6 +74,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-compose-preview-scanner-support = { module = "io.github.takahirom.roborazzi:roborazzi-compose-preview-scanner-support", version.ref = "roborazzi" }
+tabler-icons-filled = { module = "com.composables:icons-tabler-filled-cmp", version.ref = "tablerIcons" }
 tabler-icons-outline = { module = "com.composables:icons-tabler-outline-cmp", version.ref = "tablerIcons" }
 
 [plugins]

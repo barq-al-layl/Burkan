@@ -1,10 +1,11 @@
 package io.github.barqallayl.burkan.designsystem.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -27,18 +29,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.RevealParticipant
+import io.github.barqallayl.burkan.designsystem.emphasis
+import io.github.barqallayl.burkan.designsystem.heldUntilRevealed
 import io.github.barqallayl.burkan.designsystem.recordsRevealOrigin
 import kotlinx.coroutines.launch
 
 /**
- * The app's bottom sheet: a card that floats above the bottom of the screen, with the screen showing around it. It
- * sits on the screen's own surface colour, so segments inside it look as they do on a screen, and it is either open
- * in full or closed: there is no half-open stop.
+ * The app's bottom sheet. In the Material style it is Material's: as wide as the screen, docked to its bottom edge,
+ * rounded at the top and a tone off the screen's colour. In One UI it is a card that floats above the bottom of the
+ * screen, with the screen showing around it. Either way it is open in full or closed: there is no half-open stop.
  *
  * [content] is handed `hide`, which slides the sheet away and then runs what it is given. Something that changes
  * the screen underneath, or removes the sheet, goes there so it happens once the sheet has gone.
@@ -63,46 +69,69 @@ fun BurkanBottomSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
+        GlassBehindWindow()
         RevealParticipant {
-            val oneUi = LocalAppStyle.current == AppStyle.OneUi
-            Surface(
-                modifier = Modifier
-                    .recordsRevealOrigin()
-                    .windowInsetsPadding(WindowInsets.systemBars)
-                    .padding(horizontal = if (oneUi) 10.dp else SheetMargin)
-                    .padding(bottom = SheetMargin),
-                // One UI's is rounder and a lighter grey than the cards it floats over, which is all that sets it
-                // apart. Material's is the colour of the screen behind it, so in a dark theme only its edge does.
-                shape = if (oneUi) OneUiSheetShape else MaterialTheme.shapes.extraLarge,
-                color = if (oneUi) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                border = if (oneUi) null else BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant,
-                ),
-                shadowElevation = if (oneUi) 6.dp else 0.dp,
-            ) {
-                CompositionLocalProvider(LocalOnSheet provides true) {
-                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                        BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        content { then ->
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { then() }
-                        }
-                    }
+            SheetSurface(modifier = Modifier.recordsRevealOrigin()) {
+                content { then ->
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { then() }
                 }
             }
         }
     }
 }
 
+/** What is seen of a sheet: its container, its handle, and [content] under it. */
+@Composable
+private fun SheetSurface(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val oneUi = LocalAppStyle.current == AppStyle.OneUi
+    Surface(
+        // One UI's stands clear of every edge. Material's runs to the bottom of the screen, under the navigation
+        // bar, and keeps only its content above that bar.
+        modifier = if (oneUi) {
+            modifier
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(horizontal = 10.dp)
+                .padding(bottom = SheetMargin)
+        } else {
+            modifier.windowInsetsPadding(WindowInsets.statusBars)
+        },
+        // One UI's is rounder and a lighter grey than the cards it floats over, which is all that sets it apart.
+        shape = if (oneUi) OneUiSheetShape else BottomSheetDefaults.ExpandedShape,
+        color = if (oneUi) MaterialTheme.colorScheme.surfaceContainerHigh else BottomSheetDefaults.ContainerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = if (oneUi) 6.dp else 0.dp,
+    ) {
+        CompositionLocalProvider(LocalOnSheet provides true) {
+            Column(
+                modifier = (if (oneUi) Modifier else Modifier.navigationBarsPadding()).padding(bottom = 8.dp),
+            ) {
+                BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                content()
+            }
+        }
+    }
+}
+
+/** A sheet's content on the sheet's own container, without the window: how a preview draws a sheet. */
+@Composable
+fun BurkanSheetPreview(content: @Composable ColumnScope.() -> Unit) {
+    SheetSurface(content = content)
+}
+
 private val OneUiSheetShape = RoundedCornerShape(34.dp)
 
-/** The space between a sheet and the edges of the screen. */
+/** The space between One UI's sheet and the bottom of the screen. */
 private val SheetMargin = 12.dp
 
 /**
  * One choice out of [options], as a title over a segmented group of radio rows; made for a [BurkanBottomSheet].
  * [text] says what is being chosen, and [leading] draws ahead of an option's label.
+ *
+ * [changesLook] is for a choice that changes how the whole app looks, which spreads from the tap in a circle. That
+ * circle is the tap's answer, so a row that would start one draws no ripple of its own: two things spreading from
+ * one finger at different speeds read as a stutter. Nor does it change shape under the finger, and the mark of
+ * which row is chosen moves only once the circle has begun: the old look is pictured the moment the row is tapped,
+ * and has to be at rest. The row already chosen changes nothing and keeps its ripple.
  */
 @Composable
 fun <T> BurkanChoiceList(
@@ -113,13 +142,16 @@ fun <T> BurkanChoiceList(
     onSelect: (T) -> Unit,
     text: String? = null,
     leading: (@Composable (T) -> Unit)? = null,
+    changesLook: Boolean = false,
 ) {
+    val shown = if (changesLook) heldUntilRevealed(selected) else selected
     Column {
         Text(
             title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 24.dp),
+            style = emphasis(MaterialTheme.typography.titleLarge, MaterialTheme.typography.titleLargeEmphasized),
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .semantics { heading() },
         )
         if (text != null) {
             Text(
@@ -137,14 +169,21 @@ fun <T> BurkanChoiceList(
                 .selectableGroup(),
         ) {
             options.forEachIndexed { index, option ->
-                BurkanSegmentChoice(
-                    index = index,
-                    count = options.size,
-                    text = label(option),
-                    selected = option == selected,
-                    onClick = { onSelect(option) },
-                    leading = leading?.let { { it(option) } },
-                )
+                val quiet = changesLook && option != selected
+                // No configuration is how Material is told to draw no ripple.
+                CompositionLocalProvider(
+                    LocalRippleConfiguration provides if (quiet) null else LocalRippleConfiguration.current,
+                ) {
+                    BurkanSegmentChoice(
+                        index = index,
+                        count = options.size,
+                        text = label(option),
+                        selected = option == shown,
+                        onClick = { onSelect(option) },
+                        leading = leading?.let { { it(option) } },
+                        pressMorph = !quiet,
+                    )
+                }
             }
         }
     }
@@ -161,6 +200,7 @@ fun BurkanSegmentChoice(
     modifier: Modifier = Modifier,
     supporting: String? = null,
     leading: (@Composable () -> Unit)? = null,
+    pressMorph: Boolean = true,
 ) {
     BurkanSegmentItem(
         index = index,
@@ -168,12 +208,23 @@ fun BurkanSegmentChoice(
         headline = text,
         modifier = modifier,
         supporting = supporting,
-        headlineStyle = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-        ),
+        // The chosen option is set heavier than the others.
+        headlineStyle = when {
+            selected -> emphasis(
+                MaterialTheme.typography.titleMedium,
+                MaterialTheme.typography.titleMediumEmphasized,
+                oneUiWeight = FontWeight.Bold,
+            )
+
+            LocalAppStyle.current == AppStyle.OneUi ->
+                MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal)
+
+            else -> MaterialTheme.typography.titleMedium
+        },
         selected = selected,
         onClick = onClick,
         leading = leading,
+        pressMorph = pressMorph,
         // The row is the control; the button only shows its state, in the row's own colour.
         trailing = {
             val color = LocalContentColor.current

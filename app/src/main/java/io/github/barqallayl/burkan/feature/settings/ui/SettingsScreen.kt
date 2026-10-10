@@ -41,6 +41,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.BrandGithub
 import com.composables.icons.tabler.outline.Brush
+import com.composables.icons.tabler.outline.Bug
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.ColorSwatch
 import com.composables.icons.tabler.outline.InfoCircle
@@ -74,13 +75,15 @@ import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.component.BurkanChoiceList
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
+import io.github.barqallayl.burkan.designsystem.component.BurkanSheetPreview
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.OneUiSwitch
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
-import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
@@ -117,6 +120,7 @@ fun SettingsScreen() {
             onPaletteStyle = viewModel::setPaletteStyle,
             onConfirmRedoSetup = viewModel::confirmRedoSetup,
             onOpenSource = viewModel::openSource,
+            onReportProblem = viewModel::reportProblem,
             onOpenLicence = viewModel::openLicence,
             onOpenLicences = viewModel::openLicences,
         ),
@@ -136,6 +140,7 @@ private class SettingsActions(
     val onPaletteStyle: (PaletteStyles) -> Unit = {},
     val onConfirmRedoSetup: () -> Unit = {},
     val onOpenSource: () -> Unit = {},
+    val onReportProblem: () -> Unit = {},
     val onOpenLicence: () -> Unit = {},
     val onOpenLicences: () -> Unit = {},
 )
@@ -171,6 +176,7 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .glassSource(appBar)
                 .padding(
                     top = innerPadding.listTop(),
                     bottom = innerPadding.calculateBottomPadding(),
@@ -180,7 +186,8 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 .padding(top = innerPadding.listInset())
 
                 .padding(horizontal = ScreenMargin)
-                .padding(bottom = GroupGap),
+                .padding(bottom = GroupGap)
+                .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
             Section(R.string.settings_section_restart) { RestartItems(values, actions) }
@@ -253,17 +260,8 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         supportingColor = valueColor,
         onClick = actions.onOpenExclusions,
         leading = { Icon(Tabler.Outline.Apps, contentDescription = null) },
-        trailing = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (values.exclusionCount > 0 && LocalAppStyle.current != AppStyle.OneUi) {
-                    BurkanPill(values.exclusionCount.toString(), tone = Tone.Good)
-                }
-                Chevron()
-            }
-        },
+        // The count is in the line under the name; a second copy of it at the end would say nothing new.
+        trailing = { Chevron() },
     )
 }
 
@@ -321,14 +319,19 @@ private fun AppearanceItems(appearance: Appearance, actions: SettingsActions) {
     }
 }
 
+/**
+ * What can be done first, then what can be read, and the version last, where it is looked for when a problem is
+ * reported.
+ */
 @Composable
 private fun AboutItems(version: String, actions: SettingsActions) {
     BurkanSegmentItem(
         index = 0,
         count = ABOUT_ITEMS,
-        headline = stringResource(R.string.settings_version),
-        leading = { Icon(Tabler.Outline.InfoCircle, contentDescription = null) },
-        trailing = { BurkanPill(version) },
+        headline = stringResource(R.string.settings_report_problem),
+        onClick = actions.onReportProblem,
+        leading = { Icon(Tabler.Outline.Bug, contentDescription = null) },
+        trailing = { Chevron() },
     )
     BurkanSegmentItem(
         index = 1,
@@ -353,6 +356,16 @@ private fun AboutItems(version: String, actions: SettingsActions) {
         onClick = actions.onOpenLicences,
         leading = { Icon(Tabler.Outline.License, contentDescription = null) },
         trailing = { Chevron() },
+    )
+    BurkanSegmentItem(
+        index = 4,
+        count = ABOUT_ITEMS,
+        headline = stringResource(R.string.settings_version),
+        leading = { Icon(Tabler.Outline.InfoCircle, contentDescription = null) },
+        // A value that only informs is a row's trailing text in Material. One UI keeps its pill.
+        trailing = {
+            if (LocalAppStyle.current == AppStyle.OneUi) BurkanPill(version) else TrailingValue(version)
+        },
     )
 }
 
@@ -392,6 +405,7 @@ private fun AppearanceChoices(
             selected = appearance.appStyle,
             label = { stringResource(it.label) },
             onSelect = actions.onAppStyle,
+            changesLook = true,
         )
 
         SettingsDialog.ThemeMode -> BurkanChoiceList(
@@ -401,6 +415,7 @@ private fun AppearanceChoices(
             label = { stringResource(it.label) },
             onSelect = actions.onThemeMode,
             leading = { Icon(it.icon, contentDescription = null) },
+            changesLook = true,
         )
 
         SettingsDialog.SeedColor -> BurkanChoiceList(
@@ -409,6 +424,7 @@ private fun AppearanceChoices(
             selected = appearance.seedColor,
             label = { stringResource(it.label) },
             onSelect = actions.onSeedColor,
+            changesLook = true,
             leading = {
                 Box(
                     Modifier
@@ -424,6 +440,7 @@ private fun AppearanceChoices(
             selected = appearance.paletteStyle,
             label = { stringResource(it.label) },
             onSelect = actions.onPaletteStyle,
+            changesLook = true,
         )
 
         SettingsDialog.RedoSetup -> Unit
@@ -509,18 +526,24 @@ private fun ChoiceItem(
                         .background(swatch, CircleShape),
                 )
                 if (!oneUi) {
-                    Text(
-                        value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = VALUE_MAX_WIDTH),
-                    )
+                    TrailingValue(value)
                 }
                 Chevron()
             }
         },
+    )
+}
+
+/** What a row is set to, or simply says, at its end. */
+@Composable
+private fun TrailingValue(value: String) {
+    Text(
+        value,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.widthIn(max = VALUE_MAX_WIDTH),
     )
 }
 
@@ -540,7 +563,7 @@ private fun Chevron() {
 }
 
 private const val RESTART_ITEMS = 3
-private const val ABOUT_ITEMS = 4
+private const val ABOUT_ITEMS = 5
 
 private fun sample(
     dialog: SettingsDialog? = null,
@@ -580,13 +603,13 @@ private fun SettingsLoadingPreview() = SettingsContent(SettingsState(), Settings
 @BurkanPreview
 @Composable
 private fun SettingsThemeSheetPreview() =
-    AppearanceChoices(SettingsDialog.ThemeMode, sampleAppearance(), SettingsActions())
+    BurkanSheetPreview { AppearanceChoices(SettingsDialog.ThemeMode, sampleAppearance(), SettingsActions()) }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun SettingsSeedColorSheetPreview() =
-    AppearanceChoices(SettingsDialog.SeedColor, sampleAppearance(), SettingsActions())
+    BurkanSheetPreview { AppearanceChoices(SettingsDialog.SeedColor, sampleAppearance(), SettingsActions()) }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -614,7 +637,9 @@ private fun SettingsLargeTextPreview() {
 @Composable
 private fun SettingsPaletteStyleSheetTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) {
-        AppearanceChoices(SettingsDialog.PaletteStyle, sampleAppearance(), SettingsActions())
+        BurkanSheetPreview {
+            AppearanceChoices(SettingsDialog.PaletteStyle, sampleAppearance(), SettingsActions())
+        }
     }
 }
 
@@ -638,10 +663,12 @@ private fun SettingsOneUiDarkPreview() {
 @Composable
 private fun SettingsStyleSheetOneUiPreview() {
     BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
-        AppearanceChoices(
-            SettingsDialog.Style,
-            sampleAppearance(appStyle = AppStyle.OneUi),
-            SettingsActions(),
-        )
+        BurkanSheetPreview {
+            AppearanceChoices(
+                SettingsDialog.Style,
+                sampleAppearance(appStyle = AppStyle.OneUi),
+                SettingsActions(),
+            )
+        }
     }
 }

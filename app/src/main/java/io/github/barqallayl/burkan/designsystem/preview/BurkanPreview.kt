@@ -15,6 +15,7 @@ import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.resolved
 import io.github.barqallayl.burkan.designsystem.ThemeMode
+import io.github.barqallayl.burkan.designsystem.component.LocalGlassBlurs
 import io.github.barqallayl.burkan.designsystem.isDark
 
 /**
@@ -52,6 +53,7 @@ fun BurkanPreviewTheme(
     CompositionLocalProvider(
         LocalCurrentYear provides PREVIEW_YEAR,
         LocalDensity provides Density(density.density, density.fontScale * fontScale),
+        LocalGlassBlurs provides false,
     ) {
         BurkanTheme(
             isDarkTheme = themeMode.isDark(),

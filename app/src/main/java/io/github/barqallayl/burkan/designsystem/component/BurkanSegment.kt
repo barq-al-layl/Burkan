@@ -13,7 +13,6 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,7 +27,12 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.barqallayl.burkan.designsystem.AppStyle
@@ -127,11 +131,28 @@ val GroupGap: Dp
     @ReadOnlyComposable
     get() = if (LocalAppStyle.current == AppStyle.OneUi) 20.dp else 16.dp
 
-/** The space between the screen's edge and its groups. One UI's cards come close to the edge. */
+/**
+ * The space between the screen's edge and its groups. One UI's cards come close to the edge. Material's margin
+ * grows with the window: see [MaterialMargin].
+ */
 val ScreenMargin: Dp
     @Composable
     @ReadOnlyComposable
-    get() = if (LocalAppStyle.current == AppStyle.OneUi) 10.dp else 16.dp
+    get() = if (LocalAppStyle.current == AppStyle.OneUi) 10.dp else MaterialMargin
+
+/**
+ * Material's margin at the sides of a window: 16 dp while the window is compact, which a phone held upright is,
+ * and 24 dp from 600 dp of width up.
+ */
+private val MaterialMargin: Dp
+    @Composable
+    @ReadOnlyComposable
+    get() {
+        val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
+        return if (width >= CompactWidthEnds) 24.dp else 16.dp
+    }
+
+private val CompactWidthEnds = 600.dp
 
 /**
  * Lets a row that scrolls sideways run to the screen's edges, from inside a list that keeps [ScreenMargin] at its
@@ -158,9 +179,12 @@ private fun Modifier.bleeds(screenMargin: Dp): Modifier = layout { measurable, c
 val ContentMargin: Dp
     @Composable
     @ReadOnlyComposable
-    get() = if (LocalAppStyle.current == AppStyle.OneUi) 24.dp else 16.dp
+    get() = if (LocalAppStyle.current == AppStyle.OneUi) 24.dp else MaterialMargin
 
-/** The segments' fill: a surface raised just off the screen's background. */
+/**
+ * The segments' fill: a container on the screen's surface, set apart by its tone. It is one of Material's surface
+ * container roles, which mark out an area whatever its elevation.
+ */
 val segmentContainerColor: Color
     @Composable
     @ReadOnlyComposable
@@ -173,7 +197,8 @@ val segmentContainerColor: Color
             MaterialTheme.colorScheme.surfaceContainer
         }
     } else {
-        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+        // A sheet is itself a container, a tone off the screen: a group on it is the next tone up.
+        if (LocalOnSheet.current) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer
     }
 
 /**
@@ -238,6 +263,12 @@ fun SegmentedColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  *
  * [supportingColor] is for a second line that is the row's value and not a description of it: One UI writes a
  * setting's value under its name in the accent colour.
+ *
+ * [supportingOneLine] is for a second line that is an identifier, a package name above all: it is kept to one
+ * line and shortened in its middle, where a sentence would wrap.
+ *
+ * [pressMorph] is whether the row changes shape while it is pressed, as Material's does. A row whose tap is
+ * answered by the whole screen changing does not: see `BurkanChoiceList`.
  */
 @Composable
 fun BurkanSegmentItem(
@@ -247,6 +278,7 @@ fun BurkanSegmentItem(
     modifier: Modifier = Modifier,
     supporting: String? = null,
     supportingColor: Color? = null,
+    supportingOneLine: Boolean = false,
     containerColor: Color = segmentContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     headlineStyle: TextStyle = MaterialTheme.typography.titleMedium,
@@ -254,6 +286,7 @@ fun BurkanSegmentItem(
     checked: Boolean? = null,
     onCheckedChange: ((Boolean) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    pressMorph: Boolean = true,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
@@ -283,7 +316,9 @@ fun BurkanSegmentItem(
         val shape = segmentedShape(index, count)
         ListItemDefaults.shapes(shape, shape, shape, shape, shape, shape)
     } else {
-        ListItemDefaults.segmentedShapes(index, count)
+        ListItemDefaults.segmentedShapes(index, count).let { shapes ->
+            if (pressMorph) shapes else shapes.copy(pressedShape = shapes.shape)
+        }
     }
     val fill = modifier
         .fillMaxWidth()
@@ -297,6 +332,8 @@ fun BurkanSegmentItem(
                     supporting,
                     style = MaterialTheme.typography.bodyMedium,
                     color = supportingColor ?: Color.Unspecified,
+                    maxLines = if (supportingOneLine) 1 else Int.MAX_VALUE,
+                    overflow = if (supportingOneLine) TextOverflow.MiddleEllipsis else TextOverflow.Clip,
                 )
                 // What goes under the text is the row's own content, not a quieter line of it.
                 if (content != null) CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
@@ -365,12 +402,15 @@ fun BurkanSectionTitle(text: String, modifier: Modifier = Modifier) {
         text,
         style = MaterialTheme.typography.titleSmall,
         color = if (oneUi) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(
-            start = if (oneUi) 18.dp else 16.dp,
-            end = 16.dp,
-            top = 8.dp,
-            bottom = 8.dp,
-        ),
+        modifier = modifier
+            .padding(
+                start = if (oneUi) 18.dp else 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                bottom = 8.dp,
+            )
+            // A screen reader can jump from one group to the next by its title.
+            .semantics { heading() },
     )
 }
 

@@ -39,13 +39,13 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -67,17 +67,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.filled.Clock
+import com.composables.icons.tabler.filled.Settings
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.Check
@@ -90,7 +95,6 @@ import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Hourglass
-import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Keyboard
 import com.composables.icons.tabler.outline.ListSearch
 import com.composables.icons.tabler.outline.Lock
@@ -117,6 +121,7 @@ import io.github.barqallayl.burkan.core.navigation.SettingsRoute
 import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
+import io.github.barqallayl.burkan.designsystem.burkanMotion
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -126,18 +131,27 @@ import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.component.ActionHeight
+import io.github.barqallayl.burkan.designsystem.component.BurkanButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
+import io.github.barqallayl.burkan.designsystem.component.burkanButtonShapes
+import io.github.barqallayl.burkan.designsystem.component.burkanTonalButtonColors
+import io.github.barqallayl.burkan.designsystem.component.glass
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.BurkanConfirm
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
-import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetActions
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetHeader
+import io.github.barqallayl.burkan.designsystem.component.BurkanSheetPreview
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentChoice
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.ContentMargin
+import io.github.barqallayl.burkan.designsystem.component.GlassRise
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
@@ -240,82 +254,69 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 contentScroll = { scrollState.value },
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    // Material asks for filled icons in a bar where there are any; One UI's are drawn in outline.
                     BurkanIconButton(
-                        icon = Tabler.Outline.History,
+                        icon = if (oneUi) Tabler.Outline.History else Tabler.Filled.Clock,
                         label = stringResource(R.string.home_open_log),
                         onClick = actions.onOpenLog,
                     )
                     BurkanIconButton(
-                        icon = Tabler.Outline.Settings,
+                        icon = if (oneUi) Tabler.Outline.Settings else Tabler.Filled.Settings,
                         label = stringResource(R.string.home_open_settings),
                         onClick = actions.onOpenSettings,
                     )
                 },
             )
         },
-        // Material keeps the two actions at the bottom, in reach of the thumb, where they never move whatever the
-        // state above is. One UI docks nothing: its action is in the summary card, as Samsung's own apps have it.
+        // Material keeps the everyday action at the bottom, in reach of the thumb, where it never moves whatever
+        // the state above is. It is the screen's one filled button; the heavier, rarer action is a row of the
+        // content. One UI docks nothing: its actions are in the summary card, as Samsung's own apps have them.
         bottomBar = {
             val idle = state.run == ApplyRunState.Idle
-            // One UI sets a contained button's label heavier than a row's name.
-            val actionStyle = if (LocalAppStyle.current == AppStyle.OneUi) {
-                MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-            } else {
-                MaterialTheme.typography.titleMedium
-            }
-            // Solid behind the buttons, fading out above them: what scrolls under the bar dims away rather than
-            // being cut off at a line.
-            val surface = MaterialTheme.colorScheme.surface
-            if (!oneUi) Column(
+            // Material's medium button: its height, the label that goes with it, and its shape when pressed.
+            val actionStyle = ButtonDefaults.textStyleFor(ActionHeight)
+            // Frosted glass behind the button, coming in gradually above it: what scrolls under the bar blurs
+            // away rather than being cut off at a line.
+            if (!oneUi) Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .drawBehind {
-                        val fade = BAR_FADE.toPx()
-                        drawRect(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, surface),
-                                startY = 0f,
-                                endY = fade,
-                            ),
-                            size = size.copy(height = fade),
-                        )
-                        drawRect(
-                            surface,
-                            topLeft = Offset(0f, fade),
-                            size = size.copy(height = size.height - fade),
-                        )
-                    }
+                    .glass(appBar, risingOver = GlassRise)
                     .navigationBarsPadding()
                     .padding(horizontal = ContentMargin)
-                    .padding(top = BAR_FADE, bottom = GroupGap),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = GlassRise, bottom = GroupGap)
+                    .readableWidth(),
             ) {
-                // The two things the app is for. The everyday one is filled; the heavier, rarer one is quiet under it.
-                Button(
-                    onClick = actions.onApplyNow,
-                    enabled = idle,
-                    modifier = Modifier
+                // While a run is under way the button is the way to stop it, quieter and in the same place and
+                // size, so the bar does not change shape.
+                AnimatedContent(
+                    targetState = idle,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "home action",
+                ) { shownIdle ->
+                    // A button on its way out no longer does anything: a second tap meant for "Apply now" must
+                    // not land on the "Cancel" replacing it.
+                    val live = shownIdle == idle
+                    val size = Modifier
                         .fillMaxWidth()
-                        .height(ACTION_HEIGHT),
-                ) {
-                    Text(stringResource(R.string.home_apply_now), style = actionStyle)
-                }
-                // While a run is under way the quiet button is the way to stop it: the same place and size, so the
-                // bar does not change shape, and not the button that was just tapped to start it.
-                FilledTonalButton(
-                    onClick = if (idle) actions.onRestartAll else actions.onCancelRun,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(ACTION_HEIGHT),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                ) {
-                    Text(
-                        stringResource(if (idle) R.string.home_restart_all else R.string.home_cancel_run),
-                        style = actionStyle,
-                    )
+                        .heightIn(min = ActionHeight)
+                    if (shownIdle) {
+                        Button(
+                            onClick = { if (live) actions.onApplyNow() },
+                            shapes = burkanButtonShapes(ActionHeight),
+                            modifier = size,
+                        ) {
+                            Text(stringResource(R.string.home_apply_now), style = actionStyle)
+                        }
+                    } else {
+                        FilledTonalButton(
+                            onClick = { if (live) actions.onCancelRun() },
+                            shapes = burkanButtonShapes(ActionHeight),
+                            modifier = size,
+                            colors = burkanTonalButtonColors(),
+                        ) {
+                            Text(stringResource(R.string.home_cancel_run), style = actionStyle)
+                        }
+                    }
                 }
             }
         },
@@ -325,14 +326,15 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             // brings the last of it up above the buttons.
             modifier = Modifier
                 .fillMaxSize()
+                .glassSource(appBar)
                 .padding(top = innerPadding.listTop())
                 // Material's bar over the buttons already fades the lower edge.
                 .oneUiScrollFade(scrollState, bottom = oneUi)
                 .verticalScroll(scrollState)
                 .padding(top = innerPadding.listInset())
-
                 .padding(horizontal = ScreenMargin)
-                .padding(bottom = innerPadding.calculateBottomPadding()),
+                .padding(bottom = innerPadding.calculateBottomPadding())
+                .readableWidth(),
         ) {
             // The status card already gives this reason when it is why the status cannot be read either.
             val shownAbove = (state.status as? StatusState.Failed)?.error?.type()
@@ -349,12 +351,14 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 SectionLabel(R.string.home_section_runs)
                 Details(state, zone, actions, showError)
             } else {
-                StatusGroup(state, actions.onRetry)
+                // Material's arrangement: the answer, then lists. The surfaces are a list like any other, read
+                // down one edge, and what can be done about them closes the screen.
+                StatusGroup(state)
                 Notices(state, actions.onOpenDeveloperOptions)
                 Spacer(Modifier.height(GroupGap))
-                Details(state, zone, actions, showError)
+                Surfaces(state, actions.onRetry)
                 Spacer(Modifier.height(GroupGap))
-                ActionsNote()
+                Details(state, zone, actions, showError)
             }
             Spacer(Modifier.height(GroupGap))
         }
@@ -468,26 +472,24 @@ private fun RestartScope.label(): String {
 }
 
 /**
- * The status as one card that keeps its shape in every state: a badge, a headline, two lines of explanation, and
- * the four surfaces. While it is read the badge turns and the surfaces are placeholders. During a run the badge
- * turns, the headline is the run and the explanation its current step. When the phone cannot be asked, the reason
- * and the way to try again take the surfaces' place, which is room the card already has.
+ * The status as one card that keeps its shape in every state: a badge, a headline and two lines of explanation.
+ * While it is read the badge turns. During a run the badge turns, the headline is the run and the explanation its
+ * current step. What each surface runs on, and the way to try again when the phone cannot be asked, are in the
+ * list under it.
  */
 @Composable
-private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
+private fun StatusGroup(state: HomeState) {
     val status = state.status
     val failed = status as? StatusState.Failed
-    // Null while the status is read, and when it could not be: the surfaces are placeholders then.
-    val renderers = (status as? StatusState.Loaded)?.status
     val run = state.run as? ApplyRunState.Running
-    val headline = renderers?.headline()
+    val headline = (status as? StatusState.Loaded)?.status?.headline()
     val busy = run != null || (headline == null && failed == null)
     BurkanSegment(index = 0, count = 1) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(top = 28.dp, bottom = 16.dp),
+                .padding(top = 28.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -500,10 +502,20 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                         .background(tone.colors.container, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(BADGE_ICON_SIZE),
-                        color = tone.colors.content,
-                    )
+                    // Material's loading indicator is for a wait of a few seconds, which reading the status and
+                    // the light apply are. Restarting every app takes most of a minute: a progress indicator's.
+                    if (run?.kind == ApplyKind.Full) {
+                        CircularWavyProgressIndicator(
+                            modifier = Modifier.size(BADGE_ICON_SIZE),
+                            color = tone.colors.content,
+                            trackColor = tone.colors.content.copy(alpha = TRACK_ALPHA),
+                        )
+                    } else {
+                        LoadingIndicator(
+                            modifier = Modifier.size(BADGE_ICON_SIZE),
+                            color = tone.colors.content,
+                        )
+                    }
                 }
             } else {
                 BurkanIconBadge(
@@ -519,10 +531,13 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                     headline == null -> stringResource(R.string.home_checking)
                     else -> stringResource(headline.title)
                 },
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp),
+                // The answer changes by itself, as the phone is read and as a run goes on: it is read out when
+                // it does, without taking over from whatever is being read.
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
             val note = when {
                 run != null -> run.phase.label().text()
@@ -539,39 +554,19 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 minLines = 2,
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
-            Box(modifier = Modifier.padding(top = 16.dp), contentAlignment = Alignment.Center) {
-                // Each surface by name, two to a row: which of them the headline is about. They keep their room
-                // when there is nothing to show in it, and are dimmed while a run is changing them.
-                SurfaceGrid(
-                    renderers = renderers,
-                    modifier = Modifier
-                        .alpha(if (failed != null) 0f else if (run != null) STALE_ALPHA else 1f)
-                        .then(if (failed != null) Modifier.clearAndSetSemantics { } else Modifier),
-                )
-                if (failed != null) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            stringResource(failed.error.messageRes()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                        )
-                        Button(onClick = onRetry, enabled = !state.isRefreshing) {
-                            Text(stringResource(R.string.home_retry))
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
 /** What the surfaces were before the run that is now changing them. */
 private const val STALE_ALPHA = 0.5f
+
+/** The track of the progress indicator, as a share of the indicator's own colour. */
+private const val TRACK_ALPHA = 0.16f
 
 /** A group's label, with the gap above it that parts the group from the one before. */
 @Composable
@@ -653,6 +648,7 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
                     // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
                     color = when {
@@ -678,7 +674,9 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     textAlign = TextAlign.Center,
                     minLines = 2,
                     maxLines = 2,
-                    modifier = Modifier.padding(top = 6.dp),
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 SummaryAction(
                     action = when {
@@ -787,7 +785,7 @@ private fun OneUiProgress(state: HomeState, onRetry: () -> Unit) {
     ) { steps ->
         Column {
             SectionLabel(if (steps) R.string.home_section_steps else R.string.home_section_surfaces)
-            if (steps) RunChecklist(state) else OneUiSurfaces(state, onRetry)
+            if (steps) RunChecklist(state) else Surfaces(state, onRetry)
         }
     }
 }
@@ -972,7 +970,7 @@ private val MarkGlyph = Color(0xFF10131A)
  * asked, the reason and the way to try again in their place.
  */
 @Composable
-private fun OneUiSurfaces(state: HomeState, onRetry: () -> Unit) {
+private fun Surfaces(state: HomeState, onRetry: () -> Unit) {
     val failed = state.status as? StatusState.Failed
     val renderers = (state.status as? StatusState.Loaded)?.status
     val running = state.run is ApplyRunState.Running
@@ -1012,40 +1010,65 @@ private fun OneUiSurfaces(state: HomeState, onRetry: () -> Unit) {
     }
 }
 
+/**
+ * A surface and what it runs on. One UI writes the renderer under the surface's name, with its solid mark at the
+ * end. Material keeps the row to one line: the renderer is the row's trailing text, then a mark so that the three
+ * states differ at a glance. [renderer] null is a placeholder while the status is read.
+ */
 @Composable
 private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Renderer?) {
-    val (mark, value, tone) = when (renderer) {
-        Renderer.Vulkan -> Triple(Tabler.Outline.Check, R.string.renderer_vulkan, Tone.Good)
-        // Not a fault: it is how every restart leaves things. It is what wants attention, so it is orange.
-        Renderer.OpenGL -> Triple(Tabler.Outline.ExclamationMark, R.string.renderer_opengl, Tone.HeldUp)
-        Renderer.Unknown -> Triple(Tabler.Outline.QuestionMark, R.string.renderer_unknown, Tone.Neutral)
-        null -> Triple(Tabler.Outline.Hourglass, R.string.home_value_checking, Tone.Neutral)
+    val value = when (renderer) {
+        Renderer.Vulkan -> R.string.renderer_vulkan
+        Renderer.OpenGL -> R.string.renderer_opengl
+        Renderer.Unknown -> R.string.renderer_unknown
+        null -> R.string.home_value_checking
+    }
+    if (LocalAppStyle.current == AppStyle.OneUi) {
+        val (mark, tone) = when (renderer) {
+            Renderer.Vulkan -> Tabler.Outline.Check to Tone.Good
+            // Not a fault: it is how every restart leaves things. It is what wants attention, so it is orange.
+            Renderer.OpenGL -> Tabler.Outline.ExclamationMark to Tone.HeldUp
+            Renderer.Unknown -> Tabler.Outline.QuestionMark to Tone.Neutral
+            null -> Tabler.Outline.Hourglass to Tone.Neutral
+        }
+        BurkanSegmentItem(
+            index = index,
+            count = SURFACE_COUNT,
+            headline = stringResource(label),
+            supporting = stringResource(value),
+            leading = { Icon(icon, contentDescription = null) },
+            trailing = { StatusMark(mark, tone, 24.dp) },
+        )
+        return
+    }
+    val scheme = MaterialTheme.colorScheme
+    val (mark, markColor) = when (renderer) {
+        Renderer.Vulkan -> Tabler.Outline.CircleCheck to scheme.primary
+        Renderer.OpenGL -> Tabler.Outline.CircleX to scheme.error
+        Renderer.Unknown -> Tabler.Outline.HelpCircle to scheme.onSurfaceVariant
+        null -> Tabler.Outline.Hourglass to scheme.onSurfaceVariant
     }
     BurkanSegmentItem(
         index = index,
         count = SURFACE_COUNT,
         headline = stringResource(label),
-        supporting = stringResource(value),
         leading = { Icon(icon, contentDescription = null) },
-        trailing = { StatusMark(mark, tone, 24.dp) },
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                TrailingText(stringResource(value))
+                Icon(mark, contentDescription = null, modifier = Modifier.size(20.dp), tint = markColor)
+            }
+        },
     )
 }
 
-private const val SURFACE_COUNT = 4
-
+/** What a row says at its end, in Material: a value that only informs. */
 @Composable
-private fun SurfaceGrid(renderers: RendererStatus?, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SurfaceCell(Tabler.Outline.Apps, R.string.home_row_new_apps, renderers?.newApps, Modifier.weight(1f))
-            SurfaceCell(Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi, Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SurfaceCell(Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher, Modifier.weight(1f))
-            SurfaceCell(Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard, Modifier.weight(1f))
-        }
-    }
+private fun TrailingText(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
+
+private const val SURFACE_COUNT = 4
 
 /**
  * What the automatic apply is waiting for, if anything. Each notice opens and closes its own room, with the gap
@@ -1064,19 +1087,16 @@ private fun ColumnScope.Notices(state: HomeState, onOpenDeveloperOptions: () -> 
 
 @Composable
 private fun ColumnScope.SlidingNotice(visible: Boolean, content: @Composable () -> Unit) {
+    val motion = burkanMotion
     AnimatedVisibility(
         visible = visible,
-        enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-        exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(),
+        enter = expandVertically(motion.settle()) + fadeIn(),
+        exit = shrinkVertically(motion.settle()) + fadeOut(),
     ) {
         Box(modifier = Modifier.padding(top = GroupGap)) { content() }
     }
 }
 
-private val ACTION_HEIGHT = 56.dp
-
-/** How far above the buttons the bar fades from nothing to the screen's colour. */
-private val BAR_FADE = 24.dp
 private val BADGE_SIZE = 72.dp
 private val BADGE_ICON_SIZE = 40.dp
 
@@ -1117,70 +1137,6 @@ private val Headline.text: Int
     }
 
 /**
- * A surface and its renderer, in a cell of the status card: the surface's own icon, its name over the renderer, and
- * a mark at the end so the three states differ at a glance. [renderer] null is a placeholder while the status is
- * read.
- */
-@Composable
-private fun SurfaceCell(
-    icon: ImageVector,
-    label: Int,
-    renderer: Renderer?,
-    modifier: Modifier = Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val (mark, value, markColor) = when (renderer) {
-        Renderer.Vulkan -> Triple(
-            Tabler.Outline.CircleCheck,
-            R.string.renderer_vulkan,
-            scheme.primary,
-        )
-
-        Renderer.OpenGL -> Triple(Tabler.Outline.CircleX, R.string.renderer_opengl, scheme.error)
-        Renderer.Unknown -> Triple(
-            Tabler.Outline.HelpCircle,
-            R.string.renderer_unknown,
-            scheme.onSurfaceVariant,
-        )
-
-        null -> Triple(
-            Tabler.Outline.Hourglass,
-            R.string.home_value_checking,
-            scheme.onSurfaceVariant,
-        )
-    }
-    // The screen's own colour, so the cells read as set into the card.
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = scheme.surface,
-        contentColor = scheme.onSurface,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = scheme.onSurfaceVariant,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant,
-                )
-                Text(stringResource(value), style = MaterialTheme.typography.titleSmall)
-            }
-            Icon(mark, contentDescription = null, modifier = Modifier.size(18.dp), tint = markColor)
-        }
-    }
-}
-
-/**
  * A card in the "held up" treatment: an icon in a badge of its own tint, then whatever it has to say. It stands
  * apart from the status in the notice's amber.
  */
@@ -1213,7 +1169,10 @@ private fun NoticeCard(
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
             }
             Column(
-                modifier = Modifier.weight(1f),
+                // A notice comes and goes by itself, so it is read out when it comes.
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 content = content,
             )
@@ -1261,7 +1220,7 @@ private fun WaitingNotice(reason: WaitReason, onOpenDeveloperOptions: () -> Unit
         ) {
             // A pill in the notice's own tint: the scheme's button colours are not made to sit on amber.
             val colors = noticeColors
-            FilledTonalButton(
+            BurkanTonalButton(
                 onClick = onOpenDeveloperOptions,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = colors.content.copy(alpha = BADGE_TINT),
@@ -1285,11 +1244,14 @@ private fun NextLockNotice() {
  */
 @Composable
 private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showError: Boolean) {
+    val motion = burkanMotion
     val applyOnBoot = state.applyOnBoot
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
-    val count = if (applyOnBoot == null) 1 else 2
+    // In Material the heavier of the app's two actions is the last row here; One UI has it in its summary card.
+    val restartRow = !oneUi
+    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (restartRow) 1 else 0)
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
-    SegmentedColumn(modifier = Modifier.animateContentSize()) {
+    SegmentedColumn(modifier = Modifier.animateContentSize(motion.settle())) {
         LastRun(state.lastRun, zone, count, actions.onOpenLog, showError)
         if (applyOnBoot != null && oneUi) {
             // One UI writes a setting's value under its name, in the accent.
@@ -1312,12 +1274,30 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 ),
                 onClick = actions.onOpenSettings,
                 leading = { BurkanIconBadge(Tabler.Outline.Power) },
+                // A state, not a control: Material writes it as the row's trailing text.
                 trailing = {
-                    BurkanPill(
-                        stringResource(if (applyOnBoot) R.string.value_on else R.string.value_off),
-                        tone = if (applyOnBoot) Tone.Good else Tone.Neutral,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TrailingText(stringResource(if (applyOnBoot) R.string.value_on else R.string.value_off))
+                        Icon(Tabler.Outline.ChevronRight, contentDescription = null)
+                    }
                 },
+            )
+        }
+        if (restartRow) {
+            val idle = state.run == ApplyRunState.Idle
+            BurkanSegmentItem(
+                index = count - 1,
+                count = count,
+                headline = stringResource(R.string.home_restart_all),
+                supporting = stringResource(R.string.home_restart_all_text),
+                // Nothing to start while a run is under way: the row stays, dimmed, and does not react.
+                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
+                onClick = actions.onRestartAll.takeIf { idle },
+                leading = { BurkanIconBadge(Tabler.Outline.Refresh) },
+                trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
             )
         }
     }
@@ -1373,30 +1353,6 @@ private fun LastRun(
     }
 }
 
-/** What the two buttons do, in a line each: it is the one thing on this screen that is not a state. */
-@Composable
-private fun ActionsNote() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Tabler.Outline.InfoCircle,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            stringResource(R.string.home_actions_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 private val sampleTime = Instant.parse("2026-10-01T09:30:00Z")
 
 private val sampleLightRun = RunLogEntry(
@@ -1438,27 +1394,31 @@ private fun HomePreviewContent(state: HomeState) {
 @BurkanPreview
 @Composable
 private fun HomeRestartAllSheetPreview() =
-    RestartAllSheet(
-        scope = RestartScope.All,
-        keptCount = 0,
-        locks = true,
-        onScope = {},
-        onConfirm = {},
-        onDismiss = {},
-    )
+    BurkanSheetPreview {
+        RestartAllSheet(
+            scope = RestartScope.All,
+            keptCount = 0,
+            locks = true,
+            onScope = {},
+            onConfirm = {},
+            onDismiss = {},
+        )
+    }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
 private fun HomeRestartAllSheetLimitedPreview() =
-    RestartAllSheet(
-        scope = RestartScope.Recent30,
-        keptCount = 3,
-        locks = false,
-        onScope = {},
-        onConfirm = {},
-        onDismiss = {},
-    )
+    BurkanSheetPreview {
+        RestartAllSheet(
+            scope = RestartScope.Recent30,
+            keptCount = 3,
+            locks = false,
+            onScope = {},
+            onConfirm = {},
+            onDismiss = {},
+        )
+    }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -1756,14 +1716,16 @@ private fun HomePartlyAppliedOneUiDarkPreview() {
 @Composable
 private fun HomeRestartAllSheetOneUiPreview() {
     BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
-        RestartAllSheet(
-            scope = RestartScope.All,
-            keptCount = 3,
-            locks = true,
-            onScope = {},
-            onConfirm = {},
-            onDismiss = {},
-        )
+        BurkanSheetPreview {
+            RestartAllSheet(
+                scope = RestartScope.All,
+                keptCount = 3,
+                locks = true,
+                onScope = {},
+                onConfirm = {},
+                onDismiss = {},
+            )
+        }
     }
 }
 
@@ -1788,6 +1750,22 @@ private fun HomeCannotConnectOneUiDarkPreview() {
             sample(
                 status = StatusState.Failed(ConnectionError.WirelessDebuggingRefused),
                 lastRun = sampleLightRun.copy(result = RunResult.Failed, error = AppErrorType.NoWifi),
+            ),
+        )
+    }
+}
+
+/** A phone held sideways: the content keeps to a width that reads, and the bars still span the screen. */
+@Preview(showBackground = true, widthDp = 900, heightDp = 420)
+@Composable
+private fun HomeActiveSidewaysPreview() {
+    BurkanPreviewTheme {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
+                ),
+                lastRun = sampleLightRun,
             ),
         )
     }

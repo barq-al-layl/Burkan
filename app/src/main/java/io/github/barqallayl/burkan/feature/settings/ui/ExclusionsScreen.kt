@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -66,6 +65,9 @@ import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
 import io.github.barqallayl.burkan.designsystem.component.BurkanSearchField
@@ -158,8 +160,10 @@ private fun ExclusionsContent(
                 // is kept clear here instead, so the fade starts under it.
                 modifier = Modifier
                     .fillMaxSize()
+                    .glassSource(appBar)
                     .padding(top = innerPadding.listTop())
-                    .oneUiScrollFade(listState),
+                    .oneUiScrollFade(listState)
+                    .readableWidth(),
                 state = listState,
                 contentPadding = PaddingValues(
                     start = ScreenMargin,
@@ -233,7 +237,9 @@ private fun ExclusionsContent(
                             title = stringResource(R.string.exclusions_failed_title),
                             text = stringResource(apps.error.messageRes()),
                         ) {
-                            FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.exclusions_retry)) }
+                            BurkanTonalButton(onClick = onRetry) {
+                                Text(stringResource(R.string.exclusions_retry))
+                            }
                         }
                     }
 
@@ -287,6 +293,7 @@ private fun ExclusionsContent(
                     onSearch = onSearch,
                     placeholder = stringResource(R.string.exclusions_search),
                     clearLabel = stringResource(R.string.search_clear),
+                    glass = appBar,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .imePadding()
@@ -350,6 +357,7 @@ private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoad
                 count = fixed.size,
                 headline = app.label ?: app.packageName.value,
                 supporting = if (app.label != null) app.packageName.value else notInstalled(),
+                supportingOneLine = true,
                 leading = { AppIcon(app.packageName, icon) },
                 trailing = { LockMark() },
             )
@@ -436,6 +444,7 @@ private fun AppItem(
         count = count,
         headline = app.label ?: notInstalled(),
         supporting = app.packageName.value,
+        supportingOneLine = true,
         checked = excluded,
         onCheckedChange = { onToggle() },
         leading = { AppIcon(app.packageName, icon) },

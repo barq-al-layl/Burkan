@@ -19,7 +19,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 @Composable
 fun BurkanIconButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     BurkanTooltip(label) {
-        IconButton(onClick = onClick, modifier = modifier) { Icon(icon, contentDescription = label) }
+        IconButton(onClick = onClick, shapes = burkanIconButtonShapes(), modifier = modifier) {
+            Icon(icon, contentDescription = label)
+        }
     }
 }
 

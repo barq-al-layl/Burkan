@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -72,7 +71,11 @@ import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.BurkanMessage
+import io.github.barqallayl.burkan.designsystem.burkanMotion
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
@@ -192,7 +195,9 @@ private fun LogContent(
                 text = stringResource(R.string.log_empty_text),
                 modifier = Modifier.padding(innerPadding),
             ) {
-                FilledTonalButton(onClick = onBack) { Text(stringResource(R.string.log_empty_action)) }
+                BurkanTonalButton(onClick = onBack) {
+                    Text(stringResource(R.string.log_empty_action))
+                }
             }
 
             else -> {
@@ -203,8 +208,10 @@ private fun LogContent(
                     // height is kept clear here instead, so the fade starts under it.
                     modifier = Modifier
                         .fillMaxSize()
+                        .glassSource(appBar)
                         .padding(top = innerPadding.listTop())
-                        .oneUiScrollFade(listState),
+                        .oneUiScrollFade(listState)
+                        .readableWidth(),
                     state = listState,
                     contentPadding = PaddingValues(
                         start = ScreenMargin,
@@ -314,6 +321,7 @@ private fun RunItem(
     zone: ZoneId,
     onClick: () -> Unit,
 ) {
+    val motion = burkanMotion
     val hasDetail = run.steps.isNotEmpty() || run.error != null
     BurkanSegment(index = index, count = count, onClick = onClick.takeIf { hasDetail }) {
         Row(
@@ -337,8 +345,8 @@ private fun RunItem(
         // Under the header, so opening a run moves nothing in it: the card only grows.
         AnimatedVisibility(
             visible = expanded && hasDetail,
-            enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-            exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(),
+            enter = expandVertically(motion.settle()) + fadeIn(),
+            exit = shrinkVertically(motion.settle()) + fadeOut(),
         ) {
             RunSteps(run)
         }

@@ -37,15 +37,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,7 +58,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -80,6 +77,13 @@ import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
+import io.github.barqallayl.burkan.designsystem.burkanMotion
+import io.github.barqallayl.burkan.designsystem.emphasis
+import io.github.barqallayl.burkan.designsystem.component.BurkanButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTextButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -164,6 +168,7 @@ private fun SetupContent(
     onDone: () -> Unit,
     onSkipBattery: () -> Unit,
 ) {
+    val motion = burkanMotion
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
     Scaffold(
@@ -178,8 +183,8 @@ private fun SetupContent(
                     AnimatedContent(
                         targetState = state.current,
                         transitionSpec = {
-                            (slideInVertically(move()) { it / 2 } + fadeIn(fadeInSpec)) togetherWith
-                                (slideOutVertically(move()) { -it / 2 } + fadeOut(fadeOutSpec))
+                            (slideInVertically(motion.move()) { it / 2 } + fadeIn(motion.appear())) togetherWith
+                                (slideOutVertically(motion.move()) { -it / 2 } + fadeOut(motion.vanish()))
                         },
                         label = "setup progress",
                     ) { current ->
@@ -203,6 +208,7 @@ private fun SetupContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .glassSource(appBar)
                 .padding(
                     top = innerPadding.listTop(),
                     bottom = innerPadding.calculateBottomPadding(),
@@ -212,7 +218,8 @@ private fun SetupContent(
                 .padding(top = innerPadding.listInset())
 
                 .padding(horizontal = ScreenMargin)
-                .padding(bottom = GroupGap),
+                .padding(bottom = GroupGap)
+                .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
             if (state.isUntestedModel) UntestedModelNotice()
@@ -282,30 +289,15 @@ private fun SetupContent(
  */
 @Composable
 private fun ColumnScope.SlidingRow(visible: Boolean, gap: Dp, content: @Composable () -> Unit) {
+    val motion = burkanMotion
     AnimatedVisibility(
         visible = visible,
-        enter = expandVertically(move(), expandFrom = Alignment.Top) + fadeIn(move()),
-        exit = shrinkVertically(move(), shrinkTowards = Alignment.Top) + fadeOut(move()),
+        enter = expandVertically(motion.move(), expandFrom = Alignment.Top) + fadeIn(motion.tint()),
+        exit = shrinkVertically(motion.move(), shrinkTowards = Alignment.Top) + fadeOut(motion.tint()),
     ) {
         Box(modifier = Modifier.padding(top = gap)) { content() }
     }
 }
-
-/**
- * One pace and one curve for everything on this screen that moves or changes colour, so the parts of a change
- * start and arrive together: quick off the mark and long in settling, without a bounce.
- */
-private fun <T> move(): FiniteAnimationSpec<T> = tween(MOVE_MILLIS, easing = MoveEasing)
-
-private const val MOVE_MILLIS = 420
-private val MoveEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
-
-/** What leaves fades at once; what arrives waits for it to have gone. */
-private val fadeOutSpec = tween<Float>(FADE_OUT_MILLIS)
-private val fadeInSpec = tween<Float>(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS)
-
-private const val FADE_OUT_MILLIS = 110
-private const val FADE_IN_MILLIS = 260
 
 /**
  * One bar for each step, filled for the ones that are done: how far along, at a glance. The pill says it in words.
@@ -313,6 +305,7 @@ private const val FADE_IN_MILLIS = 260
  */
 @Composable
 private fun ProgressBar(done: Set<SetupStep>) {
+    val motion = burkanMotion
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -322,7 +315,7 @@ private fun ProgressBar(done: Set<SetupStep>) {
         SetupStep.entries.forEach { step ->
             val color by animateColorAsState(
                 if (step in done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = move(),
+                animationSpec = motion.move(),
                 label = "progress bar",
             )
             Box(
@@ -392,10 +385,11 @@ private fun StepItem(
     onDone: () -> Unit,
     onSkipBattery: () -> Unit,
 ) {
+    val motion = burkanMotion
     val isCurrent = status == StepStatus.Current
     val targetContainer = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else segmentContainerColor
-    val container by animateColorAsState(targetContainer, move(), label = "step container")
-    val content by animateColorAsState(contentColorFor(targetContainer), move(), label = "step content")
+    val container by animateColorAsState(targetContainer, motion.tint(), label = "step container")
+    val content by animateColorAsState(contentColorFor(targetContainer), motion.tint(), label = "step content")
     BurkanSegment(index = index, count = count, containerColor = container, contentColor = content) {
         Row(
             modifier = Modifier
@@ -411,8 +405,8 @@ private fun StepItem(
                 }
                 AnimatedVisibility(
                     visible = isCurrent,
-                    enter = expandVertically(move(), expandFrom = Alignment.Top) + fadeIn(fadeInSpec),
-                    exit = shrinkVertically(move(), shrinkTowards = Alignment.Top) + fadeOut(fadeOutSpec),
+                    enter = expandVertically(motion.move(), expandFrom = Alignment.Top) + fadeIn(motion.appear()),
+                    exit = shrinkVertically(motion.move(), shrinkTowards = Alignment.Top) + fadeOut(motion.vanish()),
                 ) {
                     ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
                         Box(modifier = Modifier.padding(bottom = 6.dp)) {
@@ -423,7 +417,7 @@ private fun StepItem(
             }
             // Said on the step itself while it waits; once it is the current one, its own button offers the skip.
             if (step == SetupStep.Battery) {
-                AnimatedVisibility(visible = !isCurrent, enter = fadeIn(fadeInSpec), exit = fadeOut(fadeOutSpec)) {
+                AnimatedVisibility(visible = !isCurrent, enter = fadeIn(motion.appear()), exit = fadeOut(motion.vanish())) {
                     Box(modifier = Modifier.heightIn(min = STEP_NUMBER_SIZE), contentAlignment = Alignment.Center) {
                         BurkanPill(stringResource(R.string.setup_optional))
                     }
@@ -441,17 +435,18 @@ private val STEP_NUMBER_SIZE = 40.dp
  */
 @Composable
 private fun StepNumber(number: Int, isCurrent: Boolean) {
+    val motion = burkanMotion
     val scheme = MaterialTheme.colorScheme
     val label =
         stringResource(if (isCurrent) R.string.setup_step_current else R.string.setup_step_waiting)
     val fill by animateColorAsState(
         if (isCurrent) scheme.primary else scheme.surfaceContainerHighest,
-        move(),
+        motion.move(),
         label = "step number",
     )
     val ink by animateColorAsState(
         if (isCurrent) scheme.onPrimary else scheme.onSurfaceVariant,
-        move(),
+        motion.move(),
         label = "step number text",
     )
     Box(
@@ -463,8 +458,7 @@ private fun StepNumber(number: Int, isCurrent: Boolean) {
     ) {
         Text(
             number.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            style = emphasis(MaterialTheme.typography.titleSmall, MaterialTheme.typography.titleSmallEmphasized),
             color = ink,
         )
     }
@@ -478,6 +472,7 @@ private fun CurrentStepDetail(
     onDone: () -> Unit,
     onSkipBattery: () -> Unit,
 ) {
+    val motion = burkanMotion
     Column(
         modifier = Modifier.padding(top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -487,12 +482,12 @@ private fun CurrentStepDetail(
             // Said before the user goes to Settings and finds the switch greyed out.
             AnimatedVisibility(
                 visible = state.isWifiMissing,
-                enter = expandVertically(move(), expandFrom = Alignment.Top) + fadeIn(fadeInSpec),
-                exit = shrinkVertically(move(), shrinkTowards = Alignment.Top) + fadeOut(fadeOutSpec),
+                enter = expandVertically(motion.move(), expandFrom = Alignment.Top) + fadeIn(motion.appear()),
+                exit = shrinkVertically(motion.move(), shrinkTowards = Alignment.Top) + fadeOut(motion.vanish()),
             ) {
                 Row(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Tabler.Outline.WifiOff, contentDescription = null)
-                    Text(stringResource(R.string.setup_no_wifi), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.setup_no_wifi), style = emphasizedBody)
                 }
             }
         }
@@ -501,7 +496,7 @@ private fun CurrentStepDetail(
         AnimatedContent(
             targetState = state.detail(step),
             transitionSpec = {
-                fadeIn(fadeInSpec) togetherWith fadeOut(fadeOutSpec) using SizeTransform(clip = false) { _, _ -> move() }
+                fadeIn(motion.appear()) togetherWith fadeOut(motion.vanish()) using SizeTransform(clip = false) { _, _ -> motion.move() }
             },
             label = "step detail",
         ) { detail ->
@@ -522,18 +517,22 @@ private fun CurrentStepDetail(
 
                     StepDetail.Action -> if (step == SetupStep.Battery) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = onAction) { Text(stringResource(R.string.setup_battery_action)) }
+                            BurkanButton(onClick = onAction) {
+                                Text(stringResource(R.string.setup_battery_action))
+                            }
                             // One UI does not put a flat button beside a contained one.
                             if (LocalAppStyle.current == AppStyle.OneUi) {
-                                FilledTonalButton(onClick = onSkipBattery) {
+                                BurkanTonalButton(onClick = onSkipBattery) {
                                     Text(stringResource(R.string.setup_battery_skip))
                                 }
                             } else {
-                                TextButton(onClick = onSkipBattery) { Text(stringResource(R.string.setup_battery_skip)) }
+                                BurkanTextButton(onClick = onSkipBattery) {
+                                    Text(stringResource(R.string.setup_battery_skip))
+                                }
                             }
                         }
                     } else {
-                        Button(onClick = onAction) { Text(stringResource(step.action)) }
+                        BurkanButton(onClick = onAction) { Text(stringResource(step.action)) }
                     }
                 }
             }
@@ -563,9 +562,9 @@ private fun SetupState.detail(step: SetupStep): StepDetail = when {
 private fun Met(step: SetupStep, onDone: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Tabler.Outline.Check, contentDescription = null)
-        Text(stringResource(step.met), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(step.met), style = emphasizedBody)
     }
-    Button(onClick = onDone) { Text(stringResource(R.string.setup_done_action)) }
+    BurkanButton(onClick = onDone) { Text(stringResource(R.string.setup_done_action)) }
 }
 
 @Composable
@@ -575,10 +574,14 @@ private fun PairDetail(pairing: PairingStatus, onAction: () -> Unit) {
         is PairingStatus.Failed -> FailureWithRetry(pairing.error, onAction)
         PairingStatus.WaitingForCode -> {
             Text(stringResource(R.string.setup_pair_waiting))
-            Button(onClick = onAction) { Text(stringResource(R.string.setup_wireless_debugging_action)) }
+            BurkanButton(onClick = onAction) {
+                Text(stringResource(R.string.setup_wireless_debugging_action))
+            }
         }
 
-        PairingStatus.Idle -> Button(onClick = onAction) { Text(stringResource(R.string.setup_pair_action)) }
+        PairingStatus.Idle -> BurkanButton(onClick = onAction) {
+            Text(stringResource(R.string.setup_pair_action))
+        }
     }
 }
 
@@ -603,8 +606,13 @@ private fun FailureWithRetry(error: AppError, onRetry: () -> Unit) {
         )
         Text(stringResource(error.messageRes()), color = MaterialTheme.colorScheme.error)
     }
-    Button(onClick = onRetry) { Text(stringResource(R.string.setup_try_again)) }
+    BurkanButton(onClick = onRetry) { Text(stringResource(R.string.setup_try_again)) }
 }
+
+/** The step's own text, set heavier: what the check found, or what stands in the step's way. */
+private val emphasizedBody: TextStyle
+    @Composable
+    get() = emphasis(MaterialTheme.typography.bodyMedium, MaterialTheme.typography.bodyMediumEmphasized)
 
 private val SetupStep.title: Int
     get() = when (this) {

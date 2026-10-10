@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.composables.icons.tabler.Tabler
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
+import io.github.barqallayl.burkan.designsystem.emphasis
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.X
 
@@ -55,9 +59,10 @@ fun BurkanSheetHeader(
         if (icon != null) BurkanIconBadge(icon, tone = Tone.Good)
         Text(
             title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
+            style = emphasis(MaterialTheme.typography.titleLarge, MaterialTheme.typography.titleLargeEmphasized),
+            modifier = Modifier
+                .weight(1f)
+                .semantics { heading() },
         )
         trailing?.invoke()
     }
@@ -116,13 +121,11 @@ fun BurkanSheetActions(
         if (dismiss != null) {
             FilledTonalButton(
                 onClick = onDismiss,
+                shapes = burkanButtonShapes(ActionHeight),
                 modifier = Modifier
                     .weight(1f)
-                    .height(SheetActionHeight),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+                    .heightIn(min = ActionHeight),
+                colors = burkanTonalButtonColors(),
             ) {
                 ActionLabel(dismiss, dismissIcon)
             }
@@ -130,10 +133,11 @@ fun BurkanSheetActions(
         if (confirm != null) {
             Button(
                 onClick = onConfirm,
+                shapes = burkanButtonShapes(ActionHeight),
                 enabled = confirmEnabled,
                 modifier = Modifier
                     .weight(1f)
-                    .height(SheetActionHeight),
+                    .heightIn(min = ActionHeight),
             ) {
                 ActionLabel(confirm, confirmIcon)
             }
@@ -144,10 +148,10 @@ fun BurkanSheetActions(
 @Composable
 private fun ActionLabel(text: String, icon: ImageVector?) {
     if (icon != null) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(ActionHeight)))
+        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(ActionHeight)))
     }
-    Text(text, maxLines = 1)
+    Text(text, style = ButtonDefaults.textStyleFor(ActionHeight), maxLines = 1)
 }
 
 @Composable
@@ -155,6 +159,7 @@ private fun FlatLabel(text: String) {
     Text(text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
 }
 
+/** One UI's flat buttons, which have no container to be a size. */
 private val SheetActionHeight = 52.dp
 
 /**
@@ -189,10 +194,17 @@ fun BurkanConfirm(
     } else {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text(title) },
+            title = {
+                GlassBehindWindow()
+                Text(title)
+            },
             text = { Text(text) },
-            confirmButton = { TextButton(onClick = onConfirm) { Text(confirm) } },
-            dismissButton = { TextButton(onClick = onDismiss) { Text(dismiss) } },
+            confirmButton = {
+                BurkanTextButton(onClick = onConfirm) { Text(confirm) }
+            },
+            dismissButton = {
+                BurkanTextButton(onClick = onDismiss) { Text(dismiss) }
+            },
         )
     }
 }
@@ -214,7 +226,7 @@ fun BurkanSearchField(
         leadingIcon = { Icon(Tabler.Outline.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onSearch("") }) {
+                IconButton(onClick = { onSearch("") }, shapes = burkanIconButtonShapes()) {
                     Icon(
                         Tabler.Outline.X,
                         contentDescription = clearLabel,
