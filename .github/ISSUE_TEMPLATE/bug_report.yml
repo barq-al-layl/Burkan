@@ -1,0 +1,74 @@
+name: Report a problem
+description: Something in Burkan did not work, or the app stopped.
+labels: [ "bug" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. The more of this you can fill in, the sooner the problem can be found.
+        A report is public, so leave out anything you would not want others to read.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what Burkan did instead.
+      placeholder: I tapped Apply now, and after the screen locked the status still said OpenGL for System UI.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Setup
+        - Apply now
+        - Restart all apps
+        - By itself, after the phone restarted
+        - Settings
+        - The app stopped (crash)
+        - Somewhere else
+    validations:
+      required: true
+  - type: dropdown
+    id: phone
+    attributes:
+      label: Phone
+      options:
+        - Galaxy S23
+        - Galaxy S23+
+        - Galaxy S23 Ultra
+        - Another phone
+    validations:
+      required: true
+  - type: input
+    id: one-ui
+    attributes:
+      label: One UI and Android version
+      description: In the phone's Settings, under About phone › Software information.
+      placeholder: One UI 8.5, Android 16
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Burkan version
+      description: In Burkan, under Settings › About.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log or crash report
+      description: |
+        For a run that went wrong: in Burkan open Log, tap Share, and paste the file's text here or attach the file.
+        For a crash: tap Share on the screen Burkan shows, and paste the report here.
+        Both hold the steps or the error, the phone's model and its Android version, and nothing else.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I looked through the open issues and this one is not there yet.
+          required: true

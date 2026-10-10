@@ -153,6 +153,14 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `reporting a problem opens the issue form in the repository`() = runTest {
+        viewModel().testWithInternalState(this) {
+            containerHost.reportProblem()
+            expectSideEffect(SettingsSideEffect.OpenUrl(About.REPORT_URL))
+        }
+    }
+
+    @Test
     fun `the open-source licences open on their own screen`() = runTest {
         viewModel().testWithInternalState(this) {
             containerHost.openLicences()

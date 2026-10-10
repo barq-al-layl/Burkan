@@ -66,4 +66,7 @@ sealed interface SettingsError : AppError {
 object About {
     const val SOURCE_URL = "https://github.com/barq-al-layl/Burkan"
     const val LICENCE_URL = "$SOURCE_URL/blob/main/LICENSE"
+
+    /** A new issue, started from the form in `.github/ISSUE_TEMPLATE/bug_report.yml`. */
+    const val REPORT_URL = "$SOURCE_URL/issues/new?template=bug_report.yml"
 }
