@@ -18,7 +18,6 @@ data class ShellCommand internal constructor(val line: String, val timeout: Dura
 enum class SettingsNamespace(val value: String) {
     System("system"),
     Secure("secure"),
-    Global("global"),
 }
 
 /** A key in the `settings` provider. The keys are constants of this app, never user input. */
@@ -76,8 +75,6 @@ object ShellCommands {
             repeatable = false,
         )
 
-    fun forceStop(packageName: PackageName): ShellCommand = ShellCommand("am force-stop $packageName", ShortTimeout)
-
     /**
      * Force-stops every package in one line. The trailing `true` makes the exit status say whether the line ran to
      * the end, not whether the last package stopped; each `force-stop` complaining on stderr is normal.
@@ -106,7 +103,10 @@ object ShellCommands {
      * is the one left in front: without it, whichever app was reopened last stays on the screen.
      */
     fun launchAll(packages: List<PackageName>, front: PackageName? = null): ShellCommand =
-        ShellCommand((packages + listOfNotNull(front)).joinToString(separator = "") { "${launch(it)}; " } + "true", BulkTimeout)
+        ShellCommand(
+            (packages + listOfNotNull(front)).joinToString(separator = "") { "${launch(it)}; " } + "true",
+            BulkTimeout,
+        )
 
     /** What new processes will render with: `skiavk` when Vulkan is set, an empty line when nothing is. */
     fun getRenderer(): ShellCommand = ShellCommand("getprop debug.hwui.renderer", ShortTimeout)

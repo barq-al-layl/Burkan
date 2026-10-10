@@ -79,9 +79,6 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
             } catch (e: IOException) {
                 Logger.w(e) { "Connecting to $host:$port failed" }
                 ConnectionError.ConnectFailed.left()
-            } catch (e: InterruptedException) {
-                Logger.w(e) { "Connecting to $host:$port timed out" }
-                ConnectionError.ConnectFailed.left()
             }
         }
 
@@ -89,7 +86,8 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
         val manager = manager ?: return
         withContext(Dispatchers.IO) {
             try {
-                // Never close(): libadb's close() destroys the private key.
+                // disconnect() ends, as close() begins, by asking the private key to destroy itself. The key
+                // Android made refuses, and has to: the next connection is made with the same one.
                 manager.disconnect()
             } catch (e: IOException) {
                 Logger.w(e) { "Disconnecting failed" }

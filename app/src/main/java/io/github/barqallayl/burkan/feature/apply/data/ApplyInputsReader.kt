@@ -3,7 +3,6 @@ package io.github.barqallayl.burkan.feature.apply.data
 import arrow.core.Either
 import arrow.core.raise.either
 import arrow.core.raise.ensure
-import dev.zacsweers.metro.Inject
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.SettingKey
@@ -16,7 +15,6 @@ import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 
 /** Reads what a plan needs from the device. Read-only: nothing here changes the device. */
-@Inject
 class ApplyInputsReader(private val shell: ShellExecutor) {
 
     /** The current input method's package, or null when none is set. */
