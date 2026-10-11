@@ -57,7 +57,7 @@ interface SettingsStorage {
         val appStyle: AppStyle = AppStyle.Material
         val themeMode: ThemeMode = ThemeMode.FollowSystem
         val seedColor: SeedColors = SeedColors.defaultFor(appStyle)
-        val paletteStyle: PaletteStyles = PaletteStyles.Expressive
+        val paletteStyle: PaletteStyles = PaletteStyles.TonalSpot
         const val APPLY_ON_BOOT: Boolean = true
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
     }

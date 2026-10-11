@@ -364,7 +364,7 @@ Metro, one graph:
   | Style | Material, One UI | One UI on a Samsung phone, Material elsewhere |
   | Dark theme | Follow system, light, dark | Follow system |
   | Seed colour | The list in `SeedColors` | `SeedColors.Default` |
-  | Palette style (Material only) | The list in `PaletteStyles` (every MaterialKolor style) | Expressive |
+  | Palette style (Material only) | The list in `PaletteStyles` (every MaterialKolor style) | Tonal spot |
 
   The size of text is the phone's own setting, and the app does not change it.
 
