@@ -27,6 +27,7 @@ When a device result comes in, update this file in the same change as the code.
 | Only the `shell` user (or root) can set it; an app cannot | Expected |
 | A process keeps the renderer it started with. Setting the property changes nothing until the process restarts | Measured |
 | `getprop debug.hwui.renderer` returns `skiavk` when set and an empty line when not | Measured |
+| `setprop debug.hwui.renderer ''` clears the property: exit status 0, and `getprop` prints an empty line again | Measured on the Android 17 emulator only. Not yet run on the S23 |
 
 **What a process is actually using** is reported by `dumpsys gfxinfo <package>`:
 
@@ -38,6 +39,21 @@ Pipeline=Skia (OpenGL)
 Take the first line containing `Pipeline=`. The property only says what *new* processes will get; this line says
 what a running one has. The status screen must use this, not the property, for SystemUI, the launcher and the
 keyboard. (Measured.)
+
+**Every process at once** is `dumpsys gfxinfo` with no package. Each process is headed
+
+```
+** Graphics info for pid 13630 [com.example.app] **
+```
+
+and one that has drawn anything has a `Pipeline=` line under that heading; one that has drawn nothing has none.
+The name in brackets is the process name: the package, with `:name` added for any process but the main one. Some
+are not packages at all (`android.process.acore`).
+
+Measured on the S23, with the phone in ordinary use two days after its last restart: the dump took 1.8 seconds
+and was 795 KB; it listed 97 processes, of which 19 had a pipeline. 17 of those were on Vulkan and 2 still on
+OpenGL, Samsung Pay and the live wallpaper, both running since before Vulkan was applied. That is the list the
+app's "Open apps" row is made from.
 
 ---
 

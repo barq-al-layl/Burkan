@@ -21,9 +21,13 @@ Burkan does it on the phone, by itself, after every restart.
 2. **After every reboot**, when the phone is on a Wi-Fi network it is allowed to use, it switches wireless
    debugging on, connects to `127.0.0.1`, applies Vulkan, restarts the three system surfaces that were already
    running, and switches wireless debugging off again.
-3. **Shows the truth**: which renderer new apps will get, and which renderer SystemUI, the launcher and the
-   keyboard are actually using right now.
-4. **Applies on demand**, either lightly or by restarting every app.
+3. **Shows the truth**: which renderer new apps will get, which renderer SystemUI, the launcher and the
+   keyboard are actually using right now, and which open apps are still on the other one.
+4. **Applies on demand**, either lightly, by restarting every app, or by restarting only the open apps that are
+   behind.
+5. **Goes back to OpenGL** when asked, without a restart of the phone.
+6. **Runs without being opened**: an apply, or the full flow that also restarts every app, started from a
+   shortcut on the app's icon or by another app such as Tasker.
 
 ### Not in scope
 
@@ -98,6 +102,17 @@ The status, and the two actions. The two styles lay it out differently; what it 
   "Unknown", from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
   stay in place with placeholders; while a run is in progress the card says its values are being changed.
 - **Last run**: when, what triggered it (boot or manual), and its result.
+- **Open apps**: a fifth row, under the surfaces. A process keeps the renderer it started with, so after an apply
+  on a phone that has been in use, what was open is still on OpenGL. The row says how many apps that is, or that
+  all of them are on what new apps get. With some behind it opens a sheet that names them and offers to restart
+  only those: the full apply's machinery, limited to them, with the property and the surfaces left as they are.
+  After going back to OpenGL the same row counts the apps still on Vulkan. An app no run would restart (a
+  keyboard, the wallpaper, one the user set aside, the fixed exclusions) is not counted. The apps are read after
+  the status is shown, from one `dumpsys gfxinfo` of every process, and a run reads them again at its end.
+- **Back to OpenGL**: a row in the details, shown while anything is on Vulkan. Behind a confirmation, it clears
+  the property and restarts the surfaces that are on Vulkan, System UI last and checked on OpenGL. It does not
+  switch "Apply after restart" off: the confirmation says Vulkan is applied again after the next restart if that
+  is on.
 - **Apply now** — the light apply. When System UI is to be restarted, a confirmation says first that the screen
   will lock for a moment.
 - **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app, takes
@@ -216,6 +231,8 @@ A flow is a function that returns the list of steps, and a runner that executes 
 
 - `LightApplyPlan` and `FullApplyPlan` produce `List<ApplyStep>` from inputs (package list, exclusions, wallpaper
   package, keyboard package).
+- A plan has a target, the renderer it leaves the phone on. Towards OpenGL the light plan is the way back. Given
+  the set of open apps that are behind (`OpenAppsReader`), the full plan restarts those alone.
 - `ApplyRunner` executes steps through `ShellExecutor`, records each result in the log, and guarantees the
   restore step runs when a full apply fails or is cancelled.
 - What a full apply has to put back is kept in the phone's state file from before its first step until it is back
@@ -298,7 +315,20 @@ run is limited to recent apps).
 A `FileProvider` hands the exported log, written to the cache, to the app it is shared with; nothing else is
 reachable through it.
 
-- The one activity is `singleTask`: started again from the shell at the end of a full apply, it comes to the
+- A run nobody confirmed on the screen (`RunTrigger.External`) restarts System UI only
+  under a locked phone. Otherwise it leaves System UI for the next lock, as the run after a restart does.
+- Another app starts a run with a broadcast to `TriggerReceiver`: an apply
+  (`io.github.barqallayl.burkan.action.APPLY`), a restart of the open apps that are behind
+  (`…action.RESTART_OPEN_APPS`) or of every app (`…action.RESTART_ALL`). It is how Tasker and the like automate
+  the app. The receiver is exported and there is no setting: any app on the phone can send one, and it is acted
+  on. That was decided knowingly, so that automation needs nothing switched on. The runs are these three and
+  nothing else, they take no arguments, and none locks a phone in use. Going back to OpenGL is not offered this
+  way.
+- The app has two shortcuts on its icon, "Apply now" and "Restart all apps", the second being the full flow:
+  Vulkan applied and every app restarted. Each opens `ShortcutActivity`, which starts the run and closes without
+  showing anything. There is no schedule in the app: a routine that runs one of these at night does that. That activity is not exported: a launcher starts a shortcut in the app's own
+  name.
+- The main activity is `singleTask`: started again from the shell at the end of a full apply, it comes to the
   front as it is, where a second copy would have lost the run it was showing.
 - `minSdk` 33: the S23 shipped with Android 13, and it removes every pre-13 branch. `targetSdk` and `compileSdk`
   37.
@@ -307,8 +337,8 @@ reachable through it.
 ## Decisions
 
 - **`minSdk` 33.** The S23 shipped with Android 13, and it removes every pre-13 branch.
-- **English only.** Two styles over the same shared components: Material 3 Expressive, in Roboto, and One UI, in
-  the phone's own font. The style, the theme and the colour are chosen in Settings; the text size is the phone's.
+- **English only.** Two styles over the same shared components, Material 3 Expressive and One UI, both in the
+  phone's own font. The style, the theme and the colour are chosen in Settings; the text size is the phone's.
 - **Apache-2.0.** `libadb-android`, offered under Apache-2.0 or GPL-3.0-or-later, is used under Apache-2.0. Its
   pairing helper `spake2-java` is LGPL-3.0, which a differently licensed app may link to as long as the library
   can be replaced; the app being open source, anyone can rebuild it with their own copy.

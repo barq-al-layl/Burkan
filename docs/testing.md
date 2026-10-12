@@ -122,7 +122,38 @@ When you check one, tick it here and record what you saw in the device notes.
       look spreads from the tap, and the row's mark turns on inside the circle. (Seen frame by frame on an S23,
       10 Oct 2026. The circle shows about an eighth of a second after the touch; there used to be a fixed wait
       of 120 ms on top of that, for the ripple and the mark to settle. What is left is the setting being saved.)
-- [ ] The same for a theme and a style, and all three in the One UI style. The row already chosen still ripples.
+- [x] The same for a style in the Material style, and for a theme and a colour in the One UI style: each change
+      spreads from the tap, with the sheet changing in the same circle. (Seen on an S23 with the 1.1.0 release
+      build, 11 Oct 2026; the change of style frame by frame.)
+- [ ] The row already chosen still ripples.
+- [ ] The palette style sheet shows, ahead of each style, a disc of that style's primary, secondary and tertiary
+      colours, each at a tone of its own (80, 90 and 60), the same in the dark theme and the light. (This
+      version seen in a preview only. Two earlier ones were seen on an S23 on 11 Oct 2026 and looked wrong: the
+      scheme's own roles were pastel and all alike in the dark theme, and one middle tone for all three let
+      close hues run together. The sheet opened without a hitch both times.)
+- [ ] With no font of its own, the Material style is in the phone's font, whichever the user has chosen in the
+      phone's settings, and the log's steps and the crash report are in the phone's fixed-width font, with their
+      columns still in line. (The build installs and Home opens in the One UI style on an S23, 12 Oct 2026; the
+      Material style and the fixed-width text were not looked at.)
+- [ ] Home's "Open apps" row on a phone with apps still on OpenGL: the count, the sheet that names them, and
+      "Restart them" restarting only those, with the settings put back after. (The dump it is read from was
+      taken from an S23 by hand, 12 Oct 2026, and showed two such apps. The row, the sheet and the run were
+      seen in previews and tests only.)
+- [ ] "Back to OpenGL": the confirmation, the screen locking once, then Home reading "Vulkan is not applied"
+      with every surface on OpenGL, and "Open apps" counting what is still on Vulkan. Then "Apply now" bringing
+      Vulkan back. (Clearing the property was tried on the Android 17 emulator only. Nothing of this has run
+      on a phone.)
+- [ ] The two shortcuts, "Apply now" and "Restart all apps", from a long press on the app's icon: each run starts, with System UI left for
+      the next lock if the phone is in use. And whether Samsung's Modes and Routines offers them as actions
+      of the app, which is how a restart of every app each night is meant to be set up. ("Apply now" was registered on the Android 17 emulator, and the shell is refused when it tries to
+      start the shortcut's activity directly. It was not started from a launcher anywhere.)
+- [ ] A broadcast from another app (`am broadcast -a io.github.barqallayl.burkan.action.APPLY -n
+      io.github.barqallayl.burkan/.feature.apply.TriggerReceiver` does as well): a run starts. From Tasker, with the app in the background: whether
+      Android lets the run start. (On the emulator the broadcast arrives and nothing crashes; setup cannot be
+      finished there, so no run could start.)
+- [ ] One UI's floating buttons in the light theme, barely scrolled and well scrolled: a light disc with a soft
+      shadow around it, and nothing grey behind the icon. (Seen on an S23, 11 Oct 2026, which makes this one
+      done for the light theme; the dark theme was not looked at again after the shadow was moved outside.)
 - [x] Tapping one colour and then another straight away: the second circle starts from the second tap, inside
       the first, which is pictured as far as it had got. (Seen frame by frame on an S23, Material style, with
       150 ms between the taps. The order of events is covered by `ThemeRevealTest`.)
@@ -135,8 +166,16 @@ When you check one, tick it here and record what you saw in the device notes.
       labels. (Not seen on a device.)
 - [ ] In a window 600 dp wide or more, Material's side margins are 24 dp. (Not seen on a device; the previews
       draw 16 dp.)
-- [ ] Settings › Report a problem opens the issue form in the browser. (Not reachable on the emulator, where
-      setup cannot finish; covered by a view model test only.)
+- [x] Settings › Report a problem opens the issue form. (Seen on an S23, 11 Oct 2026: with the GitHub app
+      installed the form opens there and not in a browser.)
+- [x] The 1.1.0 release build, minified and for 64-bit ARM only, installs over 1.0.0 and keeps its pairing and
+      settings. Home reads the status, Apply now runs and switches wireless debugging off again, and Settings,
+      the exclusions list, the licences and the log open. Its APK is 7.7 MB and declares none of the phone or
+      storage permissions. (S23, 11 Oct 2026. Restart all apps, the crash screen, a restart of the phone and
+      pairing were not tried with this build.)
+- [x] After a restart of the phone, with the build of 10 October that first carried the fixes to the wait for
+      Wi-Fi: the automatic apply succeeded, and System UI was restarted at the next lock. (From the app's own
+      log on an S23: 10 Oct 2026, 10:49 and 10:50.)
 - [ ] With no browser on the phone, or every browser disabled, the links in Settings and in a library's sheet do
       nothing and the app goes on. (It used to stop.)
 - [ ] The question before Restart all apps says that Burkan gives itself usage access. (Seen in previews only.)

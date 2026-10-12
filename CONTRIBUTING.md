@@ -354,8 +354,8 @@ Metro, one graph:
   - A click or a toggle goes inside the segment (`onClick`, `interaction`), so its ripple follows the corners.
 - **The look is tuned through preferences, not code.** `BurkanTheme` takes every appearance choice as a
   parameter: the scheme's inputs go to MaterialKolor's `DynamicMaterialExpressiveTheme`. The typeface is not a
-  preference: the Material style sets Material's own type scale in Roboto (`materialTypography`), leaving its
-  sizes and weights alone, and the One UI style uses the phone's own font. The only defaults are those in
+  preference, and the app carries none: both styles are set in the phone's own font, the Material style on
+  Material's own type scale and the One UI style on One UI's. The only defaults are those in
   `SettingsStorage.Defaults`.
 - **The appearance preferences** are stored in `SettingsStorage` and edited in Settings:
 
@@ -382,10 +382,10 @@ Metro, one graph:
   sheet's content inside `BurkanSheetPreview`, so it is on the sheet's own colour.
   One option out of several is a `BurkanChoiceList` of radio segments and applies at once with the sheet left
   open.
-- **Fonts are bundled, not downloaded**: the files are in `res/font`, each under the SIL Open Font License, and
-  each has an entry in `app/aboutlibraries/libraries/` so it appears on the licences screen. There are two:
-  Roboto, for the Material style, and JetBrains Mono, for the log's steps. Adding one means the file, a family in
-  `Fonts.kt` and that licence entry, with a group of its own in `uniqueId` so the fonts are not merged into one.
+- **No font is bundled or downloaded.** Text is in the phone's own font, and what has to line up in columns, the
+  log's steps and the crash report, is in the phone's fixed-width one (`FontFamily.Monospace`). If a font is
+  ever added, it goes in `res/font` with an entry in `app/aboutlibraries/libraries/`, so it appears on the
+  licences screen.
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
 - Use `start`/`end`, never `left`/`right`.
