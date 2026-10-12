@@ -1,6 +1,15 @@
 package io.github.barqallayl.burkan.feature.settings.ui
 
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
+import io.github.barqallayl.burkan.designsystem.isDark
+import com.materialkolor.ktx.rememberDynamicScheme
+import com.materialkolor.dynamiccolor.ColorSpec
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -441,11 +450,52 @@ private fun AppearanceChoices(
             label = { stringResource(it.label) },
             onSelect = actions.onPaletteStyle,
             changesLook = true,
+            leading = { PaletteSwatch(it, appearance.seedColor.resolved(), appearance.themeMode.isDark()) },
         )
 
         SettingsDialog.RedoSetup -> Unit
     }
 }
+
+/**
+ * What a palette style makes of the chosen colour, as one disc: its primary colour over its secondary and its
+ * tertiary. The names alone say little, and two styles can differ only in the colours that are not the main one.
+ *
+ * The three are shown at tones of their own, the same in a light theme and a dark one: the primary light, the
+ * secondary lighter still, the tertiary deeper. As the scheme's own roles they are near black in a light theme
+ * and pastel in a dark one, and at one tone between them two close hues run together. Stepped in lightness, the
+ * three parts stay apart whatever their hues, which is how Android's own colour pickers draw such a disc.
+ */
+@Composable
+private fun PaletteSwatch(style: PaletteStyles, seedColor: Color, isDark: Boolean) {
+    // Generated the way the theme generates its own, so the hues are the ones choosing the row would give.
+    val scheme = rememberDynamicScheme(
+        seedColor = seedColor,
+        isDark = isDark,
+        style = style.style,
+        specVersion = ColorSpec.SpecVersion.SPEC_2026,
+    )
+    val primary = Color(scheme.primaryPalette.tone(SWATCH_PRIMARY_TONE))
+    val secondary = Color(scheme.secondaryPalette.tone(SWATCH_SECONDARY_TONE))
+    val tertiary = Color(scheme.tertiaryPalette.tone(SWATCH_TERTIARY_TONE))
+    Canvas(
+        Modifier
+            .size(32.dp)
+            .clip(CircleShape),
+    ) {
+        val half = Size(size.width / 2, size.height / 2)
+        drawRect(primary, size = Size(size.width, half.height))
+        // In the direction of reading: the secondary colour comes before the tertiary.
+        val secondaryFirst = layoutDirection == LayoutDirection.Ltr
+        drawRect(if (secondaryFirst) secondary else tertiary, Offset(0f, half.height), half)
+        drawRect(if (secondaryFirst) tertiary else secondary, Offset(half.width, half.height), half)
+    }
+}
+
+/** Material's tones run from 0, black, to 100, white. */
+private const val SWATCH_PRIMARY_TONE = 80
+private const val SWATCH_SECONDARY_TONE = 90
+private const val SWATCH_TERTIARY_TONE = 60
 
 @Composable
 private fun SwitchItem(
@@ -638,7 +688,11 @@ private fun SettingsLargeTextPreview() {
 private fun SettingsPaletteStyleSheetTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) {
         BurkanSheetPreview {
-            AppearanceChoices(SettingsDialog.PaletteStyle, sampleAppearance(), SettingsActions())
+            AppearanceChoices(
+                SettingsDialog.PaletteStyle,
+                sampleAppearance().copy(seedColor = SeedColors.Teal),
+                SettingsActions(),
+            )
         }
     }
 }
