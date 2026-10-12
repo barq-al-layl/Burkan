@@ -512,4 +512,26 @@ class ApplyControllerTest {
         // that is behind.
         assertEquals(setOf(PackageName.known("net.example.reader")), controller.verified.value?.behind)
     }
+
+    @Test
+    fun `a run nobody confirmed leaves System UI alone on a phone in use, for the next lock`() = runTest {
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.External)
+
+        assertEquals(RunResult.Postponed, outcome?.result)
+        assertTrue(outcome?.systemUiDeferred == true)
+        assertTrue(shell.lines.none { it.startsWith("am crash") && "com.android.systemui" in it })
+        // The rest of it was done.
+        assertTrue("setprop debug.hwui.renderer skiavk" in shell.lines)
+    }
+
+    @Test
+    fun `a run nobody confirmed restarts System UI when the phone is locked`() = runTest {
+        lockEvents.locked = true
+
+        val outcome = controller.run(ApplyKind.Full, RunTrigger.External)
+
+        assertEquals(RunResult.Succeeded, outcome?.result)
+        assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" in shell.lines)
+        assertEquals(RunTrigger.External, log.runs.value.single().trigger)
+    }
 }

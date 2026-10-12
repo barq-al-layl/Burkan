@@ -229,6 +229,11 @@
     <string name="trigger_manual">Manual</string>
     <string name="trigger_boot">After restart</string>
     <string name="trigger_at_lock">System UI at lock</string>
+    <string name="trigger_external">Shortcut or another app</string>
+    <string name="shortcut_apply">Apply now</string>
+    <string name="shortcut_apply_long">Apply Vulkan now</string>
+    <string name="shortcut_restart_all">Restart all apps</string>
+    <string name="shortcut_restart_all_long">Apply and restart all apps</string>
     <string name="kind_light">Apply</string>
     <string name="kind_full">Restart all apps</string>
     <string name="kind_open_apps">Restart open apps</string>

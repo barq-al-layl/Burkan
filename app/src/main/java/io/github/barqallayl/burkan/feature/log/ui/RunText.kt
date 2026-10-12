@@ -33,6 +33,7 @@ val RunTrigger.label: Int
         RunTrigger.Manual -> R.string.trigger_manual
         RunTrigger.Boot -> R.string.trigger_boot
         RunTrigger.AtLock -> R.string.trigger_at_lock
+        RunTrigger.External -> R.string.trigger_external
     }
 
 @get:StringRes

@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan
 
+import io.github.barqallayl.burkan.feature.apply.TriggerReceiver
 import android.app.Activity
 import android.app.Application
 import android.app.Service
@@ -25,7 +26,8 @@ class RoborazziTestApplication : Application(), MetroApplication {
         // Robolectric creates the manifest's receivers on start, and they take constructor arguments. Here they
         // receive nothing, so stand-ins that do nothing will do.
         override val receiverProviders: Map<KClass<out BroadcastReceiver>, () -> BroadcastReceiver> =
-            listOf(BootReceiver::class, NetworkReceiver::class).associateWith { { NoOpReceiver() } }
+            listOf(BootReceiver::class, NetworkReceiver::class, TriggerReceiver::class)
+                .associateWith { { NoOpReceiver() } }
         override val serviceProviders: Map<KClass<out Service>, () -> Service> = emptyMap()
     }
 }

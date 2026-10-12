@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply
 
+import io.github.barqallayl.burkan.feature.apply.model.isUnattended
 import android.app.Application
 import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
@@ -90,7 +91,11 @@ class ApplyService(
                 val scope = intent?.getStringExtra(EXTRA_SCOPE)
                     ?.let { name -> RestartScope.entries.firstOrNull { it.name == name } }
                     ?: RestartScope.All
-                start(kind, if (automatic) RunTrigger.Boot else RunTrigger.Manual, scope)
+                // Only the triggers a run can be started with from outside are taken from the intent.
+                val unattended = intent?.getStringExtra(EXTRA_TRIGGER)
+                    ?.let { name -> RunTrigger.entries.firstOrNull { it.name == name } }
+                    ?.takeIf { it.isUnattended }
+                start(kind, if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual, scope)
             }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
@@ -100,8 +105,19 @@ class ApplyService(
 
     private fun start(kind: ApplyKind, trigger: RunTrigger, restartScope: RestartScope) {
         run = scope.launch {
-            // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
-            execute(kind, trigger, restartScope)?.let { autoApply.onRunFinished(trigger, it) }
+            // A run nobody is watching may start with the screen off: keep the CPU awake until it has ended.
+            val wakeLock = if (trigger.isUnattended) {
+                getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+                    .also { it.acquire(UNATTENDED_WAKE_LOCK_TIMEOUT.inWholeMilliseconds) }
+            } else {
+                null
+            }
+            try {
+                // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
+                execute(kind, trigger, restartScope)?.let { autoApply.onRunFinished(trigger, it) }
+            } finally {
+                if (wakeLock?.isHeld == true) wakeLock.release()
+            }
             if (autoApply.isWaitingForLock()) awaitLock()
         }.also { it.invokeOnCompletion { stopIfIdle() } }
     }
@@ -180,6 +196,9 @@ class ApplyService(
     companion object {
         const val EXTRA_KIND = "kind"
         const val EXTRA_SCOPE = "scope"
+
+        /** [RunTrigger.External], by name, for a run started without the app's screens. */
+        const val EXTRA_TRIGGER = "trigger"
         const val ACTION_CANCEL = "io.github.barqallayl.burkan.action.CANCEL_RUN"
 
         /** The light apply after a restart, which skips itself when Vulkan is already in place. */
@@ -190,6 +209,9 @@ class ApplyService(
 
         private const val WAKE_LOCK_TAG = "Burkan:apply"
         private val RUN_WAKE_LOCK_TIMEOUT = 2.minutes
+
+        /** A full apply was measured at 73 seconds; this is the most the CPU is held awake for one. */
+        private val UNATTENDED_WAKE_LOCK_TIMEOUT = 5.minutes
     }
 }
 
@@ -308,6 +330,11 @@ interface ApplyLauncher {
      */
     fun startAutomatic(): Boolean
 
+    /**
+     * Starts a run nobody is watching: from a shortcut, or from another app. [trigger] says which. False when Android does not let the app start it from the background.
+     */
+    fun startUnattended(kind: ApplyKind, trigger: RunTrigger): Boolean
+
     fun cancel()
 }
 
@@ -336,6 +363,17 @@ class ServiceApplyLauncher(private val application: Application) : ApplyLauncher
     override fun startAutomatic(): Boolean = try {
         application.startForegroundService(
             Intent(application, ApplyService::class.java).setAction(ApplyService.ACTION_AUTOMATIC),
+        )
+        true
+    } catch (_: ForegroundServiceStartNotAllowedException) {
+        false
+    }
+
+    override fun startUnattended(kind: ApplyKind, trigger: RunTrigger): Boolean = try {
+        application.startForegroundService(
+            Intent(application, ApplyService::class.java)
+                .putExtra(ApplyService.EXTRA_KIND, kind.name)
+                .putExtra(ApplyService.EXTRA_TRIGGER, trigger.name),
         )
         true
     } catch (_: ForegroundServiceStartNotAllowedException) {

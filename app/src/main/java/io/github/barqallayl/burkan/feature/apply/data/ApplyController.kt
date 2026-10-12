@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import io.github.barqallayl.burkan.feature.apply.model.isUnattended
 import arrow.core.Either
 import arrow.core.flatten
 import arrow.core.raise.either
@@ -181,7 +182,10 @@ class ApplyController(
                         status = before.status.takeUnless { atLock }
                         return@either
                     }
-                    val mayRestartSystemUi: () -> Boolean = if (atLock) lockEvents::isLocked else ({ true })
+                    // A run nobody confirmed on the screen restarts System UI only under a locked phone. Left
+                    // alone, it is done at the next lock, like the run after a restart.
+                    val mayRestartSystemUi: () -> Boolean =
+                        if (atLock || trigger.isUnattended) lockEvents::isLocked else ({ true })
                     systemUiLeft = ApplyRunner(shell, cooldown, captured, mayRestartSystemUi)
                         .run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
                     show(RunPhase.Checking)

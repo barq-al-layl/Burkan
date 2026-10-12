@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown on a long press of the app's icon, and offered by automation that lists an app's shortcuts as its
+     actions. The launcher starts the activity in the app's own name, so it does not have to be exported. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_apply"
+        android:shortcutId="apply"
+        android:shortcutLongLabel="@string/shortcut_apply_long"
+        android:shortcutShortLabel="@string/shortcut_apply">
+        <intent
+            android:action="io.github.barqallayl.burkan.shortcut.APPLY"
+            android:targetClass="io.github.barqallayl.burkan.feature.apply.ShortcutActivity"
+            android:targetPackage="io.github.barqallayl.burkan" />
+    </shortcut>
+    <!-- The full flow: Vulkan applied, and every app restarted so that each comes back on it. -->
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_restart_all"
+        android:shortcutId="restart_all"
+        android:shortcutLongLabel="@string/shortcut_restart_all_long"
+        android:shortcutShortLabel="@string/shortcut_restart_all">
+        <intent
+            android:action="io.github.barqallayl.burkan.shortcut.RESTART_ALL"
+            android:targetClass="io.github.barqallayl.burkan.feature.apply.ShortcutActivity"
+            android:targetPackage="io.github.barqallayl.burkan" />
+    </shortcut>
+</shortcuts>

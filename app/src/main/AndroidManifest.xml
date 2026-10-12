@@ -74,7 +74,20 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- What the app's shortcuts open: it starts the run the shortcut names and closes, showing nothing. Not exported:
+             the launcher starts a shortcut in the app's own name. -->
+        <activity
+            android:name=".feature.apply.ShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <!-- Shown after a crash, in a process of its own: it starts when the app's has died, and needs nothing
              of the app to be in working order. -->
@@ -98,6 +111,20 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- How another app, Tasker for one, starts a run. Any app on the phone can send these, and each is acted
+             on: the three runs are fixed, take no arguments, and never lock a phone that is in use. A permission
+             of the app's own would not serve, since an automation app cannot be made to hold one. -->
+        <receiver
+            android:name=".feature.apply.TriggerReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="io.github.barqallayl.burkan.action.APPLY" />
+                <action android:name="io.github.barqallayl.burkan.action.RESTART_OPEN_APPS" />
+                <action android:name="io.github.barqallayl.burkan.action.RESTART_ALL" />
             </intent-filter>
         </receiver>
 

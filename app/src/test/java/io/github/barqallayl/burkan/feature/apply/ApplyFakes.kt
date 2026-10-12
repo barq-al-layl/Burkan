@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply
 
+import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.SettingKey
@@ -34,6 +35,15 @@ class FakeApplyLauncher : ApplyLauncher {
     override fun start(kind: ApplyKind, scope: RestartScope) {
         started += kind
         scopes += scope
+    }
+
+    /** Each run started with nobody watching: what, and why. */
+    val unattended = mutableListOf<Pair<ApplyKind, RunTrigger>>()
+
+    override fun startUnattended(kind: ApplyKind, trigger: RunTrigger): Boolean {
+        if (!backgroundStartAllowed) return false
+        unattended += kind to trigger
+        return true
     }
 
     override fun awaitLock() {

@@ -420,4 +420,24 @@ class AutoApplyTest {
         const val HOME_NETWORK = 100L
         const val OTHER_NETWORK = 200L
     }
+
+    @Test
+    fun `a run from a shortcut or another app that fails is reported, and waits for nothing`() = runTest {
+        autoApply.onRunFinished(RunTrigger.External, RunOutcome(RunResult.Failed, ConnectionError.NoWifi))
+
+        assertEquals(listOf<AppError?>(ConnectionError.NoWifi), alerts.failures)
+        // Wi-Fi coming back must not start the apply after a restart in their place.
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a run from another app that left System UI alone has it restarted at the next lock`() = runTest {
+        autoApply.onRunFinished(
+            RunTrigger.External,
+            RunOutcome(RunResult.Postponed, systemUiDeferred = true),
+        )
+
+        assertEquals(AutoApplyState(systemUiAtNextLock = true), storage.state.value)
+    }
 }

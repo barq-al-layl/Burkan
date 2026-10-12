@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply
 
+import io.github.barqallayl.burkan.feature.apply.data.ExternalTrigger
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -30,6 +31,22 @@ class BootReceiver(private val autoApply: AutoApply) : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         goAsync { autoApply.onBoot() }
+    }
+}
+
+/**
+ * Receives the broadcasts by which another app starts a run. Exported, so any app can send one: what one can
+ * start is limited to what [ExternalTrigger] offers.
+ */
+@Inject
+@BroadcastReceiverKey
+@ContributesIntoMap(AppScope::class, binding = binding<BroadcastReceiver>())
+class TriggerReceiver(private val trigger: ExternalTrigger) : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action
+        if (ExternalTrigger.kindFor(action) == null) return
+        goAsync { trigger.onBroadcast(action) }
     }
 }
 

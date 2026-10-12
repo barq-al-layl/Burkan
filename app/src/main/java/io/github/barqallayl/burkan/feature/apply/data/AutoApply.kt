@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import io.github.barqallayl.burkan.feature.apply.model.isUnattended
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -100,7 +101,9 @@ class AutoApply(
                 storage.set(AutoApplyState(systemUiAtNextLock = true))
             }
             outcome.result == RunResult.Succeeded || outcome.result == RunResult.AlreadyApplied -> stopWaiting()
-            trigger == RunTrigger.Manual -> if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)
+            // Not the apply after a restart, so there is nothing of it to wait for again: the failure is only said.
+            trigger == RunTrigger.Manual || trigger.isUnattended ->
+                if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)
             outcome.error == ConnectionError.NoWifi -> waitFor(WaitReason.Wifi, tried)
             outcome.error == ConnectionError.WirelessDebuggingRefused -> {
                 waitFor(WaitReason.TrustedNetwork, tried ?: wifiWatch.wifiNetwork())

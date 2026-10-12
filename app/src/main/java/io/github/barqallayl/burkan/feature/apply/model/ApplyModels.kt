@@ -39,7 +39,17 @@ enum class RunTrigger {
 
     /** The rest of the automatic apply after a restart: System UI, restarted once the phone has locked. */
     AtLock,
+
+    /**
+     * Something outside the app's own screens: its shortcut, or another app that the user lets start runs. Nobody
+     * was asked first, so System UI is restarted only if the phone is locked, and left for the next lock otherwise.
+     */
+    External,
 }
+
+/** True for a run nobody confirmed on the screen just before: it must not lock a phone that is in use. */
+val RunTrigger.isUnattended: Boolean
+    get() = this == RunTrigger.External
 
 /** The device settings a full apply disturbs, and puts back. */
 enum class RestoredSetting {
