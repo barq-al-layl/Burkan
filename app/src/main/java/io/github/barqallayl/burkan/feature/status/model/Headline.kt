@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.model
 
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 
@@ -28,3 +29,6 @@ fun RendererStatus.headline(): Headline {
         else -> Headline.PartlyApplied
     }
 }
+
+/** An open app still drawing with the renderer it started on, after the property moved on. */
+data class BehindApp(val packageName: PackageName, val label: String)

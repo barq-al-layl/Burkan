@@ -1,5 +1,9 @@
 package io.github.barqallayl.burkan.feature.status.data
 
+import kotlin.test.assertNull
+import io.github.barqallayl.burkan.feature.status.model.BehindApp
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
+import io.github.barqallayl.burkan.feature.settings.data.FakeInstalledApps
 import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.core.model.Renderer
@@ -33,7 +37,13 @@ class StatusRepositoryTest {
         reply(ShellCommands.gfxInfo(keyboard), stdout = fixture("gfxinfo-opengl.txt"))
     }
     private val access = FakeShellAccess(shell)
-    private val repository = StatusRepository(access)
+    private val settings = FakeSettingsStorage()
+    private val repository = StatusRepository(
+        access,
+        FakeInstalledApps(mapOf("com.example.notes" to "Notes", "org.example.chat" to "Chat")),
+        settings,
+        FixtureDevice.Self,
+    )
 
     @Test
     fun `each surface is read from its own gfxinfo`() = runTest {
@@ -94,5 +104,41 @@ class StatusRepositoryTest {
 
         assertEquals(Renderer.Unknown, repository.read().getOrNull()?.launcher)
         assertTrue(shell.lines.none { it.startsWith("dumpsys gfxinfo com.sec") })
+    }
+
+    @Test
+    fun `the open apps that are behind are named, in the order of their names`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+        shell.reply(ShellCommands.listInputMethods(), stdout = fixture("ime-list.txt"))
+        shell.reply(ShellCommands.dumpWallpaper(), stdout = fixture("dumpsys-wallpaper.txt"))
+        repository.read()
+
+        // The weather app is behind too, but the fake phone has no such app installed: a process name that is no
+        // package is left out the same way.
+        assertEquals(
+            listOf(
+                BehindApp(PackageName.known("org.example.chat"), "Chat"),
+                BehindApp(PackageName.known("com.example.notes"), "Notes"),
+            ),
+            repository.readBehind(),
+        )
+    }
+
+    @Test
+    fun `an app the user set aside is not named as behind`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+        settings.userExclusions.value = setOf(PackageName.known("org.example.chat"))
+        repository.read()
+
+        assertEquals(listOf(BehindApp(PackageName.known("com.example.notes"), "Notes")), repository.readBehind())
+    }
+
+    @Test
+    fun `with no status to go by, nothing is known about the open apps`() = runTest {
+        assertNull(repository.readBehind())
+
+        access.failure = ConnectionError.NoWifi
+        repository.read()
+        assertNull(repository.readBehind())
     }
 }

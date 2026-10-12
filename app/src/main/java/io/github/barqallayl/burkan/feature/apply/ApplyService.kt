@@ -28,6 +28,7 @@ import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.RunOutcome
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
+import io.github.barqallayl.burkan.feature.log.ui.runningLabel
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.ui.label
@@ -209,10 +210,7 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
     }
 
     fun progress(kind: ApplyKind, state: ApplyRunState): Notification {
-        val title = when (kind) {
-            ApplyKind.Light -> R.string.apply_running_light_title
-            ApplyKind.Full -> R.string.apply_running_full_title
-        }
+        val title = kind.runningLabel
         val cancel = PendingIntent.getService(
             application,
             0,

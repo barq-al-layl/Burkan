@@ -386,4 +386,23 @@ class ApplyRunnerTest {
         const val HONEYBOARD = "com.samsung.android.honeyboard/.service.HoneyBoardService"
         const val OTHER_KEYBOARD = "com.example.keyboard/.Ime"
     }
+
+    @Test
+    fun `going back, System UI is asked until it answers on OpenGL`() = runTest {
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-opengl.txt"))
+
+        runner.run(systemUiOnly.copy(target = Renderer.OpenGL)) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartSystemUi)), records)
+    }
+
+    @Test
+    fun `going back, System UI that stays on Vulkan fails the step`() = runTest {
+        shell.reply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
+        runner.run(systemUiOnly.copy(target = Renderer.OpenGL)) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartSystemUi, ApplyError.SystemUiStillOnVulkan)), records)
+    }
 }

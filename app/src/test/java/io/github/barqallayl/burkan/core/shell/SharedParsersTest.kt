@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.core.shell
 
+import kotlin.test.assertTrue
 import io.github.barqallayl.burkan.core.model.Renderer
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -58,5 +59,20 @@ class SharedParsersTest {
         )
         assertEquals(PackageName.known("org.example.home"), parseRoleHolders("org.example.home;org.example.other\n"))
         assertNull(parseRoleHolders("\n"))
+    }
+
+    @Test
+    fun `the dump of every process gives each one that has drawn its renderer, by process name`() {
+        val renderers = parseProcessRenderers(fixture("gfxinfo-all.txt"))
+
+        assertEquals(Renderer.Vulkan, renderers["com.android.systemui"])
+        assertEquals(Renderer.OpenGL, renderers["com.example.notes"])
+        assertEquals(Renderer.OpenGL, renderers["org.example.weather:widget"])
+        assertEquals(Renderer.Vulkan, renderers["net.example.reader"])
+        // A process that has drawn nothing has no pipeline, and so no renderer to report.
+        assertTrue("com.example.notes:sync" !in renderers)
+        assertTrue("android.process.acore" !in renderers)
+        assertEquals(9, renderers.size)
+        assertTrue(parseProcessRenderers("").isEmpty())
     }
 }

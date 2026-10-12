@@ -57,6 +57,9 @@ object ShellCommands {
 
     fun setVulkanRenderer(): ShellCommand = ShellCommand("setprop debug.hwui.renderer skiavk", ShortTimeout)
 
+    /** Leaves the property as it is after a restart, empty: new processes get the phone's default, OpenGL. */
+    fun clearRenderer(): ShellCommand = ShellCommand("setprop debug.hwui.renderer ''", ShortTimeout)
+
     /**
      * Restarts a process the system brings back by itself, without clearing it as a default (keyboard). Not
      * repeatable: crashing System UI twice in a row makes One UI turn off its customisation modules, and crashing it
@@ -113,6 +116,9 @@ object ShellCommands {
 
     /** What a running process renders with, in its `Pipeline=` line. */
     fun gfxInfo(packageName: PackageName): ShellCommand = ShellCommand("dumpsys gfxinfo $packageName", DumpTimeout)
+
+    /** What every running process that has drawn renders with: a `Pipeline=` line under each process's heading. */
+    fun gfxInfoAll(): ShellCommand = ShellCommand("dumpsys gfxinfo", DumpTimeout)
 
     fun listPackages(): ShellCommand = ShellCommand("pm list packages", ShortTimeout)
 

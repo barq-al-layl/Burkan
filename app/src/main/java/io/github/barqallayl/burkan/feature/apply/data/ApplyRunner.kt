@@ -70,18 +70,18 @@ class ApplyRunner(
             onStepStarted(StepKind.RestartSystemUi)
             // As late as it can be asked. Between it and the crash there is only the cooldown, a local write.
             if (!mayRestartSystemUi()) return true
-            val failure = if (cooldown.claim()) restartSystemUi() else ApplyError.SystemUiRestartedRecently
+            val failure = if (cooldown.claim()) restartSystemUi(plan.target) else ApplyError.SystemUiRestartedRecently
             onStep(StepRecord(StepKind.RestartSystemUi, failure))
         }
         return false
     }
 
     /**
-     * Crashes System UI, the only way to restart it, then asks until the new process answers on Vulkan. The lock
+     * Crashes System UI, the only way to restart it, then asks until the new process answers on [target]. The lock
      * screen it brings up restarts adbd, so the crash usually loses its connection: that is the expected outcome, and
      * the shell reconnects for the checks after it.
      */
-    private suspend fun restartSystemUi(): AppError? {
+    private suspend fun restartSystemUi(target: Renderer): AppError? {
         shell.run(ShellCommands.crash(ShellCommands.SystemUi)).fold(
             ifLeft = { error -> if (error != ShellError.ConnectionLost) return error },
             ifRight = { result ->
@@ -91,10 +91,11 @@ class ApplyRunner(
         val reader = RendererReader(shell)
         repeat(VERIFY_ATTEMPTS) {
             delay(VERIFY_PAUSE)
-            // Until the old process is gone it still answers, on OpenGL; until the new one is up, nothing does.
-            if (reader.rendererOf(ShellCommands.SystemUi).getOrElse { return it } == Renderer.Vulkan) return null
+            // Until the old process is gone it still answers, on its old renderer; until the new one is up, nothing
+            // does.
+            if (reader.rendererOf(ShellCommands.SystemUi).getOrElse { return it } == target) return null
         }
-        return ApplyError.SystemUiNotOnVulkan
+        return if (target == Renderer.Vulkan) ApplyError.SystemUiNotOnVulkan else ApplyError.SystemUiStillOnVulkan
     }
 
     /**

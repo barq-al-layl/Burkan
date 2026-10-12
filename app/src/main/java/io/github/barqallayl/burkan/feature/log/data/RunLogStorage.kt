@@ -146,6 +146,7 @@ private fun StoredRun.toEntry(): RunLogEntry? {
 private val StepKind.storedName: String
     get() = when (this) {
         StepKind.SetRenderer -> "SetRenderer"
+        StepKind.ClearRenderer -> "ClearRenderer"
         is StepKind.StopApps -> "StopApps"
         StepKind.RestartSystemUi -> "RestartSystemUi"
         StepKind.RestartLauncher -> "RestartLauncher"
@@ -156,6 +157,7 @@ private val StepKind.storedName: String
 
 private fun StoredStep.toKind(): StepKind? = when (kind) {
     "SetRenderer" -> StepKind.SetRenderer
+    "ClearRenderer" -> StepKind.ClearRenderer
     "StopApps" -> count?.let(StepKind::StopApps)
     "RestartSystemUi" -> StepKind.RestartSystemUi
     "RestartLauncher" -> StepKind.RestartLauncher

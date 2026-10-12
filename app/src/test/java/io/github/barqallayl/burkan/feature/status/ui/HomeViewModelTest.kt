@@ -1,5 +1,8 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import io.github.barqallayl.burkan.feature.status.model.BehindApp
+import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.feature.settings.data.FakeInstalledApps
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
@@ -74,10 +77,14 @@ class HomeViewModelTest {
         FixtureDevice.Self,
     )
     private val launcher = FakeApplyLauncher()
+    private val installedApps = FakeInstalledApps(mapOf("net.example.reader" to "Reader"))
+
+    /** How many times the status was read. Each read of it starts by asking for the property. */
+    private fun statusReads() = shell.lines.count { it == "getprop debug.hwui.renderer" }
     private val autoApply = FakeAutoApplyStorage()
 
     private fun TestScope.viewModel() = HomeViewModel(
-        StatusRepository(access),
+        StatusRepository(access, installedApps, settings, FixtureDevice.Self),
         controller,
         launcher,
         RunLogStore(log, backgroundScope),
@@ -291,11 +298,11 @@ class HomeViewModelTest {
 
             containerHost.onResume().join()
             containerHost.onResume().join()
-            assertEquals(1, access.runs)
+            assertEquals(1, statusReads())
 
             clock.advance(31.seconds)
             containerHost.onResume().join()
-            assertEquals(2, access.runs)
+            assertEquals(2, statusReads())
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
@@ -329,6 +336,77 @@ class HomeViewModelTest {
         while (true) {
             val item = awaitItem()
             if (item is Item.StateItem && matches(item.value)) return item.value
+        }
+    }
+
+    @Test
+    fun `the open apps that are behind are read once the status is shown`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.refresh()
+
+            // The status arrives first, with the open apps still to come.
+            val shown = awaitState { it.status is StatusState.Loaded }
+            assertEquals(null, shown.behind)
+            // New apps get OpenGL on this phone, so it is the app on Vulkan that is behind.
+            val read = awaitState { it.behind != null }
+            assertEquals(listOf(BehindApp(PackageName.known("net.example.reader"), "Reader")), read.behind)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the apps that are behind are shown, and restarted only when the user says so`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh().join()
+
+            containerHost.showBehind()
+            awaitState { it.isShowingBehind }
+            assertTrue(launcher.started.isEmpty())
+
+            containerHost.confirmRestartBehind()
+            awaitState { !it.isShowingBehind }
+            assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `with nothing behind there is nothing to show`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh().join()
+
+            containerHost.showBehind().join()
+
+            assertTrue(launcher.started.isEmpty())
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `going back to OpenGL asks first`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.requestRevert()
+            awaitState { it.isConfirmingRevert }
+            assertTrue(launcher.started.isEmpty())
+
+            containerHost.confirmRevert()
+            awaitState { !it.isConfirmingRevert }
+            assertEquals(listOf(ApplyKind.Revert), launcher.started)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
         }
     }
 }

@@ -25,6 +25,7 @@ import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
+import io.github.barqallayl.burkan.feature.status.model.BehindApp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
@@ -68,6 +69,13 @@ data class HomeState(
     val applyOnBoot: Boolean? = null,
     /** How many apps the user has chosen never to restart. */
     val keptCount: Int = 0,
+    /**
+     * The open apps still on the renderer new apps no longer get. Null until they are read, which follows the
+     * status, and when the phone could not be asked.
+     */
+    val behind: List<BehindApp>? = null,
+    val isShowingBehind: Boolean = false,
+    val isConfirmingRevert: Boolean = false,
 )
 
 sealed interface HomeSideEffect {
@@ -151,7 +159,13 @@ class HomeViewModel(
         reduce { state.copy(isRefreshing = true) }
         val status =
             statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
-        reduce { state.copy(status = status, statusReadAt = clock.now(), isRefreshing = false) }
+        // The open apps are asked about once the status is on the screen: it is the slower of the two questions.
+        reduce { state.copy(status = status, statusReadAt = clock.now(), isRefreshing = false, behind = null) }
+        if (status is StatusState.Loaded) {
+            val behind = statusRepository.readBehind()
+            // A run that started meanwhile will say for itself what it leaves behind.
+            if (state.run == ApplyRunState.Idle) reduce { state.copy(behind = behind) }
+        }
     }
 
     /** Apply now. Restarting System UI locks the screen, so the user is told first when that will happen. */
@@ -186,6 +200,28 @@ class HomeViewModel(
 
     fun dismissRestartAll() = intent { reduce { state.copy(isConfirmingFullApply = false) } }
 
+    /** Shows which open apps are behind, and offers to restart them. */
+    fun showBehind() = intent {
+        if (!state.behind.isNullOrEmpty()) reduce { state.copy(isShowingBehind = true) }
+    }
+
+    fun confirmRestartBehind() = intent {
+        reduce { state.copy(isShowingBehind = false) }
+        launcher.start(ApplyKind.OpenApps)
+    }
+
+    fun dismissBehind() = intent { reduce { state.copy(isShowingBehind = false) } }
+
+    /** Back to OpenGL. It restarts System UI, which locks the screen, so it is always asked about first. */
+    fun requestRevert() = intent { reduce { state.copy(isConfirmingRevert = true) } }
+
+    fun confirmRevert() = intent {
+        reduce { state.copy(isConfirmingRevert = false) }
+        launcher.start(ApplyKind.Revert)
+    }
+
+    fun dismissRevert() = intent { reduce { state.copy(isConfirmingRevert = false) } }
+
     fun cancelRun() = intent { launcher.cancel() }
 
     /** The user has seen how the run went: its steps make way for the status again. */
@@ -206,10 +242,12 @@ class HomeViewModel(
     private fun showRunResult(run: RunLogEntry): Job = intent {
         val verified = controller.verified.value
         if (verified != null && verified.at >= run.startedAt) {
+            val behind = verified.behind?.let { statusRepository.describe(it) }
             reduce {
                 state.copy(
                     status = StatusState.Loaded(verified.status),
                     statusReadAt = verified.at,
+                    behind = behind,
                 )
             }
         } else {

@@ -99,7 +99,10 @@ class ApplyControllerTest {
 
         val finalStatus = RendererStatus(Renderer.OpenGL, Renderer.Vulkan, Renderer.OpenGL, Renderer.OpenGL)
         assertEquals(finalStatus, outcome?.status)
-        assertEquals(VerifiedStatus(finalStatus, Instant.parse("2026-10-01T09:00:05Z")), controller.verified.value)
+        assertEquals(
+            VerifiedStatus(finalStatus, Instant.parse("2026-10-01T09:00:05Z"), behind = emptySet()),
+            controller.verified.value,
+        )
         assertEquals(1, access.releases)
     }
 
@@ -433,5 +436,80 @@ class ApplyControllerTest {
         private var next = Instant.parse("2026-10-01T09:00:00Z")
 
         override fun now(): Instant = next.also { next += 5.seconds }
+    }
+
+    private fun onVulkan() {
+        shell.reply(ShellCommands.getRenderer(), stdout = "skiavk\n")
+        listOf(ShellCommands.SystemUi, FixtureDevice.Launcher, FixtureDevice.Keyboard).forEach {
+            shell.reply(ShellCommands.gfxInfo(it), stdout = fixture("gfxinfo-vulkan.txt"))
+        }
+    }
+
+    @Test
+    fun `going back clears the property and restarts the surfaces, System UI last and checked on OpenGL`() = runTest {
+        onVulkan()
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-opengl.txt"))
+
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Revert, RunTrigger.Manual)?.result)
+
+        val entry = log.runs.value.single()
+        assertEquals(ApplyKind.Revert, entry.kind)
+        assertEquals(
+            listOf(
+                StepKind.ClearRenderer,
+                StepKind.RestartLauncher,
+                StepKind.RestartKeyboard,
+                StepKind.RestartSystemUi,
+            ),
+            entry.steps.map { it.kind },
+        )
+        assertTrue("setprop debug.hwui.renderer ''" in shell.lines)
+        assertTrue("setprop debug.hwui.renderer skiavk" !in shell.lines)
+    }
+
+    @Test
+    fun `going back on a phone that is not on Vulkan changes nothing`() = runTest {
+        assertEquals(RunResult.AlreadyApplied, controller.run(ApplyKind.Revert, RunTrigger.Manual)?.result)
+
+        assertTrue(shell.lines.none { it.startsWith("setprop") || it.startsWith("am ") })
+    }
+
+    @Test
+    fun `catching up restarts only the open apps that are behind, and no surface`() = runTest {
+        onVulkan()
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.OpenApps, RunTrigger.Manual)?.result)
+
+        // In the order the phone lists its packages. Not the keyboard, the launcher, the wallpaper or the service
+        // that keeps calls working, though each is on OpenGL too.
+        assertTrue(
+            "am force-stop com.example.notes; am force-stop org.example.weather; am force-stop org.example.chat; true"
+                in shell.lines,
+        )
+        assertTrue(shell.lines.none { it.startsWith("am crash") || it.startsWith("setprop") })
+        val kinds = log.runs.value.single().steps.map { it.kind }
+        assertEquals(StepKind.StopApps(3), kinds.first())
+        assertTrue(StepKind.RestartSystemUi !in kinds)
+    }
+
+    @Test
+    fun `catching up with nothing behind changes nothing`() = runTest {
+        onVulkan()
+
+        assertEquals(RunResult.AlreadyApplied, controller.run(ApplyKind.OpenApps, RunTrigger.Manual)?.result)
+
+        assertTrue(shell.lines.none { it.startsWith("am ") })
+    }
+
+    @Test
+    fun `a run says which open apps it left behind`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        // The fake phone's property never changes, so new apps still get OpenGL, and it is the one app on Vulkan
+        // that is behind.
+        assertEquals(setOf(PackageName.known("net.example.reader")), controller.verified.value?.behind)
     }
 }

@@ -165,6 +165,7 @@
     <string name="error_setting_not_restored">The setting did not read back as it was. Check it in Settings.</string>
     <string name="error_system_ui_restarted_recently">System UI was restarted less than a minute ago, so it was left alone: restarting it again so soon makes One UI switch off its customisation add-ons. Try again in a minute.</string>
     <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
+    <string name="error_system_ui_still_on_vulkan">System UI came back, but still on Vulkan.</string>
     <string name="error_keyboard_not_restored">Restarting the keyboard changed the default keyboard, and Burkan could not put it back. Choose it again in Settings › General management › Keyboard list and default.</string>
     <string name="error_apps_not_listed">Android did not answer when asked for the installed apps.</string>
     <string name="error_licences_unreadable">The list of libraries built into Burkan could not be read. The source code lists them too.</string>
@@ -182,6 +183,7 @@
     <string name="pairing_done_text">Return to Burkan to finish setup.</string>
 
     <string name="step_set_renderer">Set new apps to Vulkan</string>
+    <string name="step_clear_renderer">Set new apps back to OpenGL</string>
     <plurals name="step_stop_apps">
         <item quantity="one">Stop %d app</item>
         <item quantity="other">Stop %d apps</item>
@@ -206,6 +208,8 @@
     <string name="apply_channel_description">Shows a run while it is in progress, and a run that failed.</string>
     <string name="apply_running_light_title">Applying Vulkan</string>
     <string name="apply_running_full_title">Restarting all apps</string>
+    <string name="apply_running_open_apps_title">Restarting open apps</string>
+    <string name="apply_running_revert_title">Going back to OpenGL</string>
     <string name="apply_cancel_action">Cancel</string>
     <string name="apply_failed_title">Vulkan was not applied</string>
     <string name="apply_failed_text">Open Burkan to see what went wrong.</string>
@@ -227,10 +231,13 @@
     <string name="trigger_at_lock">System UI at lock</string>
     <string name="kind_light">Apply</string>
     <string name="kind_full">Restart all apps</string>
+    <string name="kind_open_apps">Restart open apps</string>
+    <string name="kind_revert">Back to OpenGL</string>
     <string name="result_succeeded">Succeeded</string>
     <string name="result_failed">Failed</string>
     <string name="result_cancelled">Cancelled</string>
     <string name="result_already_applied">Already applied</string>
+    <string name="result_nothing_to_do">Nothing to do</string>
     <string name="result_postponed">Left for the next lock</string>
 
     <string name="home_waiting_wifi_title">Waiting for Wi-Fi</string>
@@ -271,6 +278,20 @@
     <string name="value_on">On</string>
     <string name="value_off">Off</string>
     <string name="home_restart_all_text">Also closes every open app, so each comes back on Vulkan</string>
+    <string name="home_row_open_apps">Open apps</string>
+    <string name="home_open_apps_all">All on %1$s</string>
+    <plurals name="home_open_apps_behind">
+        <item quantity="one">%1$d still on %2$s</item>
+        <item quantity="other">%1$d still on %2$s</item>
+    </plurals>
+    <string name="home_behind_title">Still on %1$s</string>
+    <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost.</string>
+    <string name="home_behind_action">Restart them</string>
+    <string name="home_revert">Back to OpenGL</string>
+    <string name="home_revert_text">Undoes Vulkan until you apply it again</string>
+    <string name="home_revert_title">Go back to OpenGL?</string>
+    <string name="home_revert_confirm_text">New apps start on OpenGL again, and System UI, the launcher and the keyboard are restarted, so the screen locks for a moment. Apps that are open keep Vulkan until they are restarted. If \"Apply after restart\" is on, Burkan applies Vulkan again the next time the phone restarts.</string>
+    <string name="home_revert_action">Go back</string>
     <plurals name="home_confirm_kept">
         <item quantity="one">%1$d app you chose stays running.</item>
         <item quantity="other">%1$d apps you chose stay running.</item>

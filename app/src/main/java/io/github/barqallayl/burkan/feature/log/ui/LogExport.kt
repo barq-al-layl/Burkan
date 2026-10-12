@@ -40,7 +40,7 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
                     "[${STAMP.withZone(zone).format(run.startedAt.toJavaInstant())}]",
                     getString(run.kind.label),
                     getString(run.trigger.label),
-                    getString(run.result.label),
+                    getString(run.resultLabel),
                     durationText(run.duration),
                 ).joinToString(separator = " | "),
             )

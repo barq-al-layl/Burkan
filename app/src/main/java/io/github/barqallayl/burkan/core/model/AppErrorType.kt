@@ -31,6 +31,7 @@ enum class AppErrorType(@StringRes val resource: Int) {
     SettingNotRestored(R.string.error_setting_not_restored),
     SystemUiRestartedRecently(R.string.error_system_ui_restarted_recently),
     SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
+    SystemUiStillOnVulkan(R.string.error_system_ui_still_on_vulkan),
     KeyboardNotRestored(R.string.error_keyboard_not_restored),
     AppsNotListed(R.string.error_apps_not_listed),
     LicencesUnreadable(R.string.error_licences_unreadable),
@@ -58,6 +59,7 @@ fun AppError.type(): AppErrorType = when (this) {
     is ApplyError.SettingNotRestored -> AppErrorType.SettingNotRestored
     ApplyError.SystemUiRestartedRecently -> AppErrorType.SystemUiRestartedRecently
     ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan
+    ApplyError.SystemUiStillOnVulkan -> AppErrorType.SystemUiStillOnVulkan
     ApplyError.KeyboardNotRestored -> AppErrorType.KeyboardNotRestored
     SettingsError.AppsNotListed -> AppErrorType.AppsNotListed
     SettingsError.LicencesUnreadable -> AppErrorType.LicencesUnreadable

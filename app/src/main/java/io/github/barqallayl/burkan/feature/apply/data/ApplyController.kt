@@ -64,8 +64,11 @@ data class RunOutcome(
     val systemUiDeferred: Boolean = false,
 )
 
-/** A status read by a run, and when. */
-data class VerifiedStatus(val status: RendererStatus, val at: Instant)
+/**
+ * A status read by a run, and when. [behind] is the open apps the run found still on the other renderer at its
+ * end; null when it did not look, or could not.
+ */
+data class VerifiedStatus(val status: RendererStatus, val at: Instant, val behind: Set<PackageName>? = null)
 
 sealed interface ApplyRunState {
     data object Idle : ApplyRunState
@@ -104,7 +107,8 @@ class ApplyController(
 
     /**
      * Returns how the run ended, or null without running when another run is in progress. A light apply restarts only
-     * the surfaces not on Vulkan yet, and changes nothing when all of them are.
+     * the surfaces not on Vulkan yet, and changes nothing when all of them are. Going back ([ApplyKind.Revert]) is
+     * the same towards OpenGL, and [ApplyKind.OpenApps] restarts only the open apps that are behind.
      *
      * [scope] says how many apps a full apply restarts; a light apply restarts none, whatever it is.
      *
@@ -125,6 +129,7 @@ class ApplyController(
         var systemUiDeferred = false
         var systemUiLeft = false
         var status: RendererStatus? = null
+        var behind: Set<PackageName>? = null
         fun show(phase: RunPhase) {
             mutableState.value = ApplyRunState.Running(kind, trigger, phase)
         }
@@ -139,13 +144,29 @@ class ApplyController(
                     show(RunPhase.Reading)
                     val reader = RendererReader(shell)
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
+                    val userExclusions = settings.userExclusions.first()
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
+                        ApplyKind.Revert -> LightApplyPlan.create(before, target = Renderer.OpenGL)
+                        ApplyKind.OpenApps -> {
+                            // Whatever new apps get now is what the open ones are brought to: Vulkan after an
+                            // apply, OpenGL after going back.
+                            val target = before.status.newApps
+                            FullApplyPlan.create(
+                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                userExclusions = userExclusions,
+                                self = ownPackage,
+                                before = before,
+                                only = OpenAppsReader(shell).notOn(target).bind(),
+                                target = target,
+                            )
+                        }
+
                         ApplyKind.Full -> {
                             val limit = scope.limit
                             FullApplyPlan.create(
                                 inputs = ApplyInputsReader(shell).readFull().bind(),
-                                userExclusions = settings.userExclusions.first(),
+                                userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
                                 recent = if (limit == null) null else readRecentApps(shell).bind(),
@@ -154,7 +175,7 @@ class ApplyController(
                         }
                     }
                     systemUiDeferred = deferSystemUi && before.status.systemUi != Renderer.Vulkan
-                    if (kind == ApplyKind.Light && plan.changesNothing && !systemUiDeferred) {
+                    if (kind != ApplyKind.Full && plan.changesNothing && !systemUiDeferred) {
                         alreadyApplied = true
                         // At the lock only System UI was read; Home reads the rest itself.
                         status = before.status.takeUnless { atLock }
@@ -164,7 +185,12 @@ class ApplyController(
                     systemUiLeft = ApplyRunner(shell, cooldown, captured, mayRestartSystemUi)
                         .run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
                     show(RunPhase.Checking)
-                    status = RendererReader(shell).read().getOrNull()?.status
+                    val after = RendererReader(shell).read().getOrNull()
+                    status = after?.status
+                    // Home says which open apps the run left behind, without connecting again to ask.
+                    if (after != null && !atLock) {
+                        behind = OpenAppsReader(shell).behind(after, userExclusions, ownPackage).getOrNull()
+                    }
                 }
             }.flatten()
             runError = outcome.leftOrNull()
@@ -184,7 +210,7 @@ class ApplyController(
                 // Home shows what the run read, so nothing needs the connection now: close it and put the switch back.
                 shellAccess.release()
                 val finishedAt = clock.now()
-                status?.let { mutableVerified.value = VerifiedStatus(it, finishedAt) }
+                status?.let { mutableVerified.value = VerifiedStatus(it, finishedAt, behind) }
                 // Idle before the log entry lands, so whoever reacts to the entry finds the connection free and the
                 // verified status in place.
                 mutableState.value = ApplyRunState.Idle

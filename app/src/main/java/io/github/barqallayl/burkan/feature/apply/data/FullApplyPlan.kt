@@ -53,6 +53,9 @@ object FullApplyPlan {
      * is not restarted.
      * @param recent the apps used lately, most recent first, when the run is limited to [limit] of them; null
      * restarts every app. An app that may not be stopped does not count towards the limit.
+     * @param only when given, the only apps to restart, and the run is about apps alone: the property and the
+     * system surfaces are left as they are. It is how the open apps that are behind are caught up.
+     * @param target the renderer the run leaves the phone on.
      */
     fun create(
         inputs: FullApplyInputs,
@@ -61,25 +64,24 @@ object FullApplyPlan {
         before: Surfaces,
         recent: List<PackageName>? = null,
         limit: Int? = null,
+        only: Set<PackageName>? = null,
+        target: Renderer = Renderer.Vulkan,
     ): ApplyPlan {
+        val appsOnly = only != null
         val launcher = before.launcher
-        val restartLauncher = launcher != null && before.status.launcher != Renderer.Vulkan
-        val excluded = buildSet {
-            // Never force-stop an input method: that clears it as the default keyboard.
-            addAll(inputs.inputMethods)
-            if (inputs.keyboard != null) add(inputs.keyboard)
-            if (inputs.wallpaper != null) add(inputs.wallpaper)
-            addAll(FixedExclusions)
-            addAll(userExclusions)
-            add(self)
-            if (!restartLauncher && launcher != null) add(launcher)
-        }
-        val stoppable = inputs.installed.filter { it !in excluded && MEDIA_PROVIDER_MODULE !in it.value }
-        val stopped = if (recent == null || limit == null) {
-            stoppable
-        } else {
-            val stoppableSet = stoppable.toSet()
-            recent.filter { it in stoppableSet }.distinct().take(limit)
+        val restartLauncher = !appsOnly && launcher != null && before.status.launcher != target
+        val kept = kept(inputs.inputMethods, inputs.keyboard, inputs.wallpaper, userExclusions, self) +
+            listOfNotNull(launcher.takeUnless { restartLauncher }) +
+            // System UI is never force-stopped to any effect; among apps alone it is not even tried.
+            listOfNotNull(ShellCommands.SystemUi.takeIf { appsOnly })
+        val stoppable = inputs.installed.filter { mayStop(it, kept) }
+        val stopped = when {
+            only != null -> stoppable.filter { it in only }
+            recent == null || limit == null -> stoppable
+            else -> {
+                val stoppableSet = stoppable.toSet()
+                recent.filter { it in stoppableSet }.distinct().take(limit)
+            }
         }
         val wanted = inputs.running + inputs.widgets.providers + inputs.widgets.hosts
         // Bring back what was running or backs a widget, if it was stopped. SystemUI and the launcher have their own
@@ -88,9 +90,7 @@ object FullApplyPlan {
 
         return ApplyPlan(
             steps = buildList {
-                if (before.status.newApps != Renderer.Vulkan) {
-                    add(ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer()))
-                }
+                if (!appsOnly) rendererStep(before.status.newApps, target)?.let(::add)
                 if (stopped.isNotEmpty()) {
                     add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.forceStopAll(stopped)))
                 }
@@ -106,7 +106,7 @@ object FullApplyPlan {
                         ),
                     )
                 }
-                if (inputs.keyboard != null && before.status.keyboard != Renderer.Vulkan) {
+                if (!appsOnly && inputs.keyboard != null && before.status.keyboard != target) {
                     add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(inputs.keyboard)))
                 }
             },
@@ -117,7 +117,32 @@ object FullApplyPlan {
                     ?.takeIf { it.isNotEmpty() && it != "null" }
                     ?.let { ApplyStep.RestoreSetting(setting, it) }
             },
-            restartSystemUi = before.status.systemUi != Renderer.Vulkan,
+            restartSystemUi = !appsOnly && before.status.systemUi != target,
+            target = target,
         )
     }
+
+    /**
+     * The packages no run force-stops, whatever else it does: the keyboards, the wallpaper, what keeps the phone
+     * connected, what the user set aside, and Burkan itself.
+     */
+    fun kept(
+        inputMethods: Set<PackageName>,
+        keyboard: PackageName?,
+        wallpaper: PackageName?,
+        userExclusions: Set<PackageName>,
+        self: PackageName,
+    ): Set<PackageName> = buildSet {
+        // Never force-stop an input method: that clears it as the default keyboard.
+        addAll(inputMethods)
+        if (keyboard != null) add(keyboard)
+        if (wallpaper != null) add(wallpaper)
+        addAll(FixedExclusions)
+        addAll(userExclusions)
+        add(self)
+    }
+
+    /** Whether a run may force-stop [packageName], given what is [kept]. */
+    fun mayStop(packageName: PackageName, kept: Set<PackageName>): Boolean =
+        packageName !in kept && MEDIA_PROVIDER_MODULE !in packageName.value
 }

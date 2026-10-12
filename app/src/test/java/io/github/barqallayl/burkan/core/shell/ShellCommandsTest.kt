@@ -116,4 +116,10 @@ class ShellCommandsTest {
         check(process.waitFor(10, TimeUnit.SECONDS)) { "sh did not finish: $line" }
         return process.inputStream.bufferedReader().readText()
     }
+
+    @Test
+    fun `going back clears the property, as a restart leaves it, and every process is asked in one dump`() {
+        assertEquals("setprop debug.hwui.renderer ''", ShellCommands.clearRenderer().line)
+        assertEquals("dumpsys gfxinfo", ShellCommands.gfxInfoAll().line)
+    }
 }

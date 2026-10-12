@@ -2,13 +2,22 @@ package io.github.barqallayl.burkan.feature.apply.model
 
 import io.github.barqallayl.burkan.core.model.AppError
 
-/** The two applies. */
+/** What a run does. */
 enum class ApplyKind {
     /** Set the property and restart the three system surfaces. */
     Light,
 
     /** Restart every app, then put back what that disturbs. */
     Full,
+
+    /**
+     * Restart only the apps that are open and still draw with the renderer new apps no longer get, then put back
+     * what that disturbs. The system surfaces are left as they are.
+     */
+    OpenApps,
+
+    /** Clear the property and restart the three system surfaces, so the phone is back on OpenGL. */
+    Revert,
 }
 
 /**
@@ -43,6 +52,9 @@ enum class RestoredSetting {
 /** What a step of a run does, in terms a person can be shown. */
 sealed interface StepKind {
     data object SetRenderer : StepKind
+
+    /** The property is cleared, so new apps start on OpenGL again. */
+    data object ClearRenderer : StepKind
     data class StopApps(val count: Int) : StepKind
     data object RestartSystemUi : StepKind
     data object RestartLauncher : StepKind
@@ -72,6 +84,9 @@ sealed interface ApplyError : AppError {
 
     /** System UI came back, or was still answering, on a renderer other than Vulkan. */
     data object SystemUiNotOnVulkan : ApplyError
+
+    /** Going back to OpenGL, System UI came back, or was still answering, on Vulkan. */
+    data object SystemUiStillOnVulkan : ApplyError
 
     /** Restarting the keyboard changed the default keyboard, and it could not be put back. */
     data object KeyboardNotRestored : ApplyError

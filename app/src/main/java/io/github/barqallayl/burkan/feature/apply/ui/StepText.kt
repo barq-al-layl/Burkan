@@ -14,6 +14,7 @@ class StepLabel(val resource: Int, val count: Int? = null)
 
 fun StepKind.label(): StepLabel = when (this) {
     StepKind.SetRenderer -> StepLabel(R.string.step_set_renderer)
+    StepKind.ClearRenderer -> StepLabel(R.string.step_clear_renderer)
     is StepKind.StopApps -> StepLabel(R.plurals.step_stop_apps, count)
     StepKind.RestartSystemUi -> StepLabel(R.string.step_restart_system_ui)
     StepKind.RestartLauncher -> StepLabel(R.string.step_restart_launcher)

@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import androidx.annotation.StringRes
 import android.content.Intent
 import android.provider.Settings as SystemSettings
 import androidx.compose.animation.AnimatedContent
@@ -84,6 +85,8 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.filled.Clock
 import com.composables.icons.tabler.filled.Settings
 import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.AppWindow
+import com.composables.icons.tabler.outline.ArrowBackUp
 import com.composables.icons.tabler.outline.Apps
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.Checks
@@ -112,6 +115,7 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.model.type
@@ -177,6 +181,8 @@ import io.github.barqallayl.burkan.feature.log.model.RunResult
 import io.github.barqallayl.burkan.feature.log.ui.RunResultBadge
 import io.github.barqallayl.burkan.feature.log.ui.RunSummary
 import io.github.barqallayl.burkan.feature.log.ui.label
+import io.github.barqallayl.burkan.feature.log.ui.runningLabel
+import io.github.barqallayl.burkan.feature.status.model.BehindApp
 import io.github.barqallayl.burkan.feature.status.model.Headline
 import io.github.barqallayl.burkan.feature.status.model.headline
 import java.time.ZoneId
@@ -216,6 +222,12 @@ fun HomeScreen() {
             onRestartScope = viewModel::chooseRestartScope,
             onConfirmRestartAll = viewModel::confirmRestartAll,
             onDismissRestartAll = viewModel::dismissRestartAll,
+            onShowBehind = viewModel::showBehind,
+            onConfirmRestartBehind = viewModel::confirmRestartBehind,
+            onDismissBehind = viewModel::dismissBehind,
+            onRevert = viewModel::requestRevert,
+            onConfirmRevert = viewModel::confirmRevert,
+            onDismissRevert = viewModel::dismissRevert,
             onCancelRun = viewModel::cancelRun,
             onDismissRun = viewModel::dismissRun,
             onOpenLog = viewModel::openLog,
@@ -234,6 +246,12 @@ private class HomeActions(
     val onRestartScope: (RestartScope) -> Unit = {},
     val onConfirmRestartAll: () -> Unit = {},
     val onDismissRestartAll: () -> Unit = {},
+    val onShowBehind: () -> Unit = {},
+    val onConfirmRestartBehind: () -> Unit = {},
+    val onDismissBehind: () -> Unit = {},
+    val onRevert: () -> Unit = {},
+    val onConfirmRevert: () -> Unit = {},
+    val onDismissRevert: () -> Unit = {},
     val onCancelRun: () -> Unit = {},
     val onDismissRun: () -> Unit = {},
     val onOpenLog: () -> Unit = {},
@@ -347,7 +365,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 // run is under way, and until the user has seen how it went, its steps take the surfaces' place.
                 OneUiSummary(state, actions)
                 Notices(state, actions.onOpenDeveloperOptions)
-                OneUiProgress(state, actions.onRetry)
+                OneUiProgress(state, actions.onRetry, actions.onShowBehind)
                 SectionLabel(R.string.home_section_runs)
                 Details(state, zone, actions, showError)
             } else {
@@ -356,7 +374,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 StatusGroup(state)
                 Notices(state, actions.onOpenDeveloperOptions)
                 Spacer(Modifier.height(GroupGap))
-                Surfaces(state, actions.onRetry)
+                Surfaces(state, actions.onRetry, actions.onShowBehind)
                 Spacer(Modifier.height(GroupGap))
                 Details(state, zone, actions, showError)
             }
@@ -386,6 +404,84 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
                 onDismiss = { hide(actions.onDismissRestartAll) },
             )
         }
+    }
+    val behind = state.behind
+    val newApps = (state.status as? StatusState.Loaded)?.status?.newApps
+    if (state.isShowingBehind && !behind.isNullOrEmpty() && newApps != null) {
+        BurkanBottomSheet(onDismiss = actions.onDismissBehind) { hide ->
+            BehindSheet(
+                apps = behind,
+                renderer = newApps.other(),
+                onConfirm = { hide(actions.onConfirmRestartBehind) },
+                onDismiss = { hide(actions.onDismissBehind) },
+            )
+        }
+    }
+    if (state.isConfirmingRevert) {
+        BurkanConfirm(
+            title = stringResource(R.string.home_revert_title),
+            text = stringResource(R.string.home_revert_confirm_text),
+            confirm = stringResource(R.string.home_revert_action),
+            dismiss = stringResource(R.string.home_confirm_dismiss),
+            onConfirm = actions.onConfirmRevert,
+            onDismiss = actions.onDismissRevert,
+        )
+    }
+}
+
+/** The renderer an app that is behind is still on: the one new apps do not get. */
+private fun Renderer.other(): Renderer = if (this == Renderer.Vulkan) Renderer.OpenGL else Renderer.Vulkan
+
+@get:StringRes
+private val Renderer.nameRes: Int
+    get() = when (this) {
+        Renderer.Vulkan -> R.string.renderer_vulkan
+        Renderer.OpenGL -> R.string.renderer_opengl
+        Renderer.Unknown -> R.string.renderer_unknown
+    }
+
+/**
+ * The open apps that are behind, by name, and the offer to restart them: only these, where "Restart all apps" would
+ * close everything. [renderer] is the one they are still on.
+ */
+@Composable
+private fun BehindSheet(apps: List<BehindApp>, renderer: Renderer, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ScreenMargin),
+        verticalArrangement = Arrangement.spacedBy(GroupGap),
+    ) {
+        BurkanSheetHeader(
+            stringResource(R.string.home_behind_title, stringResource(renderer.nameRes)),
+            modifier = Modifier.padding(horizontal = 8.dp),
+            icon = Tabler.Outline.Apps,
+        )
+        Text(
+            stringResource(R.string.home_behind_text),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        SegmentedColumn {
+            apps.forEachIndexed { index, app ->
+                BurkanSegmentItem(
+                    index = index,
+                    count = apps.size,
+                    headline = app.label,
+                    supporting = app.packageName.value,
+                    supportingOneLine = true,
+                )
+            }
+        }
+        BurkanSheetActions(
+            modifier = Modifier.padding(bottom = 8.dp),
+            dismiss = stringResource(R.string.home_confirm_dismiss),
+            onDismiss = onDismiss,
+            confirm = stringResource(R.string.home_behind_action),
+            onConfirm = onConfirm,
+            confirmIcon = Tabler.Outline.Refresh,
+        )
     }
 }
 
@@ -634,12 +730,7 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                 // One line always: a longer answer is set smaller, so the card never grows a line.
                 Text(
                     when {
-                        run != null -> stringResource(
-                            when (run.kind) {
-                                ApplyKind.Light -> R.string.apply_running_light_title
-                                ApplyKind.Full -> R.string.apply_running_full_title
-                            },
-                        )
+                        run != null -> stringResource(run.kind.runningLabel)
                         failed != null -> stringResource(failed.error.failureTitle())
                         headline == null -> stringResource(R.string.home_checking)
                         else -> stringResource(headline.title)
@@ -774,7 +865,7 @@ private val SUMMARY_ACTION_MIN_WIDTH = 160.dp
  * One gives way to the other, with its label, and what is below follows the change in height.
  */
 @Composable
-private fun OneUiProgress(state: HomeState, onRetry: () -> Unit) {
+private fun OneUiProgress(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> Unit) {
     AnimatedContent(
         targetState = state.runSteps.isNotEmpty(),
         transitionSpec = {
@@ -785,7 +876,7 @@ private fun OneUiProgress(state: HomeState, onRetry: () -> Unit) {
     ) { steps ->
         Column {
             SectionLabel(if (steps) R.string.home_section_steps else R.string.home_section_surfaces)
-            if (steps) RunChecklist(state) else Surfaces(state, onRetry)
+            if (steps) RunChecklist(state) else Surfaces(state, onRetry, onShowBehind)
         }
     }
 }
@@ -905,7 +996,8 @@ private val RunPhase.icon: ImageVector
             StepKind.RestartLauncher -> Tabler.Outline.Home
             StepKind.RestartKeyboard -> Tabler.Outline.Keyboard
             is StepKind.RestoreSetting -> Tabler.Outline.Settings
-            StepKind.SetRenderer, is StepKind.StopApps, is StepKind.RelaunchApps -> Tabler.Outline.Apps
+            StepKind.SetRenderer, StepKind.ClearRenderer, is StepKind.StopApps, is StepKind.RelaunchApps ->
+                Tabler.Outline.Apps
         }
     }
 
@@ -965,12 +1057,12 @@ private const val MARK_GLYPH_SHARE = 0.6f
 private val MarkGlyph = Color(0xFF10131A)
 
 /**
- * The four surfaces as a list, each with its renderer under its name and a mark at the end. The rows keep their
+ * The four surfaces and the open apps as a list, each with its renderer under its name and a mark at the end. The rows keep their
  * room in every state: placeholders while the status is read, dimmed during a run, and when the phone cannot be
  * asked, the reason and the way to try again in their place.
  */
 @Composable
-private fun Surfaces(state: HomeState, onRetry: () -> Unit) {
+private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> Unit) {
     val failed = state.status as? StatusState.Failed
     val renderers = (state.status as? StatusState.Loaded)?.status
     val running = state.run is ApplyRunState.Running
@@ -986,6 +1078,7 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit) {
             SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi)
             SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher)
             SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard)
+            OpenAppsRow(4, renderers?.newApps, state.behind, onShowBehind.takeUnless { running })
         }
         if (failed != null) {
             BurkanSegment(index = 0, count = 1, modifier = Modifier.matchParentSize()) {
@@ -1017,45 +1110,105 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit) {
  */
 @Composable
 private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Renderer?) {
-    val value = when (renderer) {
-        Renderer.Vulkan -> R.string.renderer_vulkan
-        Renderer.OpenGL -> R.string.renderer_opengl
-        Renderer.Unknown -> R.string.renderer_unknown
-        null -> R.string.home_value_checking
+    val value = stringResource(renderer?.nameRes ?: R.string.home_value_checking)
+    val mark = when (renderer) {
+        Renderer.Vulkan -> SurfaceMark.Good
+        Renderer.OpenGL -> SurfaceMark.Behind
+        Renderer.Unknown -> SurfaceMark.Unknown
+        null -> SurfaceMark.Checking
     }
+    SurfaceLine(index, icon, stringResource(label), value, mark)
+}
+
+/**
+ * The open apps, as one more row of the list: how many still draw with the renderer new apps no longer get, or
+ * that all of them have caught up. With some behind, the row opens their names and the offer to restart them.
+ * [behind] null is a placeholder: they are read after the status, and take a second or two longer.
+ */
+@Composable
+private fun OpenAppsRow(index: Int, newApps: Renderer?, behind: List<BehindApp>?, onShow: (() -> Unit)?) {
+    val label = stringResource(R.string.home_row_open_apps)
+    when {
+        newApps == null || newApps == Renderer.Unknown || behind == null -> SurfaceLine(
+            index,
+            Tabler.Outline.AppWindow,
+            label,
+            stringResource(if (newApps == Renderer.Unknown) R.string.renderer_unknown else R.string.home_value_checking),
+            if (newApps == Renderer.Unknown) SurfaceMark.Unknown else SurfaceMark.Checking,
+        )
+
+        behind.isEmpty() -> SurfaceLine(
+            index,
+            Tabler.Outline.AppWindow,
+            label,
+            stringResource(R.string.home_open_apps_all, stringResource(newApps.nameRes)),
+            // Caught up with whatever new apps get, which after going back is OpenGL: neither good nor bad then.
+            if (newApps == Renderer.Vulkan) SurfaceMark.Good else SurfaceMark.Unknown,
+        )
+
+        else -> SurfaceLine(
+            index,
+            Tabler.Outline.AppWindow,
+            label,
+            pluralStringResource(
+                R.plurals.home_open_apps_behind,
+                behind.size,
+                behind.size,
+                stringResource(newApps.other().nameRes),
+            ),
+            SurfaceMark.Behind,
+            onClick = onShow,
+        )
+    }
+}
+
+/** What a row of the surfaces list says at a glance, beside its words. */
+private enum class SurfaceMark { Good, Behind, Unknown, Checking }
+
+@Composable
+private fun SurfaceLine(
+    index: Int,
+    icon: ImageVector,
+    label: String,
+    value: String,
+    surfaceMark: SurfaceMark,
+    onClick: (() -> Unit)? = null,
+) {
     if (LocalAppStyle.current == AppStyle.OneUi) {
-        val (mark, tone) = when (renderer) {
-            Renderer.Vulkan -> Tabler.Outline.Check to Tone.Good
+        val (mark, tone) = when (surfaceMark) {
+            SurfaceMark.Good -> Tabler.Outline.Check to Tone.Good
             // Not a fault: it is how every restart leaves things. It is what wants attention, so it is orange.
-            Renderer.OpenGL -> Tabler.Outline.ExclamationMark to Tone.HeldUp
-            Renderer.Unknown -> Tabler.Outline.QuestionMark to Tone.Neutral
-            null -> Tabler.Outline.Hourglass to Tone.Neutral
+            SurfaceMark.Behind -> Tabler.Outline.ExclamationMark to Tone.HeldUp
+            SurfaceMark.Unknown -> Tabler.Outline.QuestionMark to Tone.Neutral
+            SurfaceMark.Checking -> Tabler.Outline.Hourglass to Tone.Neutral
         }
         BurkanSegmentItem(
             index = index,
             count = SURFACE_COUNT,
-            headline = stringResource(label),
-            supporting = stringResource(value),
+            headline = label,
+            supporting = value,
+            onClick = onClick,
             leading = { Icon(icon, contentDescription = null) },
             trailing = { StatusMark(mark, tone, 24.dp) },
         )
         return
     }
     val scheme = MaterialTheme.colorScheme
-    val (mark, markColor) = when (renderer) {
-        Renderer.Vulkan -> Tabler.Outline.CircleCheck to scheme.primary
-        Renderer.OpenGL -> Tabler.Outline.CircleX to scheme.error
-        Renderer.Unknown -> Tabler.Outline.HelpCircle to scheme.onSurfaceVariant
-        null -> Tabler.Outline.Hourglass to scheme.onSurfaceVariant
+    val (mark, markColor) = when (surfaceMark) {
+        SurfaceMark.Good -> Tabler.Outline.CircleCheck to scheme.primary
+        SurfaceMark.Behind -> Tabler.Outline.CircleX to scheme.error
+        SurfaceMark.Unknown -> Tabler.Outline.HelpCircle to scheme.onSurfaceVariant
+        SurfaceMark.Checking -> Tabler.Outline.Hourglass to scheme.onSurfaceVariant
     }
     BurkanSegmentItem(
         index = index,
         count = SURFACE_COUNT,
-        headline = stringResource(label),
+        headline = label,
+        onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
         trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                TrailingText(stringResource(value))
+                TrailingText(value)
                 Icon(mark, contentDescription = null, modifier = Modifier.size(20.dp), tint = markColor)
             }
         },
@@ -1068,7 +1221,7 @@ private fun TrailingText(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-private const val SURFACE_COUNT = 4
+private const val SURFACE_COUNT = 5
 
 /**
  * What the automatic apply is waiting for, if anything. Each notice opens and closes its own room, with the gap
@@ -1249,7 +1402,11 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
     // In Material the heavier of the app's two actions is the last row here; One UI has it in its summary card.
     val restartRow = !oneUi
-    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (restartRow) 1 else 0)
+    val idle = state.run == ApplyRunState.Idle
+    // The way back is offered once there is something to go back from: anything at all on Vulkan.
+    val applied = (state.status as? StatusState.Loaded)?.status?.headline()
+    val revertRow = applied == Headline.VulkanActive || applied == Headline.PartlyApplied
+    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (restartRow) 1 else 0) + (if (revertRow) 1 else 0)
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
     SegmentedColumn(modifier = Modifier.animateContentSize(motion.settle())) {
         LastRun(state.lastRun, zone, count, actions.onOpenLog, showError)
@@ -1287,9 +1444,8 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
             )
         }
         if (restartRow) {
-            val idle = state.run == ApplyRunState.Idle
             BurkanSegmentItem(
-                index = count - 1,
+                index = count - 1 - (if (revertRow) 1 else 0),
                 count = count,
                 headline = stringResource(R.string.home_restart_all),
                 supporting = stringResource(R.string.home_restart_all_text),
@@ -1297,6 +1453,18 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
                 onClick = actions.onRestartAll.takeIf { idle },
                 leading = { BurkanIconBadge(Tabler.Outline.Refresh) },
+                trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
+            )
+        }
+        if (revertRow) {
+            BurkanSegmentItem(
+                index = count - 1,
+                count = count,
+                headline = stringResource(R.string.home_revert),
+                supporting = stringResource(R.string.home_revert_text),
+                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
+                onClick = actions.onRevert.takeIf { idle },
+                leading = { BurkanIconBadge(Tabler.Outline.ArrowBackUp) },
                 trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
             )
         }
@@ -1374,8 +1542,11 @@ private fun sample(
     waitingFor: WaitReason? = null,
     runSteps: List<RunPhase> = emptyList(),
     finishedRun: RunLogEntry? = null,
+    // Read, with nothing behind, wherever there is a status to compare the open apps with.
+    behind: List<BehindApp>? = emptyList<BehindApp>().takeIf { status is StatusState.Loaded },
 ) = HomeState(
     status = status,
+    behind = behind,
     lastRun = lastRun,
     run = run,
     runSteps = runSteps,
@@ -1389,6 +1560,50 @@ private fun sample(
 private fun HomePreviewContent(state: HomeState) {
     HomeContent(state = state, zone = ZoneOffset.UTC, actions = HomeActions())
 }
+
+private val sampleBehind = listOf(
+    BehindApp(PackageName.known("org.example.chat"), "Chat"),
+    BehindApp(PackageName.known("com.example.maps.navigation"), "Maps"),
+    BehindApp(PackageName.known("com.example.notes"), "Notes"),
+)
+
+private val vulkanEverywhere = StatusState.Loaded(
+    RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeAppsBehindPreview() =
+    HomePreviewContent(sample(status = vulkanEverywhere, lastRun = sampleLightRun, behind = sampleBehind))
+
+@BurkanPreview
+@Composable
+private fun HomeAppsBehindOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        HomePreviewContent(sample(status = vulkanEverywhere, lastRun = sampleLightRun, behind = sampleBehind))
+    }
+}
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeBehindSheetPreview() =
+    BurkanSheetPreview { BehindSheet(sampleBehind, Renderer.OpenGL, onConfirm = {}, onDismiss = {}) }
+
+@BurkanPreview
+@Composable
+private fun HomeBehindSheetOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        BurkanSheetPreview { BehindSheet(sampleBehind, Renderer.OpenGL, onConfirm = {}, onDismiss = {}) }
+    }
+}
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomeConfirmRevertPreview() =
+    HomePreviewContent(sample(status = vulkanEverywhere, lastRun = sampleLightRun).copy(isConfirmingRevert = true))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

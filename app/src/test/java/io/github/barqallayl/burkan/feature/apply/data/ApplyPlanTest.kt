@@ -91,6 +91,74 @@ class ApplyPlanTest {
     }
 
     @Test
+    fun `going back clears the property and restarts each surface that is on Vulkan`() {
+        val plan = LightApplyPlan.create(
+            surfaces(newApps = Vulkan, systemUi = Vulkan, launcher = Vulkan, keyboard = Vulkan),
+            target = OpenGL,
+        )
+
+        assertEquals(
+            listOf(
+                "setprop debug.hwui.renderer ''",
+                "am force-stop com.sec.android.app.launcher; sleep 2; " +
+                    "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
+                "am crash \"\$(pidof -s com.samsung.android.honeyboard || echo com.samsung.android.honeyboard)\"",
+            ),
+            plan.steps.map { it.command.line },
+        )
+        assertEquals(StepKind.ClearRenderer, plan.steps.first().kind)
+        assertTrue(plan.restartSystemUi)
+        assertEquals(OpenGL, plan.target)
+    }
+
+    @Test
+    fun `going back from a phone that is on OpenGL throughout has nothing to do`() {
+        assertTrue(LightApplyPlan.create(surfaces(), target = OpenGL).changesNothing)
+    }
+
+    @Test
+    fun `going back leaves alone a surface that never went to Vulkan`() {
+        val plan = LightApplyPlan.create(surfaces(newApps = Vulkan, systemUi = Vulkan), target = OpenGL)
+
+        assertEquals(listOf(StepKind.ClearRenderer), plan.steps.map { it.kind })
+        assertTrue(plan.restartSystemUi)
+    }
+
+    @Test
+    fun `catching up the open apps restarts only those, and leaves the property and the surfaces as they are`() {
+        val notes = PackageName.known("com.example.notes")
+        val chat = PackageName.known("org.example.chat")
+        val reader = PackageName.known("net.example.reader")
+        val plan = fullPlan(
+            installed = listOf(ShellCommands.SystemUi, FixtureDevice.Launcher, notes, reader, chat),
+            running = setOf(notes, chat, reader),
+            keyboard = FixtureDevice.Keyboard,
+            // The surfaces are behind too, and named among the open apps: they are still not this run's to restart.
+            only = setOf(chat, notes, ShellCommands.SystemUi, FixtureDevice.Launcher),
+        )
+
+        assertEquals(listOf(notes, chat), stopped(plan))
+        assertEquals(
+            listOf(StepKind.StopApps(2), StepKind.RelaunchApps(2)),
+            plan.steps.map { it.kind },
+        )
+        assertFalse(plan.restartSystemUi)
+    }
+
+    @Test
+    fun `catching up never stops what no run stops`() {
+        val chat = PackageName.known("org.example.chat")
+        val plan = fullPlan(
+            installed = listOf(FixtureDevice.Keyboard, FixtureDevice.Self, chat),
+            inputMethods = setOf(FixtureDevice.Keyboard),
+            userExclusions = setOf(chat),
+            only = setOf(FixtureDevice.Keyboard, FixtureDevice.Self, chat),
+        )
+
+        assertTrue(plan.changesNothing)
+    }
+
+    @Test
     fun `full apply restarts System UI only after everything else, the restore included`() {
         val plan = fullPlan(
             installed = names("org.example.app"),
@@ -252,6 +320,8 @@ class ApplyPlanTest {
         before: RendererStatus = RendererStatus(OpenGL, OpenGL, OpenGL, OpenGL),
         recent: List<PackageName>? = null,
         limit: Int? = null,
+        only: Set<PackageName>? = null,
+        target: Renderer = Vulkan,
     ): ApplyPlan = FullApplyPlan.create(
         inputs = FullApplyInputs(installed, inputMethods, wallpaper, running, widgets, keyboard, captured),
         userExclusions = userExclusions,
@@ -259,6 +329,8 @@ class ApplyPlanTest {
         before = Surfaces(before, FixtureDevice.Launcher, keyboard),
         recent = recent,
         limit = limit,
+        only = only,
+        target = target,
     )
 
     private fun surfaces(

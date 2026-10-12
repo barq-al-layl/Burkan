@@ -14,6 +14,26 @@ fun parseRenderer(stdout: String): Renderer =
         else -> Renderer.Unknown
     }
 
+/**
+ * `dumpsys gfxinfo` with no package: each process is headed `** Graphics info for pid 1234 [name] **`, and one that
+ * has drawn anything has a `Pipeline=` line under its heading. A process that has drawn nothing has none and is
+ * left out: it has no renderer to be behind with. The names are process names, `package` or `package:process`.
+ */
+fun parseProcessRenderers(stdout: String): Map<String, Renderer> = buildMap {
+    var process: String? = null
+    stdout.lineSequence().forEach { line ->
+        when {
+            line.startsWith(PROCESS_MARKER) ->
+                process = line.substringAfter('[', missingDelimiterValue = "").substringBefore(']').ifEmpty { null }
+
+            line.startsWith(PIPELINE_MARKER) -> process?.let { name ->
+                // The first pipeline under a heading is the process's own.
+                if (name !in this) put(name, parseRenderer(line))
+            }
+        }
+    }
+}
+
 /** `getprop debug.hwui.renderer`: `skiavk` is Vulkan; unset or `skiagl` is the default, OpenGL. */
 fun rendererFromProperty(value: String): Renderer = when (value.trim()) {
     "skiavk" -> Renderer.Vulkan
@@ -44,4 +64,5 @@ fun parseRoleHolders(stdout: String): PackageName? =
     stdout.split(';', '\n').firstNotNullOfOrNull { PackageName.parse(it.trim()) }
 
 private const val PIPELINE_MARKER = "Pipeline="
+private const val PROCESS_MARKER = "** Graphics info for pid "
 private const val CHOOSER_PACKAGE = "android"

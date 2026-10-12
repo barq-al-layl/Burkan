@@ -1,5 +1,7 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
+import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommand
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -22,16 +24,27 @@ sealed interface ApplyStep {
  * What a run does: [steps] in order, stopping at the first failure, then [restore], which runs whatever happened
  * to [steps], including cancellation. Last of all, when nothing failed and [restartSystemUi] is set, System UI is
  * restarted: that brings up the lock screen, which restarts adbd and drops the connection, so nothing that matters may
- * come after it.
+ * come after it. [target] is the renderer the plan leaves the phone on, which System UI is checked against.
  */
 data class ApplyPlan(
     val steps: List<ApplyStep.Run>,
     val restore: List<ApplyStep.RestoreSetting> = emptyList(),
     val restartSystemUi: Boolean = false,
+    val target: Renderer = Renderer.Vulkan,
 ) {
-    /** True when there is nothing to do: the property is set, and every surface is on Vulkan already. */
+    /** True when there is nothing to do: the property and every surface are on the target already. */
     val changesNothing: Boolean
         get() = steps.isEmpty() && !restartSystemUi
+}
+
+/**
+ * The step that makes new apps start on [target], or null when [now], what the property gives them already, is it.
+ * Vulkan is set by name. OpenGL is the phone's own default, so the property is cleared, as a restart leaves it.
+ */
+fun rendererStep(now: Renderer, target: Renderer): ApplyStep.Run? = when {
+    now == target -> null
+    target == Renderer.Vulkan -> ApplyStep.Run(StepKind.SetRenderer, ShellCommands.setVulkanRenderer())
+    else -> ApplyStep.Run(StepKind.ClearRenderer, ShellCommands.clearRenderer())
 }
 
 val RestoredSetting.key: SettingKey

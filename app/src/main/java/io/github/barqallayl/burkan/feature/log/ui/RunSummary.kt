@@ -64,7 +64,7 @@ fun RunSummary(run: RunLogEntry, zone: ZoneId, modifier: Modifier = Modifier) {
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(run.kind.label), style = MaterialTheme.typography.titleMedium)
-            BurkanPill(stringResource(run.result.label), tone = run.result.tone)
+            BurkanPill(stringResource(run.resultLabel), tone = run.result.tone)
         }
         Text(
             stringResource(

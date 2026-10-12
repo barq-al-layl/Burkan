@@ -1,0 +1,66 @@
+Applications Graphics Acceleration Info:
+Uptime: 86423187 Realtime: 172918840
+
+** Graphics info for pid 4001 [com.android.systemui] **
+
+Stats since: 61209934112ns
+Total frames rendered: 20418
+Pipeline=Skia (Vulkan)
+
+** Graphics info for pid 4100 [com.example.notes] **
+
+Stats since: 61377120011ns
+Total frames rendered: 311
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4101 [com.example.notes:sync] **
+
+Stats since: 61377120955ns
+Total frames rendered: 0
+
+** Graphics info for pid 4200 [org.example.chat] **
+
+Stats since: 61380020304ns
+Total frames rendered: 1290
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4300 [net.example.reader] **
+
+Stats since: 85120020304ns
+Total frames rendered: 96
+Pipeline=Skia (Vulkan)
+
+** Graphics info for pid 4400 [com.samsung.android.wallpaper.live] **
+
+Stats since: 61209938221ns
+Total frames rendered: 14
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4500 [com.samsung.android.honeyboard] **
+
+Stats since: 61209940110ns
+Total frames rendered: 870
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4600 [com.sec.android.app.launcher] **
+
+Stats since: 61209941873ns
+Total frames rendered: 5120
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4700 [android.process.acore] **
+
+Stats since: 61209950002ns
+Total frames rendered: 0
+
+** Graphics info for pid 4800 [org.example.weather:widget] **
+
+Stats since: 61400020304ns
+Total frames rendered: 12
+Pipeline=Skia (OpenGL)
+
+** Graphics info for pid 4900 [com.sec.imsservice] **
+
+Stats since: 61209960417ns
+Total frames rendered: 3
+Pipeline=Skia (OpenGL)
