@@ -28,8 +28,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
@@ -229,25 +237,40 @@ private fun FloatingCard(
     content: @Composable () -> Unit,
 ) {
     val color = MaterialTheme.colorScheme.surfaceContainerHighest
-    val card = modifier.graphicsLayer {
-        shadowElevation = FloatingShadow.toPx() * scrolled()
-        shape = CircleShape
-        clip = true
-    }
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-        Box(
-            modifier = if (onClick != null) card.clickable(onClick = onClick) else card,
-            propagateMinConstraints = true,
-        ) {
-            // The glass is its own layer under the button, so that it can come in without the button's icon
-            // fading with it.
-            val pane = Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = scrolled() }
+        Box(modifier = modifier, propagateMinConstraints = true) {
+            // The shadow is drawn only outside the card. Glass is see-through, and a shadow cast the usual way
+            // lies under the whole card: it shows through the glass as a grey smudge behind the icon, plain to
+            // see in the light theme.
             Box(
-                if (bar != null) pane.glassPane(bar, color, CircleShape) else pane.drawBehind { drawRect(color) },
+                Modifier
+                    .matchParentSize()
+                    .drawWithContent {
+                        val outline = CircleShape.createOutline(size, layoutDirection, this@drawWithContent)
+                        val card = Path().apply { addOutline(outline) }
+                        clipPath(card, clipOp = ClipOp.Difference) { this@drawWithContent.drawContent() }
+                    }
+                    .dropShadow(CircleShape) {
+                        radius = FloatingShadow.toPx()
+                        offset = Offset(0f, FloatingShadowDrop.toPx())
+                        alpha = FLOATING_SHADOW_ALPHA * scrolled()
+                    },
             )
-            content()
+            val card = Modifier.clip(CircleShape)
+            Box(
+                modifier = if (onClick != null) card.clickable(onClick = onClick) else card,
+                propagateMinConstraints = true,
+            ) {
+                // The glass is its own layer under the button, so that it can come in without the button's icon
+                // fading with it.
+                val pane = Modifier
+                    .matchParentSize()
+                    .graphicsLayer { alpha = scrolled() }
+                Box(
+                    if (bar != null) pane.glassPane(bar, color, CircleShape) else pane.drawBehind { drawRect(color) },
+                )
+                content()
+            }
         }
     }
 }
@@ -257,7 +280,9 @@ private val OneUiBarHeight = 76.dp
 private val OneUiButtonSize = 46.dp
 
 /** Soft, as One UI's are: enough to part the button from what passes under it, not to make it stand out. */
-private val FloatingShadow = 6.dp
+private val FloatingShadow = 10.dp
+private val FloatingShadowDrop = 2.dp
+private const val FLOATING_SHADOW_ALPHA = 0.22f
 
 /** The way back, on a Material bar. */
 @Composable
