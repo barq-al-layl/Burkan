@@ -5,8 +5,8 @@ builds the app itself from this repository and signs it with its own key, so eve
 
 ## In place
 
-- **The store listing**, in `fastlane/metadata/android/en-US/`: the title, a short and a full description, the
-  changelog for version code 1, the icon and six screenshots. F-Droid reads these straight from the repository.
+- **The store listing**, in `fastlane/metadata/android/en-US/`: the title, a short and a full description, a
+  changelog for each version code, the icon and six screenshots. F-Droid reads these straight from the repository.
   The screenshots are copies of the app's own screenshot tests, so they show sample data only.
 - **No dependency list in the APK.** `dependenciesInfo` is switched off in `app/build.gradle.kts`, as F-Droid asks.
 - **The build recipe**, in [`f-droid/io.github.barqallayl.burkan.yml`](f-droid/io.github.barqallayl.burkan.yml),
@@ -24,13 +24,14 @@ builds the app itself from this repository and signs it with its own key, so eve
 
 ## Still to do
 
-1. **Make the repository public.** F-Droid cannot build from, or review, a private one.
-2. **Nothing more for the tag.** The release is tagged `v1.0.0` and published on GitHub, and the recipe names
-   the commit the tag points at by its full hash, which F-Droid asks for in place of the tag's name. Later
-   versions are picked up from their tags by themselves, as long as each raises `versionCode` and is tagged `v`
-   and the version; `./gradlew :app:githubRelease` does the tagging.
-3. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
-4. **Wait for the merge request** on fdroiddata to be reviewed and merged. Once it is, the app appears in a day
+1. **Point the merge request at each release until it is merged.** The recipe names the commit a release's tag
+   points at by its full hash, which F-Droid asks for in place of the tag's name. While the merge request is
+   open nothing updates it by itself: after a release, its build entry, `CurrentVersion` and
+   `CurrentVersionCode` are changed by hand, in the fork and in the copy kept here. Once it is merged, later
+   versions are picked up from their tags, as long as each raises `versionCode` and is tagged `v` and the
+   version; `./gradlew :app:githubRelease` does the tagging.
+2. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
+3. **Wait for the merge request** on fdroiddata to be reviewed and merged. Once it is, the app appears in a day
    or two.
 
 ## What the build needed
@@ -56,9 +57,9 @@ platform 37 and the Gradle version the wrapper names. Its scanner removes the si
   name.
 - `sudo`: installs JDK 25 from Debian's packages and makes it the default, since the project builds with it.
 - `gradle: yes`: build the release with Gradle, with no product flavour.
-- `rm`: removes the file that tells the Gradle daemon which JDK to run on, and where to fetch it from.
-- `prebuild`: takes out the plugin that would fetch a JDK. Both this and `rm` are written the way F-Droid's
-  other recipes write them.
+- `prebuild`: takes out the plugin that would fetch a JDK, written the way F-Droid's other recipes write it.
+  The recipe once also removed `gradle/gradle-daemon-jvm.properties`; a reviewer had that line taken out, and
+  the build passes without it.
 - `ndk`: installs the NDK the release was built with, so native libraries are stripped the same way.
 - `Binaries` and `AllowedAPKSigningKeys`: where the APK of each release is published, and the fingerprint of
   the certificate it must be signed with. Together they ask for the reproducible build. The task
@@ -76,8 +77,21 @@ If the reproducible build is dropped, F-Droid signs with its own key instead, an
 with the other: someone who installed from one has to uninstall before installing from the other, and sets the
 app up again. That choice cannot be reversed later.
 
-## From the next release
+## What the review asked for
 
+A static review of the merge request, on 10 October 2026, found one thing to fix and one to consider. Both are
+answered by 1.1.0.
+
+- **Three permissions nobody asked for.** The APK of 1.0.0 declares `READ_PHONE_STATE`, `READ_EXTERNAL_STORAGE`
+  and `WRITE_EXTERNAL_STORAGE`. The adb library's manifest names no SDK version, so the manifest merger takes
+  it for a library from before Android 1.6 and adds the permissions every app had then. The app's manifest now
+  removes the three, and `app/build/outputs/logs/manifest-merger-release-report.txt` is where to look if they
+  come back.
 - **A smaller APK.** About 7 MB of the 15 MB of 1.0.0 is native code for processors no Galaxy S23 has (x86,
-  x86_64 and 32-bit ARM). The build is now limited to 64-bit ARM, which F-Droid's checklist asks about, so the
-  release after 1.0.0 is about half the size.
+  x86_64 and 32-bit ARM). The build is limited to 64-bit ARM from 1.1.0.
+
+## Not yet tried on F-Droid's build server
+
+1.1.0 is the first release with `gradle/verification-metadata.xml`, a pinned checksum for the Gradle
+distribution, Kotlin 2.4.21 and Material 3 1.5.0-beta01. None of these has been through F-Droid's build yet. If
+its APK differs from the published one, or its build fails on a checksum, these are what changed.

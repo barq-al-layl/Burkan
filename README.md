@@ -116,7 +116,7 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 
 | Source | Channel | Status |
 | :--- | :--- | :--- |
-| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.0.0`) |
+| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.0`) |
 | [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Planned — Metadata & Recipe Prepared |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
 
