@@ -22,9 +22,10 @@ import com.materialkolor.material3.rememberDynamicColorScheme
  * The app's theme, in one of its two styles.
  *
  * As [AppStyle.Material] it is Material 3 Expressive with a scheme generated from [seedColor] under Material's 2026
- * colour spec, and Material's type scale set in Roboto. As [AppStyle.OneUi] it follows One UI 8.5: the accents
+ * colour spec, and Material's own type scale. As [AppStyle.OneUi] it follows One UI 8.5: the accents
  * still come from [seedColor], as the phone's own colour palette does, but the surfaces are One UI's greys and the
- * type is the system's font. Every appearance choice arrives as a parameter; shapes are Material's own.
+ * type scale is One UI's. Both styles are set in the phone's own font. Every appearance choice arrives as a
+ * parameter; shapes are Material's own.
  */
 @Composable
 fun BurkanTheme(
@@ -41,13 +42,11 @@ fun BurkanTheme(
     CompositionLocalProvider(LocalAppStyle provides appStyle) {
         when (appStyle) {
             AppStyle.Material -> {
-                val typography = remember { materialTypography() }
                 DynamicMaterialExpressiveTheme(
                     seedColor = seedColor,
                     isDark = isDarkTheme,
                     style = paletteStyle,
                     specVersion = ColorSpec.SpecVersion.SPEC_2026,
-                    typography = typography,
                     content = content,
                 )
             }

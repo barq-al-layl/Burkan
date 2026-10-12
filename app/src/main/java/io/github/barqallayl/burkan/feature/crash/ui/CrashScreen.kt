@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
@@ -31,7 +32,6 @@ import com.composables.icons.tabler.outline.Share
 import com.composables.icons.tabler.outline.X
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.designsystem.AppStyle
-import io.github.barqallayl.burkan.designsystem.MonoFontFamily
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.ActionHeight
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
@@ -142,7 +142,7 @@ fun CrashScreen(report: String?, onShare: () -> Unit, onReport: () -> Unit, onCl
                     Text(
                         report ?: stringResource(R.string.crash_no_report),
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = MonoFontFamily,
+                        fontFamily = FontFamily.Monospace,
                         softWrap = false,
                         modifier = Modifier
                             .horizontalScroll(rememberScrollState())

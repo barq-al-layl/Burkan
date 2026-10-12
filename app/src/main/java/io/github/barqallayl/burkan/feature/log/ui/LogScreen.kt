@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -59,7 +60,6 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.designsystem.AppStyle
-import io.github.barqallayl.burkan.designsystem.MonoFontFamily
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -364,7 +364,7 @@ private fun RunSteps(run: RunLogEntry) {
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily)) {
+        ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)) {
             Column(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
