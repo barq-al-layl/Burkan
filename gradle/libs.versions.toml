@@ -1,6 +1,6 @@
 [versions]
-aboutLibraries = "15.2.0"
-# 15.1.1 and 15.2.0 of the plugin no longer merge the artifacts of one project into one entry.
+aboutLibraries = "15.3.0"
+# 15.1.1 to 15.3.0 of the plugin no longer merge the artifacts of one project into one entry.
 # @pin
 aboutLibrariesPlugin = "15.1.0"
 activityCompose = "1.13.0"
