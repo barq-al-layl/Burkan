@@ -132,6 +132,10 @@ roborazzi {
         enable = true
         packages = listOf("io.github.barqallayl.burkan")
         includePrivatePreviews = true
+        // Compares a little more loosely than the default, so that screenshots recorded on a Mac pass on Linux.
+        testerQualifiedClassName = "io.github.barqallayl.burkan.BurkanPreviewTester"
+        // The settings above reach that tester only when asked for.
+        useScanOptionParametersInTester = true
         robolectricConfig = mapOf(
             "sdk" to "[34]",
             "qualifiers" to "\"w411dp-h914dp-xxhdpi\"",
