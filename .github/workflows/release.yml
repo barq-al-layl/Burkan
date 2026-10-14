@@ -1,0 +1,87 @@
+# Publishes a release. A version is released by pushing its tag, v<versionName>, signed and made by hand on main once
+# its changelog is written: this checks the tag, runs the checks, builds the APK signed with the release key, and
+# publishes it on GitHub with the changelog, through the same `:app:githubRelease` that works from a computer.
+#
+# Started by hand instead, it builds the signed APK of the commit chosen and keeps it as an artifact, publishing
+# nothing: to compare it with one built elsewhere, as F-Droid does with every release.
+#
+# The key is in the secrets of the `release` environment, which only main and the version tags may use.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: release
+    permissions:
+      # To publish the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # All of history, to tell that the tag is on main.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          # A release is built from what its tag holds and nothing a cache could have kept from another run.
+          cache-disabled: true
+
+      # The build strips the native libraries with the NDK it names; another would give an APK unlike F-Droid's.
+      - name: Install the NDK
+        run: |
+          ndk=$(sed -n 's/^ *ndkVersion = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" > /dev/null
+
+      - name: Put the release key in place
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
+        run: |
+          printf '%s' "$RELEASE_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.p12"
+
+      - name: Check
+        run: ./gradlew :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
+
+      - name: Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/release.p12
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:githubRelease
+
+      - name: Build without releasing
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/release.p12
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 7

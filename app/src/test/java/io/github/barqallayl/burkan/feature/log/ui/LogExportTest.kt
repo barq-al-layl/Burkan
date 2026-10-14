@@ -2,6 +2,8 @@ package io.github.barqallayl.burkan.feature.log.ui
 
 import io.github.barqallayl.burkan.RoborazziTestApplication
 import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
@@ -85,6 +87,54 @@ class LogExportTest {
 
             """.trimIndent(),
             resources.logFileText(emptyList(), source, exportedAt, ZoneOffset.UTC),
+        )
+    }
+
+    @Test
+    fun `what a run kept beyond its steps follows them, and a failed command's own words follow its message`() {
+        val opengl = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL)
+        val runs = listOf(
+            RunLogEntry(
+                startedAt = Instant.parse("2026-10-01T09:30:00Z"),
+                trigger = RunTrigger.Manual,
+                kind = ApplyKind.Light,
+                result = RunResult.Failed,
+                duration = 9.seconds,
+                steps = listOf(
+                    LoggedStep(StepKind.SetRenderer, duration = 1.seconds),
+                    LoggedStep(
+                        StepKind.RestartLauncher,
+                        error = AppErrorType.CommandFailed,
+                        duration = 3.seconds,
+                        detail = "exit 1: Error: Activity not started",
+                    ),
+                ),
+                before = opengl,
+                after = opengl.copy(newApps = Renderer.Vulkan),
+                preparing = 4.seconds,
+                behind = 2,
+            ),
+        )
+
+        assertEquals(
+            """
+            Burkan 1.0 run log
+            Device: SM-S911B, Android 16
+            Exported: 2026-10-04 10:00:00 +00:00
+            Runs: 1, newest first
+
+            [2026-10-01 09:30:00 +00:00] | Apply | Manual | Failed | 9 s
+                [ ok ] Set new apps to Vulkan (1 s)
+                [FAIL] Restart the launcher (3 s)
+                       ${resources.getString(AppErrorType.CommandFailed.resource)}
+                       exit 1: Error: Activity not started
+                [info] Connected and read the phone in 4 s
+                [info] Before: new apps OpenGL, System UI OpenGL, launcher OpenGL, keyboard OpenGL
+                [info] After: new apps Vulkan, System UI OpenGL, launcher OpenGL, keyboard OpenGL
+                [info] 2 open apps left on the other renderer
+
+            """.trimIndent(),
+            resources.logFileText(runs, source, exportedAt, ZoneOffset.UTC).replace('\u00A0', ' '),
         )
     }
 }

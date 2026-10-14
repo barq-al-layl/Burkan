@@ -26,8 +26,11 @@ class OpenAppsReader(private val shell: ShellExecutor) {
         if (target == Renderer.Unknown) return@either emptySet()
         parseProcessRenderers(shell.run(ShellCommands.gfxInfoAll()).bind().stdout)
             .filterValues { it != target && it != Renderer.Unknown }
-            // A process is named after its package, with `:name` added for any but the main one.
-            .keys.mapNotNullTo(mutableSetOf()) { PackageName.parse(it.substringBefore(':')) }
+            // A process is named after its package, with `:name` added for any but the main one. The system's own
+            // process is named `system`: an app's package always has a dot, and that never does.
+            .keys.mapNotNullTo(mutableSetOf()) { name ->
+                name.substringBefore(':').takeIf { '.' in it }?.let(PackageName::parse)
+            }
     }
 
     /**

@@ -7,6 +7,12 @@ Stats since: 61209934112ns
 Total frames rendered: 20418
 Pipeline=Skia (Vulkan)
 
+** Graphics info for pid 1500 [system] **
+
+Stats since: 9120001133ns
+Total frames rendered: 40
+Pipeline=Skia (OpenGL)
+
 ** Graphics info for pid 4100 [com.example.notes] **
 
 Stats since: 61377120011ns

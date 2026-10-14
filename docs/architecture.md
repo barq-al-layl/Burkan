@@ -106,9 +106,11 @@ The status, and the two actions. The two styles lay it out differently; what it 
   on a phone that has been in use, what was open is still on OpenGL. The row says how many apps that is, or that
   all of them are on what new apps get. With some behind it opens a sheet that names them and offers to restart
   only those: the full apply's machinery, limited to them, with the property and the surfaces left as they are.
+  Each app's row restarts that app alone, or puts it among the apps never restarted, which takes it off the list.
   After going back to OpenGL the same row counts the apps still on Vulkan. An app no run would restart (a
-  keyboard, the wallpaper, one the user set aside, the fixed exclusions) is not counted. The apps are read after
-  the status is shown, from one `dumpsys gfxinfo` of every process, and a run reads them again at its end.
+  keyboard, the wallpaper, one the user set aside, the fixed exclusions) is not counted, nor is the system's own
+  process, `system`, which no restart moves. The apps are read after the status is shown, from one
+  `dumpsys gfxinfo` of every process, and a run reads them again at its end, the run at the lock included.
 - **Back to OpenGL**: a row in the details, shown while anything is on Vulkan. Behind a confirmation, it clears
   the property and restarts the surfaces that are on Vulkan, System UI last and checked on OpenGL. It does not
   switch "Apply after restart" off: the confirmation says Vulkan is applied again after the next restart if that
@@ -163,11 +165,19 @@ The status, and the two actions. The two styles lay it out differently; what it 
 
 - The last 50 runs, newest first: time, trigger, result, duration. With no runs, a centred message says what will
   appear and leads back to apply; a stored log that cannot be read says so.
-- Opening a run shows its steps in words, each with success or the error.
+- Opening a run shows its steps in words, each with success or the error and how long it took. Under them, for
+  whoever is looking for a fault: how long it took to connect and read the phone, what the four surfaces ran on
+  before and after, and how many open apps were left on the other renderer. A run that changed nothing can be
+  opened too, for what it found.
+- A command that failed leaves its own words in the log: its exit status and the first line of its error
+  output, cut to 200 characters.
 - **Share** exports the log as a `.log` file: a header with the app version, the phone's model and Android
-  version, then each run on a line with its steps marked done or failed beneath. It never contains the ADB key,
-  and no package names: steps are recorded with counts ("Stop 612 apps"), so there is nothing to warn about
-  before sharing.
+  version, then each run on a line with its steps marked done or failed beneath, and the same details as the
+  screen. It never contains the ADB key, and none of the user's apps by name: steps are recorded with counts
+  ("Stop 612 apps"), and the commands that go through the user's apps never fail by their status, so a failed
+  command's words can only name System UI, the home app or the keyboard. There is nothing to warn about before
+  sharing.
+- Runs logged by an earlier version have none of these details and show as they did.
 
 ### After a crash (`CrashActivity`)
 
@@ -324,6 +334,18 @@ reachable through it.
   on. That was decided knowingly, so that automation needs nothing switched on. The runs are these three and
   nothing else, they take no arguments, and none locks a phone in use. Going back to OpenGL is not offered this
   way.
+- Every run that ends is announced with a broadcast, `io.github.barqallayl.burkan.action.RUN_FINISHED`, so an
+  automation can react to how it went. Its extras are the names the log uses: `kind` (`Light`, `Full`,
+  `OpenApps`, `Revert`), `trigger` (`Manual`, `Boot`, `AtLock`, `External`), `result` (`Succeeded`,
+  `AlreadyApplied`, `Postponed`, `Failed`, `Cancelled`) and, when it failed, `error`. It names no app and says
+  nothing of the phone, and reaches only receivers registered while their app runs.
+- A Quick Settings tile, "Vulkan", says whether Vulkan has been applied since the phone started, and a tap
+  applies it. Its state comes from the log, not from the phone: asking the phone needs a connection, too much
+  for a tile redrawn whenever the shade opens. A run counts only if it began after the phone started, and going
+  back to OpenGL is the last word until the next apply. A long press opens the app.
+- When the apply after a restart is done, System UI included, a notification says so, on a channel of its own
+  that can be turned off in the phone's settings without losing the notice of a run that failed. When apps that
+  started before the run are still on OpenGL, it says how many and offers to restart them, as Home's sheet does.
 - The app has two shortcuts on its icon, "Apply now" and "Restart all apps", the second being the full flow:
   Vulkan applied and every app restarted. Each opens `ShortcutActivity`, which starts the run and closes without
   showing anything. There is no schedule in the app: a routine that runs one of these at night does that. That activity is not exported: a launcher starts a shortcut in the app's own
@@ -345,5 +367,6 @@ reachable through it.
 - **Distributed outside the Play Store.** `QUERY_ALL_PACKAGES`, the `specialUse` foreground service and a
   permission granted over ADB are a poor fit for it.
 - **Released from a tag, on GitHub and F-Droid.** `./gradlew :app:githubRelease` tags a commit, builds it and
-  publishes the APK; F-Droid rebuilds the same tag and ships that APK only if its own build is identical, so the
-  build names its NDK and carries 64-bit ARM code only. [`f-droid.md`](f-droid.md) has the detail.
+  publishes the APK, from a computer or, once the tag is pushed by hand, from GitHub Actions; F-Droid rebuilds the
+  same tag and ships that APK only if its own build is identical, so the build names its NDK and carries 64-bit ARM
+  code only. [`f-droid.md`](f-droid.md) has the detail.

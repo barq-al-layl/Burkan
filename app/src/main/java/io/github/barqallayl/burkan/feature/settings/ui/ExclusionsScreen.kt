@@ -51,6 +51,8 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.ui.AppIcon
+import io.github.barqallayl.burkan.core.ui.IconLoader
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
@@ -115,15 +117,6 @@ fun ExclusionsScreen() {
         icon = remember(viewModel) { IconLoader(viewModel::cachedIcon, viewModel::icon) },
     )
 }
-
-/**
- * How a row gets its app's icon: [cached] at once when it was loaded before, [load] otherwise. Null leaves a
- * placeholder.
- */
-private class IconLoader(
-    val cached: (PackageName) -> ImageBitmap?,
-    val load: suspend (PackageName) -> ImageBitmap?,
-)
 
 @Composable
 private fun ExclusionsContent(
@@ -452,26 +445,6 @@ private fun AppItem(
     )
 }
 
-/** The app's own icon once loaded; a generic one until then, and for a package that is not installed. */
-@Composable
-private fun AppIcon(packageName: PackageName, icon: IconLoader) {
-    val bitmap by produceState(initialValue = icon.cached(packageName), packageName) {
-        value = icon.load(packageName)
-    }
-    val loaded = bitmap
-    if (loaded != null) {
-        Image(loaded, contentDescription = null, modifier = Modifier.size(40.dp))
-    } else {
-        Icon(
-            Tabler.Outline.Apps,
-            contentDescription = null,
-            modifier = Modifier
-                .size(40.dp)
-                .padding(8.dp),
-        )
-    }
-}
-
 @Composable
 private fun notInstalled(): String = stringResource(R.string.exclusions_not_installed)
 
@@ -510,7 +483,7 @@ private fun ExclusionsPreviewContent(
     onToggle = {},
     onRetry = {},
     onBack = {},
-    icon = IconLoader({ null }, { null }),
+    icon = IconLoader.None,
 )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)

@@ -42,6 +42,9 @@ class ExternalTrigger(
         return start(kind)
     }
 
+    /** The Quick Settings tile was tapped: an apply. */
+    suspend fun onTile(): Boolean = start(ApplyKind.Light)
+
     private suspend fun start(kind: ApplyKind): Boolean {
         if (!deviceState.isSetupComplete.first()) return false
         return launcher.startUnattended(kind, RunTrigger.External)

@@ -74,6 +74,10 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A long press on the Quick Settings tile opens the app. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
 
             <meta-data
                 android:name="android.app.shortcuts"
@@ -104,6 +108,18 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps Burkan running while it restarts the phone's apps over its own adb connection, so the settings it changed are always put back." />
+        </service>
+
+        <!-- The Quick Settings tile. Only the system can bind it. -->
+        <service
+            android:name=".feature.apply.ApplyTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
         </service>
 
         <receiver

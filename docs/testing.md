@@ -147,10 +147,23 @@ When you check one, tick it here and record what you saw in the device notes.
       the next lock if the phone is in use. And whether Samsung's Modes and Routines offers them as actions
       of the app, which is how a restart of every app each night is meant to be set up. ("Apply now" was registered on the Android 17 emulator, and the shell is refused when it tries to
       start the shortcut's activity directly. It was not started from a launcher anywhere.)
-- [ ] A broadcast from another app (`am broadcast -a io.github.barqallayl.burkan.action.APPLY -n
-      io.github.barqallayl.burkan/.feature.apply.TriggerReceiver` does as well): a run starts. From Tasker, with the app in the background: whether
-      Android lets the run start. (On the emulator the broadcast arrives and nothing crashes; setup cannot be
-      finished there, so no run could start.)
+- [x] A broadcast starts a run with the app not running: `am broadcast -a
+      io.github.barqallayl.burkan.action.APPLY -n io.github.barqallayl.burkan/.feature.apply.TriggerReceiver`
+      from a computer started the app's process, Android allowed the foreground service from the background, the
+      run lasted under three seconds and wireless debugging was off again after. (S23, 12 Oct 2026, with Vulkan
+      already active and another app on the screen, which was not disturbed.)
+- [ ] The same from Tasker or another automation app on the phone itself.
+- [ ] `RUN_FINISHED` reaching a listener, with its four extras. (The run above should have sent one; nothing was
+      listening, and a broadcast nobody receives leaves no trace to check.)
+- [ ] The Quick Settings tile on the phone: "Not applied" after a restart, a tap applying, "Active" afterwards,
+      "Applying…" during a run, and a long press opening the app. (On the Android 17 emulator the tile binds,
+      draws dimmed as "Finish setup first", and a tap does nothing, as it should there.)
+- [ ] After a restart of the phone: the notification "Vulkan is active" once the apply is done, after the run
+      at the lock when System UI was left for it, and not before. (Tests only.)
+- [ ] The log after a run on the phone: each step with its time, the line for connecting, the surfaces before
+      and after, and the open apps left behind; a run that was "Already applied" opens to show what it found;
+      runs logged before the update still show. And the shared file carrying the same. (Previews and tests only.
+      A step under half a second reads "0 s".)
 - [ ] One UI's floating buttons in the light theme, barely scrolled and well scrolled: a light disc with a soft
       shadow around it, and nothing grey behind the icon. (Seen on an S23, 11 Oct 2026, which makes this one
       done for the light theme; the dark theme was not looked at again after the shadow was moved outside.)
@@ -248,6 +261,15 @@ When you check one, tick it here and record what you saw in the device notes.
       front.
 - [ ] If restarting the keyboard ever changes the default keyboard, `ime set` puts it back.
 - [ ] Apply now, force-stop Burkan, open it and Apply now again within a minute: System UI is left alone.
+- [ ] In the "Still on" sheet, an app's restart button restarts that app alone, and its keep button adds it to
+      "Never restart these apps" and takes it off the list; keeping the last one closes the sheet.
+- [ ] After a restart, the "Vulkan is active" notice counts the open apps still on OpenGL, and its "Restart them"
+      button restarts those.
+- [ ] Android System (`system`) is no longer listed as behind.
+- [x] Settings opens at the row the user is sent for, scrolled to and marked out: Wireless debugging in Developer
+      options, and Software information in About phone, which is where Samsung keeps the build number. Tried on
+      the S23 by sending Settings the same request from a computer, not by tapping setup's own buttons, since setup
+      was already done there.
 - [x] In a minified release build, Settings › Open-source licences lists the libraries, and opening one shows its
       licence. (The 1.0.0 release APK, on an S23 and an S23 Ultra.)
 - [ ] App icons and labels in the exclusions picker, including for the fixed exclusions; scrolling the list stays

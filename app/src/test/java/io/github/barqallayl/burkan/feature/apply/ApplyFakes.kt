@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.apply
 
+import androidx.compose.ui.graphics.ImageBitmap
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.PackageName
@@ -11,12 +12,15 @@ import io.github.barqallayl.burkan.feature.apply.data.DeviceSettings
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RecentApps
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
+import io.github.barqallayl.burkan.feature.apply.data.RunAnnouncer
 import io.github.barqallayl.burkan.feature.apply.data.SystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.WifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
+import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
+import io.github.barqallayl.burkan.feature.settings.data.AppIcons
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,9 +36,13 @@ class FakeApplyLauncher : ApplyLauncher {
     /** False plays Android refusing a foreground service started from the background. */
     var backgroundStartAllowed = true
 
-    override fun start(kind: ApplyKind, scope: RestartScope) {
+    /** What each run was limited to: null for a run that was not. */
+    val only = mutableListOf<Set<PackageName>?>()
+
+    override fun start(kind: ApplyKind, scope: RestartScope, only: Set<PackageName>?) {
         started += kind
         scopes += scope
+        this.only += only
     }
 
     /** Each run started with nobody watching: what, and why. */
@@ -110,6 +118,25 @@ class FakeRunAlerts : RunAlerts {
     override fun showReadyToApply() {
         readyToApply++
     }
+
+    var applied = 0
+
+    /** How many open apps each notice said were behind. */
+    val appliedBehind = mutableListOf<Int>()
+
+    override fun showApplied(behind: Int) {
+        applied++
+        appliedBehind += behind
+    }
+}
+
+/** Remembers every run it was told of, oldest first. */
+class FakeRunAnnouncer : RunAnnouncer {
+    val finished = mutableListOf<RunLogEntry>()
+
+    override fun finished(run: RunLogEntry) {
+        finished += run
+    }
 }
 
 /** The phone locks when a test says so, and stays locked until [locked] is set back to false: the user unlocked. */
@@ -160,4 +187,11 @@ class FakeCapturedSettingsStorage(var kept: Map<RestoredSetting, String> = empty
     override suspend fun set(values: Map<RestoredSetting, String>) {
         kept = values
     }
+}
+
+/** Has no icons: every row keeps its placeholder. */
+class FakeAppIcons : AppIcons {
+    override fun cached(packageName: PackageName): ImageBitmap? = null
+
+    override suspend fun icon(packageName: PackageName): ImageBitmap? = null
 }

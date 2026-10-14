@@ -16,11 +16,20 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-// Release signing comes from keystore.properties beside settings.gradle.kts, which is never committed. Without it the
-// release build is left unsigned.
+// Release signing comes from keystore.properties beside settings.gradle.kts, which is never committed, or on GitHub
+// Actions from the environment, which the release workflow fills from its secrets. Without either the release build is
+// left unsigned.
 val keystoreProperties: Properties? = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { file ->
     Properties().apply { file.inputStream().use(::load) }
-}
+} ?: mapOf(
+    "storeFile" to "RELEASE_KEYSTORE_FILE",
+    "storePassword" to "RELEASE_KEYSTORE_PASSWORD",
+    "keyAlias" to "RELEASE_KEY_ALIAS",
+    "keyPassword" to "RELEASE_KEY_PASSWORD",
+).mapValues { (_, variable) -> providers.environmentVariable(variable).orNull }
+    // All four or none: a step that builds nothing signed is given none of them.
+    .takeIf { values -> values.values.all { !it.isNullOrEmpty() } }
+    ?.let { values -> Properties().apply { values.forEach { (key, value) -> setProperty(key, value) } } }
 
 android {
     namespace = "io.github.barqallayl.burkan"
@@ -202,6 +211,9 @@ dependencies {
 // release from it, pushes the branch and the tag, and publishes a GitHub release with the APK and the version's
 // changelog. F-Droid picks a new version up from the same tag, so a tag is a release: nothing here runs without
 // being asked to. `:app:checkRelease` is the first half alone: it says what stands in the way and changes nothing.
+//
+// On GitHub Actions (.github/workflows/release.yml) the same task makes the release from a tag pushed by hand: the
+// tag is already there and signed, so it is neither made nor pushed, only checked to be this commit, on main.
 
 /** What the two release tasks share: the version, and running `git` and `gh` from the repository's root. */
 abstract class ReleaseTask : DefaultTask() {
@@ -216,6 +228,10 @@ abstract class ReleaseTask : DefaultTask() {
 
     @get:Internal
     abstract val repository: DirectoryProperty
+
+    /** Running on GitHub Actions, from a tag that was pushed by hand. */
+    @get:Input
+    abstract val onCi: Property<Boolean>
 
     @get:Internal
     val tag: String get() = "v${versionName.get()}"
@@ -266,12 +282,20 @@ abstract class CheckRelease : ReleaseTask() {
             }
             if (!changelog.exists()) add("There is no changelog for version code ${versionCode.get()}: ${changelog.path}")
             if (output("git", "status", "--porcelain") != "") add("There are changes that are not committed.")
-            if (output("git", "rev-parse", "--abbrev-ref", "HEAD") != "main") add("The branch checked out is not main.")
             if (output("gh", "auth", "status") == null) add("The GitHub CLI is not installed or not signed in.")
             val head = output("git", "rev-parse", "HEAD")
             val tagged = output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag^{commit}")
-            if (tagged != null && tagged != head) {
-                add("$tag already exists on another commit. Raise versionName and versionCode, or check that commit out.")
+            if (onCi.get()) {
+                // A tag checked out, not a branch: it must be this version's, and on main.
+                if (tagged != head) add("The commit checked out is not $tag, the tag of version ${versionName.get()}.")
+                if (output("git", "merge-base", "--is-ancestor", "HEAD", "origin/main") == null) {
+                    add("$tag is not on main.")
+                }
+            } else {
+                if (output("git", "rev-parse", "--abbrev-ref", "HEAD") != "main") add("The branch checked out is not main.")
+                if (tagged != null && tagged != head) {
+                    add("$tag already exists on another commit. Raise versionName and versionCode, or check that commit out.")
+                }
             }
             if (output("gh", "release", "view", tag) != null) add("$tag is already released on GitHub.")
         }
@@ -293,10 +317,13 @@ abstract class GithubRelease : ReleaseTask() {
     fun release() {
         val name = "Burkan ${versionName.get()}"
         apk.get().asFile.copyTo(namedApk.get().asFile, overwrite = true)
-        if (output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag") == null) {
-            run("git", "tag", "--sign", tag, "--message", name)
+        // On GitHub Actions the tag was pushed by hand, and is what started the run.
+        if (!onCi.get()) {
+            if (output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag") == null) {
+                run("git", "tag", "--sign", tag, "--message", name)
+            }
+            run("git", "push", "origin", "main", tag)
         }
-        run("git", "push", "origin", "main", tag)
         run(
             "gh", "release", "create", tag, namedApk.get().asFile.path,
             "--verify-tag", "--title", name, "--notes-file", changelog.path,
@@ -306,6 +333,7 @@ abstract class GithubRelease : ReleaseTask() {
 
 val releaseVersionName = android.defaultConfig.versionName!!
 val releaseVersionCode = android.defaultConfig.versionCode!!
+val releaseOnCi = providers.environmentVariable("GITHUB_ACTIONS").map { it == "true" }.orElse(false)
 
 val checkRelease by tasks.registering(CheckRelease::class) {
     group = "release"
@@ -313,6 +341,7 @@ val checkRelease by tasks.registering(CheckRelease::class) {
     versionName = releaseVersionName
     versionCode = releaseVersionCode
     repository = rootProject.layout.projectDirectory
+    onCi = releaseOnCi
     hasReleaseKey = keystoreProperties != null
     ndkVersion = android.ndkVersion
     sdk = androidComponents.sdkComponents.sdkDirectory
@@ -330,6 +359,7 @@ tasks.register<GithubRelease>("githubRelease") {
     versionName = releaseVersionName
     versionCode = releaseVersionCode
     repository = rootProject.layout.projectDirectory
+    onCi = releaseOnCi
     apk = layout.buildDirectory.file("outputs/apk/release/app-release.apk")
     namedApk = layout.buildDirectory.file("release/Burkan-$releaseVersionName.apk")
     outputs.upToDateWhen { false }

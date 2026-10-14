@@ -30,6 +30,7 @@ import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
+import io.github.barqallayl.burkan.feature.log.model.commandDetail
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -44,6 +45,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.time.TimeSource
 
 /** What a run is doing now, in terms a person can be shown. */
 sealed interface RunPhase {
@@ -63,6 +65,8 @@ data class RunOutcome(
     val error: AppError? = null,
     val status: RendererStatus? = null,
     val systemUiDeferred: Boolean = false,
+    /** The open apps the run found still on the other renderer at its end; null when it did not read them. */
+    val behind: Set<PackageName>? = null,
 )
 
 /**
@@ -92,6 +96,7 @@ class ApplyController(
     private val recentApps: RecentApps,
     private val clock: Clock,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
+    private val announcer: RunAnnouncer,
 ) {
 
     private val running = AtomicBoolean(false)
@@ -111,19 +116,32 @@ class ApplyController(
      * the surfaces not on Vulkan yet, and changes nothing when all of them are. Going back ([ApplyKind.Revert]) is
      * the same towards OpenGL, and [ApplyKind.OpenApps] restarts only the open apps that are behind.
      *
-     * [scope] says how many apps a full apply restarts; a light apply restarts none, whatever it is.
+     * [scope] says how many apps a full apply restarts; a light apply restarts none, whatever it is. [only] narrows
+     * [ApplyKind.OpenApps] to those of the apps behind that it names: one app, restarted from its row.
      *
      * The [trigger] decides System UI. After a restart ([RunTrigger.Boot]) it is left alone, and the outcome says so:
      * the user has just unlocked. At the lock ([RunTrigger.AtLock]) the run connects only once adbd has had
      * [ADBD_SETTLE] to restart, reads no more than System UI needs, and crashes System UI only if the phone is still
      * locked just before; otherwise it is left for the next lock again.
      */
-    suspend fun run(kind: ApplyKind, trigger: RunTrigger, scope: RestartScope = RestartScope.All): RunOutcome? {
+    suspend fun run(
+        kind: ApplyKind,
+        trigger: RunTrigger,
+        scope: RestartScope = RestartScope.All,
+        only: Set<PackageName>? = null,
+    ): RunOutcome? {
         if (!running.compareAndSet(false, true)) return null
         val deferSystemUi = trigger == RunTrigger.Boot
         val atLock = trigger == RunTrigger.AtLock
         val startedAt = clock.now()
         val records = mutableListOf<StepRecord>()
+        // For the log: how long each step took, how long it took to get to the first, and what the phone ran on
+        // before anything was changed. Measured against a clock that only runs forwards, not the phone's.
+        val began = TimeSource.Monotonic.markNow()
+        val stepTimes = mutableListOf<Duration>()
+        var stepBegan = began
+        var preparing: Duration? = null
+        var beforeStatus: RendererStatus? = null
         var runError: AppError? = null
         var result = RunResult.Cancelled
         var alreadyApplied = false
@@ -145,6 +163,7 @@ class ApplyController(
                     show(RunPhase.Reading)
                     val reader = RendererReader(shell)
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
+                    beforeStatus = before.status
                     val userExclusions = settings.userExclusions.first()
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
@@ -158,7 +177,8 @@ class ApplyController(
                                 userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
-                                only = OpenAppsReader(shell).notOn(target).bind(),
+                                only = OpenAppsReader(shell).notOn(target).bind()
+                                    .let { open -> if (only == null) open else open intersect only },
                                 target = target,
                             )
                         }
@@ -175,24 +195,37 @@ class ApplyController(
                             )
                         }
                     }
+                    // Connected, read and planned: everything before the first step.
+                    preparing = began.elapsedNow()
                     systemUiDeferred = deferSystemUi && before.status.systemUi != Renderer.Vulkan
                     if (kind != ApplyKind.Full && plan.changesNothing && !systemUiDeferred) {
                         alreadyApplied = true
                         // At the lock only System UI was read; Home reads the rest itself.
                         status = before.status.takeUnless { atLock }
+                        // Nothing was restarted, so the open apps are as they were: Home still has to be told.
+                        if (!atLock) behind = OpenAppsReader(shell).behind(before, userExclusions, ownPackage).getOrNull()
                         return@either
                     }
                     // A run nobody confirmed on the screen restarts System UI only under a locked phone. Left
                     // alone, it is done at the next lock, like the run after a restart.
                     val mayRestartSystemUi: () -> Boolean =
                         if (atLock || trigger.isUnattended) lockEvents::isLocked else ({ true })
-                    systemUiLeft = ApplyRunner(shell, cooldown, captured, mayRestartSystemUi)
-                        .run(plan, onStepStarted = { show(RunPhase.Step(it)) }) { records += it }
+                    systemUiLeft = ApplyRunner(shell, cooldown, captured, mayRestartSystemUi).run(
+                        plan,
+                        onStepStarted = {
+                            stepBegan = TimeSource.Monotonic.markNow()
+                            show(RunPhase.Step(it))
+                        },
+                    ) {
+                        records += it
+                        stepTimes += stepBegan.elapsedNow()
+                    }
                     show(RunPhase.Checking)
                     val after = RendererReader(shell).read().getOrNull()
                     status = after?.status
-                    // Home says which open apps the run left behind, without connecting again to ask.
-                    if (after != null && !atLock) {
+                    // Home, and the notice that the apply after a restart is done, say which open apps the run
+                    // left behind, without connecting again to ask.
+                    if (after != null) {
                         behind = OpenAppsReader(shell).behind(after, userExclusions, ownPackage).getOrNull()
                     }
                 }
@@ -205,7 +238,7 @@ class ApplyController(
                 else -> RunResult.Failed
             }
             val leftForLock = (systemUiDeferred || systemUiLeft) && result != RunResult.Failed
-            return RunOutcome(result, runError ?: stepError, status, leftForLock)
+            return RunOutcome(result, runError ?: stepError, status, leftForLock, behind)
         } catch (e: CancellationException) {
             result = RunResult.Cancelled
             throw e
@@ -219,17 +252,30 @@ class ApplyController(
                 // verified status in place.
                 mutableState.value = ApplyRunState.Idle
                 running.set(false)
-                runLog.add(
-                    RunLogEntry(
-                        startedAt = startedAt,
-                        trigger = trigger,
-                        kind = kind,
-                        result = result,
-                        duration = finishedAt - startedAt,
-                        steps = records.map { LoggedStep(it.kind, it.failure?.type()) },
-                        error = runError?.type(),
-                    ),
+                val entry = RunLogEntry(
+                    startedAt = startedAt,
+                    trigger = trigger,
+                    kind = kind,
+                    result = result,
+                    duration = finishedAt - startedAt,
+                    steps = records.mapIndexed { index, record ->
+                        LoggedStep(
+                            kind = record.kind,
+                            error = record.failure?.type(),
+                            duration = stepTimes.getOrNull(index),
+                            detail = commandDetail(record.failure),
+                        )
+                    },
+                    error = runError?.type(),
+                    before = beforeStatus,
+                    after = status,
+                    preparing = preparing,
+                    behind = behind?.size,
+                    detail = commandDetail(runError),
                 )
+                runLog.add(entry)
+                // Last, once the log has it: whoever hears of the run can read all of it.
+                announcer.finished(entry)
             }
         }
     }

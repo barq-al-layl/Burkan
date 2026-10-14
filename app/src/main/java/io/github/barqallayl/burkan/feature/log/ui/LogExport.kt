@@ -25,7 +25,7 @@ data class LogSource(val appVersion: String, val model: String, val androidRelea
 /**
  * The log as the text of a `.log` file: a header saying where it came from, then each run as a line followed by its
  * steps, one to a line, every line starting with the moment or with a mark in the same column. It holds what the
- * screen shows and no more: no key, no package names.
+ * screen shows and no more: no key, and none of the user's apps by name.
  */
 fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt: Instant, zone: ZoneId): String =
     buildString {
@@ -44,12 +44,17 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
                     durationText(run.duration),
                 ).joinToString(separator = " | "),
             )
+            val under = INDENT + " ".repeat(MARK_DONE.length)
             run.error?.let { appendLine("$INDENT$MARK_FAILED ${getString(it.resource)}") }
+            run.detail?.let { appendLine("$under $it") }
             run.steps.forEach { step ->
                 val mark = if (step.error == null) MARK_DONE else MARK_FAILED
-                appendLine("$INDENT$mark ${text(step.kind.label())}")
-                step.error?.let { appendLine("$INDENT${" ".repeat(mark.length)} ${getString(it.resource)}") }
+                val took = step.duration?.let { " (${durationText(it)})" }.orEmpty()
+                appendLine("$INDENT$mark ${text(step.kind.label())}$took")
+                step.error?.let { appendLine("$under ${getString(it.resource)}") }
+                step.detail?.let { appendLine("$under $it") }
             }
+            runDetailLines(run).forEach { appendLine("$INDENT$MARK_NOTE $it") }
         }
     }
 
@@ -89,6 +94,7 @@ private const val LOG_FOLDER = "logs"
 private const val INDENT = "    "
 private const val MARK_DONE = "[ ok ]"
 private const val MARK_FAILED = "[FAIL]"
+private const val MARK_NOTE = "[info]"
 
 /** Fixed, not the phone's own format: a log is read by whoever it is sent to, and sorted by its text. */
 private val STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")

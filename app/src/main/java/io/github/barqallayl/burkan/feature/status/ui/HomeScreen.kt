@@ -1,8 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
 import androidx.annotation.StringRes
-import android.content.Intent
-import android.provider.Settings as SystemSettings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -122,7 +120,10 @@ import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.LogRoute
 import io.github.barqallayl.burkan.core.navigation.SettingsRoute
+import io.github.barqallayl.burkan.core.ui.AppIcon
+import io.github.barqallayl.burkan.core.ui.IconLoader
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.core.ui.wirelessDebuggingIntent
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.burkanMotion
@@ -206,13 +207,13 @@ fun HomeScreen() {
         when (effect) {
             HomeSideEffect.OpenLog -> navigator.push(LogRoute)
             HomeSideEffect.OpenSettings -> navigator.push(SettingsRoute)
-            HomeSideEffect.OpenDeveloperOptions ->
-                context.openSettings(Intent(SystemSettings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+            HomeSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())
         }
     }
     HomeContent(
         state = state,
         zone = ZoneId.systemDefault(),
+        icon = remember(viewModel) { IconLoader(viewModel::cachedIcon, viewModel::icon) },
         actions = HomeActions(
             onRetry = viewModel::refresh,
             onApplyNow = viewModel::applyNow,
@@ -225,6 +226,8 @@ fun HomeScreen() {
             onShowBehind = viewModel::showBehind,
             onConfirmRestartBehind = viewModel::confirmRestartBehind,
             onDismissBehind = viewModel::dismissBehind,
+            onRestartOne = { viewModel.restartOne(it) },
+            onKeep = { viewModel.keep(it) },
             onRevert = viewModel::requestRevert,
             onConfirmRevert = viewModel::confirmRevert,
             onDismissRevert = viewModel::dismissRevert,
@@ -249,6 +252,8 @@ private class HomeActions(
     val onShowBehind: () -> Unit = {},
     val onConfirmRestartBehind: () -> Unit = {},
     val onDismissBehind: () -> Unit = {},
+    val onRestartOne: (PackageName) -> Unit = {},
+    val onKeep: (PackageName) -> Unit = {},
     val onRevert: () -> Unit = {},
     val onConfirmRevert: () -> Unit = {},
     val onDismissRevert: () -> Unit = {},
@@ -260,7 +265,7 @@ private class HomeActions(
 )
 
 @Composable
-private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
+private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, icon: IconLoader = IconLoader.None) {
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
@@ -412,6 +417,10 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions) {
             BehindSheet(
                 apps = behind,
                 renderer = newApps.other(),
+                icon = icon,
+                onRestartOne = { app -> hide { actions.onRestartOne(app) } },
+                // Keeping the last of them leaves nothing to show: the sheet goes as it does for its own buttons.
+                onKeep = { app -> if (behind.size == 1) hide { actions.onKeep(app) } else actions.onKeep(app) },
                 onConfirm = { hide(actions.onConfirmRestartBehind) },
                 onDismiss = { hide(actions.onDismissBehind) },
             )
@@ -445,7 +454,15 @@ private val Renderer.nameRes: Int
  * close everything. [renderer] is the one they are still on.
  */
 @Composable
-private fun BehindSheet(apps: List<BehindApp>, renderer: Renderer, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun BehindSheet(
+    apps: List<BehindApp>,
+    renderer: Renderer,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    icon: IconLoader = IconLoader.None,
+    onRestartOne: (PackageName) -> Unit = {},
+    onKeep: (PackageName) -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -471,6 +488,22 @@ private fun BehindSheet(apps: List<BehindApp>, renderer: Renderer, onConfirm: ()
                     headline = app.label,
                     supporting = app.packageName.value,
                     supportingOneLine = true,
+                    leading = { AppIcon(app.packageName, icon) },
+                    // One app at a time: restarted alone, or kept from every run from now on.
+                    trailing = {
+                        Row {
+                            BurkanIconButton(
+                                Tabler.Outline.ShieldCheck,
+                                stringResource(R.string.home_behind_keep, app.label),
+                                { onKeep(app.packageName) },
+                            )
+                            BurkanIconButton(
+                                Tabler.Outline.Refresh,
+                                stringResource(R.string.home_behind_restart_one, app.label),
+                                { onRestartOne(app.packageName) },
+                            )
+                        }
+                    },
                 )
             }
         }
@@ -1078,7 +1111,7 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> 
             SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi)
             SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher)
             SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard)
-            OpenAppsRow(4, renderers?.newApps, state.behind, onShowBehind.takeUnless { running })
+            OpenAppsRow(4, renderers?.newApps, state.behind, state.isCheckingBehind, onShowBehind.takeUnless { running })
         }
         if (failed != null) {
             BurkanSegment(index = 0, count = 1, modifier = Modifier.matchParentSize()) {
@@ -1123,19 +1156,30 @@ private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Rend
 /**
  * The open apps, as one more row of the list: how many still draw with the renderer new apps no longer get, or
  * that all of them have caught up. With some behind, the row opens their names and the offer to restart them.
- * [behind] null is a placeholder: they are read after the status, and take a second or two longer.
+ * [behind] null while [checking] is a placeholder: they are read after the status, and take a second or two
+ * longer. Null afterwards, they could not be read.
  */
 @Composable
-private fun OpenAppsRow(index: Int, newApps: Renderer?, behind: List<BehindApp>?, onShow: (() -> Unit)?) {
+private fun OpenAppsRow(
+    index: Int,
+    newApps: Renderer?,
+    behind: List<BehindApp>?,
+    checking: Boolean,
+    onShow: (() -> Unit)?,
+) {
     val label = stringResource(R.string.home_row_open_apps)
     when {
-        newApps == null || newApps == Renderer.Unknown || behind == null -> SurfaceLine(
-            index,
-            Tabler.Outline.AppWindow,
-            label,
-            stringResource(if (newApps == Renderer.Unknown) R.string.renderer_unknown else R.string.home_value_checking),
-            if (newApps == Renderer.Unknown) SurfaceMark.Unknown else SurfaceMark.Checking,
-        )
+        newApps == null || newApps == Renderer.Unknown || behind == null -> {
+            // Still being read only while the status is, or while the apps themselves are asked about.
+            val unknown = newApps == Renderer.Unknown || (newApps != null && !checking)
+            SurfaceLine(
+                index,
+                Tabler.Outline.AppWindow,
+                label,
+                stringResource(if (unknown) R.string.renderer_unknown else R.string.home_value_checking),
+                if (unknown) SurfaceMark.Unknown else SurfaceMark.Checking,
+            )
+        }
 
         behind.isEmpty() -> SurfaceLine(
             index,

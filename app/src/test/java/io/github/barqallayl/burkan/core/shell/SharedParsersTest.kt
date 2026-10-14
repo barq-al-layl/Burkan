@@ -72,7 +72,8 @@ class SharedParsersTest {
         // A process that has drawn nothing has no pipeline, and so no renderer to report.
         assertTrue("com.example.notes:sync" !in renderers)
         assertTrue("android.process.acore" !in renderers)
-        assertEquals(9, renderers.size)
+        assertEquals(Renderer.OpenGL, renderers["system"])
+        assertEquals(10, renderers.size)
         assertTrue(parseProcessRenderers("").isEmpty())
     }
 }

@@ -27,6 +27,12 @@ interface RunAlerts {
 
     /** Wi-Fi is back but the app could not start the run by itself; the notification starts it. */
     fun showReadyToApply()
+
+    /**
+     * The apply after a restart is done, System UI included: Vulkan is active with nothing left to wait for. [behind]
+     * open apps started before it and are still on OpenGL.
+     */
+    fun showApplied(behind: Int)
 }
 
 /**
@@ -95,6 +101,11 @@ class AutoApply(
     /** A run has ended. Decides what the automatic apply waits for next, and what the user is told. */
     suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) {
         val tried = storage.state.first().triedNetwork
+        // The apply after a restart works unseen, so it says when it is done. While System UI is still left for
+        // the lock, the service's own notification says that, and this waits for the run at the lock.
+        val automatic = trigger == RunTrigger.Boot || trigger == RunTrigger.AtLock
+        val done = outcome.result == RunResult.Succeeded || outcome.result == RunResult.AlreadyApplied
+        if (automatic && done && !outcome.systemUiDeferred) alerts.showApplied(outcome.behind?.size ?: 0)
         when {
             outcome.systemUiDeferred -> {
                 wifiWatch.stop()

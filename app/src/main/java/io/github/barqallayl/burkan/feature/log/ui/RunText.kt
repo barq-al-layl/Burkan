@@ -1,7 +1,11 @@
 package io.github.barqallayl.burkan.feature.log.ui
 
+import android.content.res.Resources
 import androidx.annotation.StringRes
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
@@ -57,3 +61,31 @@ val RunLogEntry.resultLabel: Int
         kind == ApplyKind.Light || kind == ApplyKind.Full -> result.label
         else -> R.string.result_nothing_to_do
     }
+
+/** A renderer's name. */
+@get:StringRes
+val Renderer.label: Int
+    get() = when (this) {
+        Renderer.Vulkan -> R.string.renderer_vulkan
+        Renderer.OpenGL -> R.string.renderer_opengl
+        Renderer.Unknown -> R.string.renderer_unknown
+    }
+
+/**
+ * What the log adds under a run's steps, a line each: what the phone ran on before and after, how long it took to
+ * get to the first step, and how many open apps were left behind. Only what the run kept.
+ */
+fun Resources.runDetailLines(run: RunLogEntry): List<String> = buildList {
+    run.preparing?.let { add(getString(R.string.log_preparing, durationText(it))) }
+    run.before?.let { add(getString(R.string.log_before, surfacesText(it))) }
+    run.after?.let { add(getString(R.string.log_after, surfacesText(it))) }
+    run.behind?.let { add(getQuantityString(R.plurals.log_behind, it, it)) }
+}
+
+private fun Resources.surfacesText(status: RendererStatus): String = getString(
+    R.string.log_surfaces,
+    getString(status.newApps.label),
+    getString(status.systemUi.label),
+    getString(status.launcher.label),
+    getString(status.keyboard.label),
+)

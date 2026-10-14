@@ -43,6 +43,7 @@ class OpenAppsReaderTest {
                 // Only its widget process has drawn, and that is enough.
                 "org.example.weather",
                 "com.sec.imsservice",
+                // Not `system`, the system's own process, though it draws with OpenGL: no restart moves it.
             ).right(),
             reader.notOn(Renderer.Vulkan),
         )

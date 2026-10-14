@@ -8,16 +8,19 @@ import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
+import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
+import io.github.barqallayl.burkan.feature.apply.FakeAppIcons
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeAutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
+import io.github.barqallayl.burkan.feature.apply.FakeRunAnnouncer
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.CapturedSettings
@@ -36,6 +39,7 @@ import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -65,6 +69,7 @@ class HomeViewModelTest {
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
     private val deviceSettings = FakeDeviceSettings()
     private val kept = FakeCapturedSettingsStorage()
+    private val announcer = FakeRunAnnouncer()
     private val controller = ApplyController(
         access,
         log,
@@ -75,6 +80,7 @@ class HomeViewModelTest {
         FakeRecentApps(),
         clock,
         FixtureDevice.Self,
+        announcer,
     )
     private val launcher = FakeApplyLauncher()
     private val installedApps = FakeInstalledApps(mapOf("net.example.reader" to "Reader"))
@@ -91,6 +97,7 @@ class HomeViewModelTest {
         autoApply,
         SettingsStore(settings, FakeDeviceStateStorage(), backgroundScope),
         clock,
+        FakeAppIcons(),
     )
 
     private val notApplied = StatusState.Loaded(
@@ -360,6 +367,24 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `open apps that cannot be read stop being waited for`() = runTest {
+        shell.fail(ShellCommands.gfxInfoAll(), ShellError.ConnectionLost)
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.refresh()
+
+            val asking = awaitState { it.status is StatusState.Loaded }
+            assertTrue(asking.isCheckingBehind)
+            val given = awaitState { !it.isCheckingBehind }
+            assertEquals(null, given.behind)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `the apps that are behind are shown, and restarted only when the user says so`() = runTest {
         shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
 
@@ -374,6 +399,41 @@ class HomeViewModelTest {
             containerHost.confirmRestartBehind()
             awaitState { !it.isShowingBehind }
             assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `one app is restarted alone from its row`() = runTest {
+        val chat = PackageName.known("org.example.chat")
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.restartOne(chat).join()
+
+            assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
+            assertEquals(listOf<Set<PackageName>?>(setOf(chat)), launcher.only)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `an app kept from its row joins the exclusions and leaves the list`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+        val reader = PackageName.known("net.example.reader")
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh()
+            awaitState { it.behind != null }
+
+            containerHost.keep(reader).join()
+
+            assertEquals(emptyList<BehindApp>(), awaitState { it.behind?.isEmpty() == true }.behind)
+            assertTrue(reader in settings.userExclusions.first())
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

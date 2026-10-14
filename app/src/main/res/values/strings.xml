@@ -211,6 +211,19 @@
     <string name="apply_running_open_apps_title">Restarting open apps</string>
     <string name="apply_running_revert_title">Going back to OpenGL</string>
     <string name="apply_cancel_action">Cancel</string>
+    <string name="applied_channel_name">Applied after a restart</string>
+    <string name="applied_channel_description">Says when the apply after a restart is done.</string>
+    <string name="applied_title">Vulkan is active</string>
+    <string name="applied_text">Applied after the restart, System UI included.</string>
+    <plurals name="applied_behind_text">
+        <item quantity="one">Applied after the restart. %d app that was already open is still on OpenGL.</item>
+        <item quantity="other">Applied after the restart. %d apps that were already open are still on OpenGL.</item>
+    </plurals>
+    <string name="tile_label">Vulkan</string>
+    <string name="tile_active">Active</string>
+    <string name="tile_inactive">Not applied</string>
+    <string name="tile_busy">Applying…</string>
+    <string name="tile_unavailable">Finish setup first</string>
     <string name="apply_failed_title">Vulkan was not applied</string>
     <string name="apply_failed_text">Open Burkan to see what went wrong.</string>
     <string name="apply_waiting_for_lock_title">System UI switches at the next lock</string>
@@ -292,6 +305,8 @@
     <string name="home_behind_title">Still on %1$s</string>
     <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost.</string>
     <string name="home_behind_action">Restart them</string>
+    <string name="home_behind_restart_one">Restart %1$s</string>
+    <string name="home_behind_keep">Never restart %1$s</string>
     <string name="home_revert">Back to OpenGL</string>
     <string name="home_revert_text">Undoes Vulkan until you apply it again</string>
     <string name="home_revert_title">Go back to OpenGL?</string>
@@ -338,6 +353,14 @@
     <string name="log_unreadable_title">The log could not be read</string>
     <string name="log_unreadable_text">It may have been written by another version of Burkan. The next run starts a new log.</string>
     <string name="log_run_detail">%1$s · %2$s · %3$s</string>
+    <string name="log_preparing">Connected and read the phone in %1$s</string>
+    <string name="log_before">Before: %1$s</string>
+    <string name="log_after">After: %1$s</string>
+    <string name="log_surfaces">new apps %1$s, System UI %2$s, launcher %3$s, keyboard %4$s</string>
+    <plurals name="log_behind">
+        <item quantity="one">%1$d open app left on the other renderer</item>
+        <item quantity="other">%1$d open apps left on the other renderer</item>
+    </plurals>
     <string name="log_share_chooser">Share the log</string>
     <string name="log_share_subject">Burkan log</string>
     <string name="log_file_title">Burkan %1$s run log</string>

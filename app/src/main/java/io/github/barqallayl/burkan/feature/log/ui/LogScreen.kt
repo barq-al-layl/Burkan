@@ -29,6 +29,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewWrapper
@@ -58,7 +60,10 @@ import com.composables.icons.tabler.outline.Share
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.core.ui.durationText
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
@@ -98,6 +103,8 @@ import java.time.ZoneOffset
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -322,7 +329,8 @@ private fun RunItem(
     onClick: () -> Unit,
 ) {
     val motion = burkanMotion
-    val hasDetail = run.steps.isNotEmpty() || run.error != null
+    // A run that changed nothing still has something to open: what the phone was found running on.
+    val hasDetail = run.steps.isNotEmpty() || run.error != null || run.before != null || run.after != null
     BurkanSegment(index = index, count = count, onClick = onClick.takeIf { hasDetail }) {
         Row(
             modifier = Modifier
@@ -369,19 +377,23 @@ private fun RunSteps(run: RunLogEntry) {
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                val small = LocalTextStyle.current.merge(MaterialTheme.typography.bodySmall)
+                    .copy(fontFamily = FontFamily.Monospace)
+                val quiet = MaterialTheme.colorScheme.onSurfaceVariant
                 run.error?.let {
                     Text(
                         stringResource(it.resource),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+                run.detail?.let { Text(it, style = small, color = quiet) }
                 run.steps.forEach { step ->
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
                         RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(step.kind.label().text())
                             step.error?.let {
                                 Text(
@@ -389,7 +401,17 @@ private fun RunSteps(run: RunLogEntry) {
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
+                            step.detail?.let { Text(it, style = small, color = quiet) }
                         }
+                        // How long the step took, at the end of its line where the eye can run down them.
+                        step.duration?.let { Text(durationText(it), style = small, color = quiet) }
+                    }
+                }
+                // What stands behind the steps, for whoever is looking for a fault: quieter, and after them.
+                val lines = LocalResources.current.runDetailLines(run)
+                if (lines.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        lines.forEach { Text(it, style = small, color = quiet) }
                     }
                 }
             }
@@ -427,14 +449,18 @@ private val sampleRuns = listOf(
         result = RunResult.Failed,
         duration = 73.seconds,
         steps = listOf(
-            LoggedStep(StepKind.SetRenderer),
-            LoggedStep(StepKind.StopApps(612)),
-            LoggedStep(StepKind.RestartSystemUi),
-            LoggedStep(StepKind.RestartLauncher),
-            LoggedStep(StepKind.RelaunchApps(110), AppErrorType.CommandTimedOut),
-            LoggedStep(StepKind.RestoreSetting(RestoredSetting.AutoRotation)),
-            LoggedStep(StepKind.RestoreSetting(RestoredSetting.AccessibilityServices)),
+            LoggedStep(StepKind.SetRenderer, duration = 300.milliseconds),
+            LoggedStep(StepKind.StopApps(612), duration = 41.seconds),
+            LoggedStep(StepKind.RestartSystemUi, duration = 6.seconds),
+            LoggedStep(StepKind.RestartLauncher, duration = 3.seconds),
+            LoggedStep(StepKind.RelaunchApps(110), AppErrorType.CommandTimedOut, duration = 3.minutes),
+            LoggedStep(StepKind.RestoreSetting(RestoredSetting.AutoRotation), duration = 1.seconds),
+            LoggedStep(StepKind.RestoreSetting(RestoredSetting.AccessibilityServices), duration = 1.seconds),
         ),
+        before = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL),
+        after = RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.OpenGL),
+        preparing = 4.seconds,
+        behind = 3,
     ),
     RunLogEntry(
         startedAt = Instant.parse("2026-10-01T08:02:00Z"),

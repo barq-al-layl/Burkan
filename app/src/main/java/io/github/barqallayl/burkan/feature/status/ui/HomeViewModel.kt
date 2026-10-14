@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -10,6 +11,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.store.UserSettings
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
@@ -24,6 +26,7 @@ import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
+import io.github.barqallayl.burkan.feature.settings.data.AppIcons
 import io.github.barqallayl.burkan.feature.status.data.StatusRepository
 import io.github.barqallayl.burkan.feature.status.model.BehindApp
 import kotlinx.coroutines.Job
@@ -74,6 +77,8 @@ data class HomeState(
      * status, and when the phone could not be asked.
      */
     val behind: List<BehindApp>? = null,
+    /** The open apps are being asked about. With [behind] null and this false, they could not be read. */
+    val isCheckingBehind: Boolean = false,
     val isShowingBehind: Boolean = false,
     val isConfirmingRevert: Boolean = false,
 )
@@ -95,6 +100,7 @@ class HomeViewModel(
     private val autoApply: AutoApplyStorage,
     private val settings: SettingsStore,
     private val clock: Clock,
+    private val icons: AppIcons,
 ) : OrbitContainerHost<HomeState, HomeState, HomeSideEffect>, ViewModel() {
 
     override val container = orbitContainer<HomeState, HomeSideEffect>(
@@ -160,11 +166,22 @@ class HomeViewModel(
         val status =
             statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
         // The open apps are asked about once the status is on the screen: it is the slower of the two questions.
-        reduce { state.copy(status = status, statusReadAt = clock.now(), isRefreshing = false, behind = null) }
-        if (status is StatusState.Loaded) {
+        val loaded = status is StatusState.Loaded
+        reduce {
+            state.copy(
+                status = status,
+                statusReadAt = clock.now(),
+                isRefreshing = false,
+                behind = null,
+                isCheckingBehind = loaded,
+            )
+        }
+        if (loaded) {
             val behind = statusRepository.readBehind()
             // A run that started meanwhile will say for itself what it leaves behind.
-            if (state.run == ApplyRunState.Idle) reduce { state.copy(behind = behind) }
+            reduce {
+                state.copy(behind = behind.takeIf { state.run == ApplyRunState.Idle }, isCheckingBehind = false)
+            }
         }
     }
 
@@ -200,6 +217,12 @@ class HomeViewModel(
 
     fun dismissRestartAll() = intent { reduce { state.copy(isConfirmingFullApply = false) } }
 
+    /** An app's icon if it was loaded lately, for a row's first frame. */
+    fun cachedIcon(packageName: PackageName): ImageBitmap? = icons.cached(packageName)
+
+    /** An app's icon, for the list of open apps. */
+    suspend fun icon(packageName: PackageName): ImageBitmap? = icons.icon(packageName)
+
     /** Shows which open apps are behind, and offers to restart them. */
     fun showBehind() = intent {
         if (!state.behind.isNullOrEmpty()) reduce { state.copy(isShowingBehind = true) }
@@ -208,6 +231,19 @@ class HomeViewModel(
     fun confirmRestartBehind() = intent {
         reduce { state.copy(isShowingBehind = false) }
         launcher.start(ApplyKind.OpenApps)
+    }
+
+    /** Restarts one of the apps behind, from its row. */
+    fun restartOne(packageName: PackageName) = intent {
+        reduce { state.copy(isShowingBehind = false) }
+        launcher.start(ApplyKind.OpenApps, only = setOf(packageName))
+    }
+
+    /** Never restarts an app again, from its row: it joins the exclusions, and leaves the list. */
+    fun keep(packageName: PackageName) = intent {
+        statusRepository.keep(packageName)
+        val behind = state.behind?.filterNot { it.packageName == packageName }
+        reduce { state.copy(behind = behind, isShowingBehind = state.isShowingBehind && !behind.isNullOrEmpty()) }
     }
 
     fun dismissBehind() = intent { reduce { state.copy(isShowingBehind = false) } }
@@ -246,8 +282,11 @@ class HomeViewModel(
             reduce {
                 state.copy(
                     status = StatusState.Loaded(verified.status),
-                    statusReadAt = verified.at,
+                    // A run at the lock leaves the open apps unread, and a read can fail: the status then counts
+                    // as old, so the next return to the screen asks again.
+                    statusReadAt = verified.at.takeIf { behind != null },
                     behind = behind,
+                    isCheckingBehind = false,
                 )
             }
         } else {

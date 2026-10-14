@@ -476,6 +476,17 @@ Metro, one graph:
   the branch and the tag, and publishes the APK on GitHub with that changelog. `./gradlew :app:checkRelease`
   runs the checks alone and changes nothing. F-Droid takes a new version from the same tag, so never push a
   `v…` tag for anything that is not a release.
+- **Or push the tag, and GitHub releases it.** Make the signed tag yourself
+  (`git tag --sign v<versionName> -m "Burkan <versionName>"`) on the commit on `main`, then push `main` and the
+  tag. `.github/workflows/release.yml` checks that the tag is that version's and on `main`, runs the tests, the
+  screenshots and lint, and runs the same `:app:githubRelease`, which on GitHub Actions makes and pushes no tag.
+  Its key and passwords are the secrets of the repository's `release` environment: `RELEASE_KEYSTORE` (the
+  keystore file in base64), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Started by
+  hand from the Actions tab, the workflow builds the signed APK of `main` and keeps it as an artifact, publishing
+  nothing.
+- **Every push to `main` and every pull request is checked** by `.github/workflows/check.yml`: the unit tests,
+  the screenshots, a debug build and lint. When it fails, the run keeps the reports and the screenshot
+  comparisons.
 - **A release is built with the NDK named in `app/build.gradle.kts`.** The app compiles nothing with it, but the
   build strips its dependencies' native libraries with it, and F-Droid ships a release only if its own build
   comes out identical. Install that version from Android Studio's SDK Manager; `checkRelease` says when it is

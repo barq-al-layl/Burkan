@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
@@ -15,6 +16,7 @@ import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
+import io.github.barqallayl.burkan.feature.apply.FakeRunAnnouncer
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.FakeWifiWatch
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
@@ -362,7 +364,16 @@ class AutoApplyTest {
         val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
         val captured = CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings())
         val controller = ApplyController(
-            access, log, settings, cooldown, captured, lockEvents, FakeRecentApps(), FixedClock, FixtureDevice.Self,
+            access,
+            log,
+            settings,
+            cooldown,
+            captured,
+            lockEvents,
+            FakeRecentApps(),
+            FixedClock,
+            FixtureDevice.Self,
+            FakeRunAnnouncer(),
         )
         storage.state.value = AutoApplyState(systemUiAtNextLock = true)
 
@@ -439,5 +450,41 @@ class AutoApplyTest {
         )
 
         assertEquals(AutoApplyState(systemUiAtNextLock = true), storage.state.value)
+    }
+
+    @Test
+    fun `the apply after a restart says when it is done`() = runTest {
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Succeeded))
+
+        assertEquals(1, alerts.applied)
+    }
+
+    @Test
+    fun `the notice that it is done counts the open apps still behind`() = runTest {
+        val behind = setOf(PackageName.known("org.example.chat"), PackageName.known("com.example.notes"))
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Succeeded, behind = behind))
+
+        assertEquals(listOf(2), alerts.appliedBehind)
+    }
+
+    @Test
+    fun `with System UI still left for the lock, it waits to say so until the run at the lock is done`() = runTest {
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Succeeded, systemUiDeferred = true))
+        assertEquals(0, alerts.applied)
+
+        autoApply.onRunFinished(RunTrigger.AtLock, RunOutcome(RunResult.Postponed, systemUiDeferred = true))
+        assertEquals(0, alerts.applied, "unlocked again before the restart: still left for the lock")
+
+        autoApply.onRunFinished(RunTrigger.AtLock, RunOutcome(RunResult.Succeeded))
+        assertEquals(1, alerts.applied)
+    }
+
+    @Test
+    fun `only the apply after a restart announces itself, and only when it worked`() = runTest {
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+        autoApply.onRunFinished(RunTrigger.External, RunOutcome(RunResult.Succeeded))
+        autoApply.onRunFinished(RunTrigger.Boot, RunOutcome(RunResult.Failed, ConnectionError.NoWifi))
+
+        assertEquals(0, alerts.applied)
     }
 }

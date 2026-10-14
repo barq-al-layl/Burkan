@@ -74,7 +74,9 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.messageRes
+import io.github.barqallayl.burkan.core.ui.buildNumberIntent
 import io.github.barqallayl.burkan.core.ui.openSettings
+import io.github.barqallayl.burkan.core.ui.wirelessDebuggingIntent
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
 import io.github.barqallayl.burkan.designsystem.burkanMotion
@@ -134,9 +136,8 @@ fun SetupScreen() {
             SetupSideEffect.RequestNotificationPermission ->
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
 
-            SetupSideEffect.OpenAboutPhone -> context.openSettings(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS))
-            SetupSideEffect.OpenDeveloperOptions ->
-                context.openSettings(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+            SetupSideEffect.OpenAboutPhone -> context.openSettings(buildNumberIntent())
+            SetupSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())
             // A dialog over this screen rather than a screen of Settings, so it stays in the app's own window.
             SetupSideEffect.RequestBatteryExemption -> try {
                 context.startActivity(batteryExemptionIntent(context))

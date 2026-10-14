@@ -10,6 +10,8 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
@@ -98,6 +100,12 @@ private data class StoredRun(
     val durationMillis: Long,
     val steps: List<StoredStep>,
     val error: String? = null,
+    /** New apps, System UI, the launcher and the keyboard, in that order, each by its renderer's name. */
+    val before: List<String>? = null,
+    val after: List<String>? = null,
+    val preparingMillis: Long? = null,
+    val behind: Int? = null,
+    val detail: String? = null,
 )
 
 @Serializable
@@ -106,6 +114,8 @@ private data class StoredStep(
     val count: Int? = null,
     val setting: String? = null,
     val error: String? = null,
+    val durationMillis: Long? = null,
+    val detail: String? = null,
 )
 
 private fun RunLogEntry.toStored() = StoredRun(
@@ -121,10 +131,28 @@ private fun RunLogEntry.toStored() = StoredRun(
             count = (kind as? StepKind.StopApps)?.count ?: (kind as? StepKind.RelaunchApps)?.count,
             setting = (kind as? StepKind.RestoreSetting)?.setting?.name,
             error = step.error?.name,
+            durationMillis = step.duration?.inWholeMilliseconds,
+            detail = step.detail,
         )
     },
     error = error?.name,
+    before = before?.toStored(),
+    after = after?.toStored(),
+    preparingMillis = preparing?.inWholeMilliseconds,
+    behind = behind,
+    detail = detail,
 )
+
+private fun RendererStatus.toStored(): List<String> = listOf(newApps, systemUi, launcher, keyboard).map { it.name }
+
+/** A status that is not four renderers this version knows reads as not kept, and the run is still shown. */
+private fun List<String>.toStatus(): RendererStatus? {
+    val renderers = map { name -> enumOrNull<Renderer>(name) ?: return null }
+    if (renderers.size != STATUS_SIZE) return null
+    return RendererStatus(renderers[0], renderers[1], renderers[2], renderers[3])
+}
+
+private const val STATUS_SIZE = 4
 
 private fun StoredRun.toEntry(): RunLogEntry? {
     return RunLogEntry(
@@ -137,9 +165,16 @@ private fun StoredRun.toEntry(): RunLogEntry? {
             LoggedStep(
                 kind = step.toKind() ?: return null,
                 error = step.error?.let(::errorType),
+                duration = step.durationMillis?.milliseconds,
+                detail = step.detail,
             )
         },
         error = error?.let(::errorType),
+        before = before?.toStatus(),
+        after = after?.toStatus(),
+        preparing = preparingMillis?.milliseconds,
+        behind = behind,
+        detail = detail,
     )
 }
 

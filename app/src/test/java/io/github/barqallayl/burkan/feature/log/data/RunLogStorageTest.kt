@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.barqallayl.burkan.core.model.AppErrorType
+import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
@@ -23,6 +25,7 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -59,6 +62,31 @@ class RunLogStorageTest {
         storage.add(unreachedRun)
 
         assertEquals(listOf(unreachedRun, fullRun), storage.runs.first())
+    }
+
+    @Test
+    fun `what a run kept beyond its steps reads back too`() = runTest {
+        val storage = DataStoreRunLogStorage(dataStore())
+        val detailed = fullRun.copy(
+            steps = listOf(
+                LoggedStep(StepKind.SetRenderer, duration = 1200.milliseconds),
+                LoggedStep(
+                    StepKind.RestartLauncher,
+                    AppErrorType.CommandFailed,
+                    duration = 3.seconds,
+                    detail = "exit 1: Error: Activity not started",
+                ),
+            ),
+            before = RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.Unknown, Renderer.OpenGL),
+            after = RendererStatus(Renderer.Vulkan, Renderer.OpenGL, Renderer.Unknown, Renderer.OpenGL),
+            preparing = 4.seconds,
+            behind = 2,
+            detail = "exit 255: device offline",
+        )
+
+        storage.add(detailed)
+
+        assertEquals(listOf(detailed), storage.runs.first())
     }
 
     @Test

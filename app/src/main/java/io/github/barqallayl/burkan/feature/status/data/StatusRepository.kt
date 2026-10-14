@@ -56,6 +56,11 @@ class StatusRepository(
             .mapNotNull { app -> app.label?.let { BehindApp(app.packageName, it) } }
             .sortedBy { it.label.lowercase() }
 
+    /** Adds [packageName] to the apps no run restarts. */
+    suspend fun keep(packageName: PackageName) {
+        settings.setUserExclusions(settings.userExclusions.first() + packageName)
+    }
+
     /** Closes the connection now rather than keeping it for a next read. */
     suspend fun release() = shellAccess.release()
 }

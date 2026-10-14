@@ -14,6 +14,7 @@ import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeLockEvents
 import io.github.barqallayl.burkan.feature.apply.FakeRecentApps
+import io.github.barqallayl.burkan.feature.apply.FakeRunAnnouncer
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice.replyLikeFixtureDevice
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
@@ -64,6 +65,7 @@ class ApplyControllerTest {
     private val recentApps = FakeRecentApps()
     private val deviceSettings = FakeDeviceSettings()
     private val kept = FakeCapturedSettingsStorage()
+    private val announcer = FakeRunAnnouncer()
     private val controller = ApplyController(
         access,
         log,
@@ -74,6 +76,7 @@ class ApplyControllerTest {
         recentApps,
         clock,
         FixtureDevice.Self,
+        announcer,
     )
 
     @Test
@@ -254,7 +257,8 @@ class ApplyControllerTest {
         assertEquals(ShellError.ConnectionLost, outcome?.error)
         assertEquals(
             LoggedStep(StepKind.RestartKeyboard, AppErrorType.ConnectionLost),
-            log.runs.value.single().steps.last(),
+            // How long it took is the real clock's to say, and is not this test's business.
+            log.runs.value.single().steps.last().copy(duration = null),
         )
         assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" !in shell.lines)
     }
@@ -360,7 +364,7 @@ class ApplyControllerTest {
         val outcome = controller.run(ApplyKind.Light, RunTrigger.Boot)
 
         val vulkan = RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan)
-        assertEquals(RunOutcome(RunResult.AlreadyApplied, status = vulkan), outcome)
+        assertEquals(RunOutcome(RunResult.AlreadyApplied, status = vulkan, behind = emptySet()), outcome)
         assertEquals(
             listOf(
                 "getprop debug.hwui.renderer",
@@ -369,10 +373,13 @@ class ApplyControllerTest {
                 "dumpsys gfxinfo com.android.systemui",
                 "dumpsys gfxinfo com.sec.android.app.launcher",
                 "dumpsys gfxinfo com.samsung.android.honeyboard",
+                // Asked so that Home can say which open apps are behind, without connecting again.
+                "dumpsys gfxinfo",
             ),
             shell.lines,
         )
         assertEquals(RunResult.AlreadyApplied, log.runs.value.single().result)
+        assertEquals(emptySet(), controller.verified.value?.behind)
     }
 
     @Test
@@ -494,6 +501,26 @@ class ApplyControllerTest {
     }
 
     @Test
+    fun `one app can be caught up alone`() = runTest {
+        onVulkan()
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        controller.run(ApplyKind.OpenApps, RunTrigger.Manual, only = setOf(PackageName.known("org.example.chat")))
+
+        assertTrue("am force-stop org.example.chat; true" in shell.lines)
+        assertTrue(shell.lines.none { "com.example.notes" in it && it.startsWith("am ") })
+    }
+
+    @Test
+    fun `the run at the lock says which open apps it left behind, for the notice that it is done`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.AtLock)
+
+        assertEquals(setOf(PackageName.known("net.example.reader")), outcome?.behind)
+    }
+
+    @Test
     fun `catching up with nothing behind changes nothing`() = runTest {
         onVulkan()
 
@@ -533,5 +560,59 @@ class ApplyControllerTest {
         assertEquals(RunResult.Succeeded, outcome?.result)
         assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" in shell.lines)
         assertEquals(RunTrigger.External, log.runs.value.single().trigger)
+    }
+
+    @Test
+    fun `a run that ends is announced once, after it is in the log`() = runTest {
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        assertEquals(log.runs.value, announcer.finished)
+    }
+
+    @Test
+    fun `a run that could not connect is announced too, with why`() = runTest {
+        access.failure = ConnectionError.NoWifi
+
+        controller.run(ApplyKind.Light, RunTrigger.External)
+
+        val run = announcer.finished.single()
+        assertEquals(RunResult.Failed, run.result)
+        assertEquals(AppErrorType.NoWifi, run.error)
+    }
+
+    @Test
+    fun `the log keeps what the phone ran on before and after, and how long each step took`() = runTest {
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        val entry = log.runs.value.single()
+        assertEquals(RendererStatus(Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL, Renderer.OpenGL), entry.before)
+        // The fake phone's property never changes; System UI answers on Vulkan once restarted.
+        assertEquals(RendererStatus(Renderer.OpenGL, Renderer.Vulkan, Renderer.OpenGL, Renderer.OpenGL), entry.after)
+        assertTrue(entry.preparing != null)
+        assertEquals(0, entry.behind)
+        assertTrue(entry.steps.isNotEmpty() && entry.steps.all { it.duration != null })
+    }
+
+    @Test
+    fun `a command that fails leaves its own words in the log`() = runTest {
+        shell.reply(ShellCommands.setVulkanRenderer(), stderr = "\nsetprop: failed to set property\nmore\n", exitCode = 1)
+
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        val step = log.runs.value.single().steps.single()
+        assertEquals(AppErrorType.CommandFailed, step.error)
+        assertEquals("exit 1: setprop: failed to set property", step.detail)
+    }
+
+    @Test
+    fun `a run that changed nothing still says what it found`() = runTest {
+        onVulkan()
+
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        val entry = log.runs.value.single()
+        assertEquals(RunResult.AlreadyApplied, entry.result)
+        assertEquals(RendererStatus(Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan, Renderer.Vulkan), entry.before)
+        assertEquals(entry.before, entry.after)
     }
 }

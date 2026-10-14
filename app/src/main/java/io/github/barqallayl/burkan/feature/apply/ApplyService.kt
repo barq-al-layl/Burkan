@@ -23,6 +23,7 @@ import dev.zacsweers.metrox.android.ServiceKey
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.messageRes
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.AutoApply
@@ -95,7 +96,9 @@ class ApplyService(
                 val unattended = intent?.getStringExtra(EXTRA_TRIGGER)
                     ?.let { name -> RunTrigger.entries.firstOrNull { it.name == name } }
                     ?.takeIf { it.isUnattended }
-                start(kind, if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual, scope)
+                val only = intent?.getStringArrayExtra(EXTRA_PACKAGES)
+                    ?.mapNotNullTo(mutableSetOf(), PackageName::parse)
+                start(kind, if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual, scope, only)
             }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
@@ -103,7 +106,7 @@ class ApplyService(
         return START_NOT_STICKY
     }
 
-    private fun start(kind: ApplyKind, trigger: RunTrigger, restartScope: RestartScope) {
+    private fun start(kind: ApplyKind, trigger: RunTrigger, restartScope: RestartScope, only: Set<PackageName>?) {
         run = scope.launch {
             // A run nobody is watching may start with the screen off: keep the CPU awake until it has ended.
             val wakeLock = if (trigger.isUnattended) {
@@ -114,7 +117,7 @@ class ApplyService(
             }
             try {
                 // After a restart, System UI waits for the lock: restarting it now would lock a phone just unlocked.
-                execute(kind, trigger, restartScope)?.let { autoApply.onRunFinished(trigger, it) }
+                execute(kind, trigger, restartScope, only)?.let { autoApply.onRunFinished(trigger, it) }
             } finally {
                 if (wakeLock?.isHeld == true) wakeLock.release()
             }
@@ -146,6 +149,7 @@ class ApplyService(
         kind: ApplyKind,
         trigger: RunTrigger,
         restartScope: RestartScope = RestartScope.All,
+        only: Set<PackageName>? = null,
     ): RunOutcome? {
         val progress = scope.launch {
             controller.state.collect { state ->
@@ -153,7 +157,7 @@ class ApplyService(
             }
         }
         try {
-            return controller.run(kind, trigger, restartScope)
+            return controller.run(kind, trigger, restartScope, only)
         } finally {
             withContext(NonCancellable) { progress.cancel() }
         }
@@ -197,6 +201,9 @@ class ApplyService(
         const val EXTRA_KIND = "kind"
         const val EXTRA_SCOPE = "scope"
 
+        /** The packages an open-apps run is limited to, when it restarts one app rather than all that are behind. */
+        const val EXTRA_PACKAGES = "packages"
+
         /** [RunTrigger.External], by name, for a run started without the app's screens. */
         const val EXTRA_TRIGGER = "trigger"
         const val ACTION_CANCEL = "io.github.barqallayl.burkan.action.CANCEL_RUN"
@@ -229,6 +236,48 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
             NotificationManager.IMPORTANCE_LOW,
         ).apply { description = application.getString(R.string.apply_channel_description) }
         manager.createNotificationChannel(channel)
+    }
+
+    /**
+     * A channel of its own for the word that the apply after a restart is done, so that someone who does not want
+     * to be told can turn that off in the phone's settings and still hear of a run that failed.
+     */
+    private fun createAppliedChannel() {
+        val channel = NotificationChannel(
+            APPLIED_CHANNEL_ID,
+            application.getString(R.string.applied_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply { description = application.getString(R.string.applied_channel_description) }
+        manager.createNotificationChannel(channel)
+    }
+
+    override fun showApplied(behind: Int) {
+        createAppliedChannel()
+        val builder = NotificationCompat.Builder(application, APPLIED_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(application.getString(R.string.applied_title))
+            .setContentIntent(openApp())
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+        if (behind > 0) {
+            // Apps that started before the run keep OpenGL: the notice offers to restart them, as Home does.
+            val text = application.resources.getQuantityString(R.plurals.applied_behind_text, behind, behind)
+            val restart = PendingIntent.getForegroundService(
+                application,
+                0,
+                Intent(application, ApplyService::class.java).putExtra(ApplyService.EXTRA_KIND, ApplyKind.OpenApps.name),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            builder.setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .addAction(0, application.getString(R.string.home_behind_action), restart)
+        } else {
+            builder.setContentText(application.getString(R.string.applied_text))
+        }
+        val notification = builder.build()
+        // A run that failed earlier in this restart has been put right: its notice gives way to this one.
+        manager.cancel(FAILURE_ID)
+        manager.notify(APPLIED_ID, notification)
     }
 
     fun progress(kind: ApplyKind, state: ApplyRunState): Notification {
@@ -313,13 +362,15 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
         const val CHANNEL_ID = "apply"
         const val ONGOING_ID = 10
         const val FAILURE_ID = 11
+        const val APPLIED_CHANNEL_ID = "applied"
+        const val APPLIED_ID = 12
     }
 }
 
 /** Starts and cancels runs. */
 interface ApplyLauncher {
-    /** [scope] is how many apps a full apply restarts. */
-    fun start(kind: ApplyKind, scope: RestartScope = RestartScope.All)
+    /** [scope] is how many apps a full apply restarts; [only] limits an open-apps run to the packages it names. */
+    fun start(kind: ApplyKind, scope: RestartScope = RestartScope.All, only: Set<PackageName>? = null)
 
     /** Waits for the next lock to restart System UI, if a run after a restart left it for then. */
     fun awaitLock()
@@ -342,11 +393,12 @@ interface ApplyLauncher {
 @ContributesBinding(AppScope::class)
 class ServiceApplyLauncher(private val application: Application) : ApplyLauncher {
 
-    override fun start(kind: ApplyKind, scope: RestartScope) {
+    override fun start(kind: ApplyKind, scope: RestartScope, only: Set<PackageName>?) {
         application.startForegroundService(
             Intent(application, ApplyService::class.java)
                 .putExtra(ApplyService.EXTRA_KIND, kind.name)
-                .putExtra(ApplyService.EXTRA_SCOPE, scope.name),
+                .putExtra(ApplyService.EXTRA_SCOPE, scope.name)
+                .apply { if (only != null) putExtra(ApplyService.EXTRA_PACKAGES, only.map { it.value }.toTypedArray()) },
         )
     }
 
