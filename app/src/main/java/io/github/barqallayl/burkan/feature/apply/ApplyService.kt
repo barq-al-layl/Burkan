@@ -87,8 +87,6 @@ class ApplyService(
             intent?.action == ACTION_AWAIT_LOCK -> if (run?.isActive != true && lockWait?.isActive != true) awaitLock()
             run?.isActive == true || kind == null -> Unit
             else -> {
-                // A run started by hand replaces the wait for the lock; it restarts System UI itself.
-                lockWait?.cancel()
                 val scope = intent?.getStringExtra(EXTRA_SCOPE)
                     ?.let { name -> RestartScope.entries.firstOrNull { it.name == name } }
                     ?: RestartScope.All
@@ -99,6 +97,10 @@ class ApplyService(
                 val only = intent?.getStringArrayExtra(EXTRA_PACKAGES)
                     ?.mapNotNullTo(mutableSetOf(), PackageName::parse)
                 start(kind, if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual, scope, only)
+                // A run started by hand replaces the wait for the lock; it restarts System UI itself. The wait ends
+                // only once the run is under way: cancelled, it ends at once, on this thread, and stops the service
+                // if nothing else is running then, which takes the run that was about to start down with it.
+                lockWait?.cancel()
             }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
