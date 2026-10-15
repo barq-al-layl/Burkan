@@ -98,8 +98,9 @@ The status, and the two actions. The two styles lay it out differently; what it 
   be read, the cause by name where it is one the user can put right (*Not connected to Wi-Fi*, *Wireless
   debugging is off*) and *Unknown — cannot connect* otherwise. In words, never colour alone. A pairing the phone
   has dropped reads *Burkan is no longer paired* only for as long as Home takes to give way to Setup.
-- **Detail rows**: New apps (from the property), System UI, Launcher, Keyboard — each "Vulkan", "OpenGL" or
-  "Unknown", from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
+- **Detail rows**: New apps (from the property), System UI, Launcher, Keyboard — each "Vulkan", "OpenGL",
+  "Not drawn yet" (running, with nothing drawn, as the keyboard is from its restart until it is shown) or "Unknown",
+  from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
   stay in place with placeholders; while a run is in progress the card says its values are being changed.
 - **Last run**: when, what triggered it (boot or manual), and its result.
 - **Open apps**: a fifth row, under the surfaces. A process keeps the renderer it started with, so after an apply

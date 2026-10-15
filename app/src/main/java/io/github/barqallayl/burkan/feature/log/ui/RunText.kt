@@ -68,6 +68,7 @@ val Renderer.label: Int
     get() = when (this) {
         Renderer.Vulkan -> R.string.renderer_vulkan
         Renderer.OpenGL -> R.string.renderer_opengl
+        Renderer.NotDrawn -> R.string.renderer_not_drawn
         Renderer.Unknown -> R.string.renderer_unknown
     }
 

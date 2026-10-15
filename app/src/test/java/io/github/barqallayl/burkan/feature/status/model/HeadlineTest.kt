@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.status.model
 
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.Renderer.NotDrawn
 import io.github.barqallayl.burkan.core.model.Renderer.OpenGL
 import io.github.barqallayl.burkan.core.model.Renderer.Unknown
 import io.github.barqallayl.burkan.core.model.Renderer.Vulkan
@@ -21,6 +22,8 @@ class HeadlineTest {
     @Test
     fun `a surface that cannot be read does not spoil an active result`() {
         assertEquals(Headline.VulkanActive, status(Vulkan, Vulkan, Vulkan, Unknown).headline())
+        // The keyboard after its restart, until it is first shown.
+        assertEquals(Headline.VulkanActive, status(Vulkan, Vulkan, Vulkan, NotDrawn).headline())
     }
 
     @Test

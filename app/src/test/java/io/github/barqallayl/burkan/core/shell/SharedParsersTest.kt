@@ -16,6 +16,14 @@ class SharedParsersTest {
     }
 
     @Test
+    fun `a process that is running but has drawn nothing is told apart from one that is not running`() {
+        val heading = "Applications Graphics Acceleration Info:\n\n** Graphics info for pid 2210 [com.samsung.android.honeyboard] **\n\nStats since: 9120001133ns\n"
+
+        assertEquals(Renderer.NotDrawn, parseRenderer(heading))
+        assertEquals(Renderer.Unknown, parseRenderer("Applications Graphics Acceleration Info:\n"))
+    }
+
+    @Test
     fun `a setting that prints null or nothing is unset`() {
         assertNull(parseSettingValue("null\n"))
         assertNull(parseSettingValue("\n"))

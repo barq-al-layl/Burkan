@@ -238,6 +238,7 @@
     <string name="navigate_back">Back</string>
     <string name="renderer_vulkan">Vulkan</string>
     <string name="renderer_opengl">OpenGL</string>
+    <string name="renderer_not_drawn">Not drawn yet</string>
     <string name="renderer_unknown">Unknown</string>
     <string name="trigger_manual">Manual</string>
     <string name="trigger_boot">After restart</string>

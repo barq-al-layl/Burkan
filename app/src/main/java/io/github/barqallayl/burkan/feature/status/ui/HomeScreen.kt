@@ -446,6 +446,7 @@ private val Renderer.nameRes: Int
     get() = when (this) {
         Renderer.Vulkan -> R.string.renderer_vulkan
         Renderer.OpenGL -> R.string.renderer_opengl
+        Renderer.NotDrawn -> R.string.renderer_not_drawn
         Renderer.Unknown -> R.string.renderer_unknown
     }
 
@@ -1147,7 +1148,7 @@ private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Rend
     val mark = when (renderer) {
         Renderer.Vulkan -> SurfaceMark.Good
         Renderer.OpenGL -> SurfaceMark.Behind
-        Renderer.Unknown -> SurfaceMark.Unknown
+        Renderer.NotDrawn, Renderer.Unknown -> SurfaceMark.Unknown
         null -> SurfaceMark.Checking
     }
     SurfaceLine(index, icon, stringResource(label), value, mark)

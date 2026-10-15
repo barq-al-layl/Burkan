@@ -6,11 +6,15 @@ import io.github.barqallayl.burkan.core.model.Renderer
  * Parsers for output that more than one feature reads. The formats are in docs/device-notes.md.
  */
 
-/** `dumpsys gfxinfo <package>`: the first `Pipeline=` line says what the running process renders with. */
+/**
+ * `dumpsys gfxinfo <package>`: the first `Pipeline=` line says what the running process renders with. A process
+ * that is running but has drawn nothing has its heading and no such line.
+ */
 fun parseRenderer(stdout: String): Renderer =
     when (stdout.lineSequence().firstOrNull { PIPELINE_MARKER in it }?.substringAfter(PIPELINE_MARKER)?.trim()) {
         "Skia (Vulkan)" -> Renderer.Vulkan
         "Skia (OpenGL)" -> Renderer.OpenGL
+        null -> if (stdout.lineSequence().any { it.startsWith(PROCESS_MARKER) }) Renderer.NotDrawn else Renderer.Unknown
         else -> Renderer.Unknown
     }
 

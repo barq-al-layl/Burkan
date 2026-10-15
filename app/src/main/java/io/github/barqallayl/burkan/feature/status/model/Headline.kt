@@ -18,11 +18,11 @@ enum class Headline {
 }
 
 /**
- * A surface that cannot be read (not running, say) neither confirms nor contradicts the property, so only surfaces
- * that report a renderer count.
+ * A surface that cannot be read (not running, say), or has drawn nothing yet, neither confirms nor contradicts the
+ * property, so only surfaces that report a renderer count.
  */
 fun RendererStatus.headline(): Headline {
-    val surfaces = listOf(systemUi, launcher, keyboard).filter { it != Renderer.Unknown }
+    val surfaces = listOf(systemUi, launcher, keyboard).filter { it == Renderer.Vulkan || it == Renderer.OpenGL }
     return when {
         newApps == Renderer.Vulkan && surfaces.all { it == Renderer.Vulkan } -> Headline.VulkanActive
         newApps != Renderer.Vulkan && surfaces.none { it == Renderer.Vulkan } -> Headline.NotApplied
