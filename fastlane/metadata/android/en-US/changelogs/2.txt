@@ -1,8 +1,10 @@
-* Home shows which open apps are still on OpenGL, and restarts only those
-* "Back to OpenGL" undoes Vulkan without restarting the phone
-* A Quick Settings tile, and shortcuts on the app's icon
-* Apps like Tasker can start a run and learn how it ended
+* See which open apps are still on OpenGL, and restart all or one
+* "Back to OpenGL" without restarting the phone
+* A Quick Settings tile and shortcuts on the app's icon
+* Tasker and others can start a run and hear how it ended
 * A notification when the apply after a restart is done
+* A more detailed run log
+* Setup opens Settings at the switch to turn on
 * A crash shows a report you can share
 * A reworked Material look; the phone's own font
 * Half the download: 64-bit ARM only

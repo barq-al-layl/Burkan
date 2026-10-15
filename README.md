@@ -62,6 +62,8 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 ### 🎯 Granular Control
 - **Apply Now:** Instantly applies Vulkan to the system property and core surfaces (System UI, Launcher, Keyboard).
 - **Restart All Apps:** Intelligently closes and relaunches background apps and home widgets so they adopt Vulkan. Choose to restart every app, or limit to the 30 or 70 most recently used.
+- **Open apps check:** Lists the apps that were already open and are still on OpenGL, with their icons. Restart them all, restart one, or keep one from ever being restarted.
+- **Back to OpenGL:** Undo Vulkan at any time, without restarting the phone.
 - **Custom exclusions:** Protect critical background apps, media players, or banking tools from ever being restarted.
 
 </td>
@@ -71,7 +73,7 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 
 ### 🔍 Complete Transparency
 - **Real-time status inspector:** Verifies whether Vulkan is actually active across New Apps, System UI, Home Launcher, and Samsung Keyboard.
-- **Detailed run history:** Step-by-step progress ticker and an on-device audit log preserving the last 50 runs.
+- **Detailed run history:** Step-by-step progress ticker and an on-device log of the last 50 runs: how long each step took, what each surface ran on before and after, and a failed command's own error. Shareable as a file that names none of your apps.
 - **Safe error reporting:** Plain-language diagnostics when a connection or system step cannot proceed.
 
 </td>
@@ -81,6 +83,25 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 - **One UI style:** Meticulously styled to feel indistinguishable from Samsung's stock system apps.
 - **Material 3 Expressive:** Full Material You dynamic theming powered by MaterialKolor.
 - **Dark & light modes:** Smooth fluid circular reveals on theme changes.
+
+</td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+
+### 🤖 Automation
+- **Quick Settings tile:** Shows whether Vulkan is applied since the last restart; tap to apply.
+- **App shortcuts:** *Apply now* and *Restart all apps* from a long press on the icon.
+- **Tasker & routines:** Other apps can start a run with a broadcast, and hear how it ended. See [`docs/architecture.md`](docs/architecture.md) for the actions.
+- **Done notification:** Says when the apply after a restart has finished, and offers to restart open apps still on OpenGL.
+
+</td>
+    <td width="50%" valign="top">
+
+### 🧭 Guided Setup
+- **Straight to the switch:** Each step opens Settings scrolled to the exact row to change, with it highlighted.
+- **Pairing from the notification:** Enter the pairing code without leaving Settings.
+- **Crash reports:** If something goes wrong, a readable report you can share, never sent anywhere by itself.
 
 </td>
   </tr>
@@ -117,7 +138,7 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 | Source | Channel | Status |
 | :--- | :--- | :--- |
 | [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.0`) |
-| [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Planned — Metadata & Recipe Prepared |
+| [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Submitted, in review |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
 
 ---
@@ -141,7 +162,7 @@ Setup takes less than 2 minutes and only needs to be completed once:
 - 🔒 **Zero Telemetry & Local Only:** Burkan never connects to the internet. `android.permission.INTERNET` is declared only to reach the phone's own `adbd` daemon, and the single thing that touches your Wi-Fi network is Android's standard local service discovery (mDNS), used to find the Wireless Debugging port. There are zero remote network calls, no analytics, no crash uploaders, and no ads.
 - 🛡️ **Knox Warranty Safe:** Does not unlock the bootloader or modify system partitions. Your Knox warranty (`0x0`) remains intact.
 - 🔑 **Encrypted Credentials:** ADB pairing keys (2048-bit RSA) are securely stored on-device using Android Keystore via KSafe, and explicitly excluded from cloud backups and device migration transfers.
-- 🔁 **Non-Destructive & Easily Reversible:** Android resets `debug.hwui.renderer` back to OpenGL upon standard reboot. If you ever want to revert, simply turn off *Apply after restart* in Burkan Settings and restart your phone.
+- 🔁 **Non-Destructive & Easily Reversible:** Android resets `debug.hwui.renderer` back to OpenGL upon standard reboot. To revert at once, tap *Back to OpenGL* on the Home screen; to stay on OpenGL, also turn off *Apply after restart* in Burkan Settings.
 
 ---
 
