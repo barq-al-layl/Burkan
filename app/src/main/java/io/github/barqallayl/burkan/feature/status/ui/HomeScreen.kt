@@ -1506,7 +1506,6 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 index = count - 1,
                 count = count,
                 headline = stringResource(R.string.home_revert),
-                supporting = stringResource(R.string.home_revert_text),
                 modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
                 onClick = actions.onRevert.takeIf { idle },
                 leading = { BurkanIconBadge(Tabler.Outline.ArrowBackUp) },

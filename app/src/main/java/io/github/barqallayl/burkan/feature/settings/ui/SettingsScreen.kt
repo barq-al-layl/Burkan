@@ -435,11 +435,17 @@ private fun AppearanceChoices(
             onSelect = actions.onSeedColor,
             changesLook = true,
             leading = {
-                Box(
-                    Modifier
-                        .size(24.dp)
-                        .background(it.resolved(), CircleShape),
-                )
+                // Material shows what each colour makes under the palette style chosen, as that sheet does. One UI
+                // has no palette styles: the colour alone.
+                if (LocalAppStyle.current == AppStyle.OneUi) {
+                    Box(
+                        Modifier
+                            .size(24.dp)
+                            .background(it.resolved(), CircleShape),
+                    )
+                } else {
+                    PaletteSwatch(appearance.paletteStyle, it.resolved(), appearance.themeMode.isDark())
+                }
             },
         )
 

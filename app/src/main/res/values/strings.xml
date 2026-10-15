@@ -214,10 +214,10 @@
     <string name="applied_channel_name">Applied after a restart</string>
     <string name="applied_channel_description">Says when the apply after a restart is done.</string>
     <string name="applied_title">Vulkan is active</string>
-    <string name="applied_text">Applied after the restart, System UI included.</string>
+    <string name="applied_text">Applied after the restart.</string>
     <plurals name="applied_behind_text">
-        <item quantity="one">Applied after the restart. %d app that was already open is still on OpenGL.</item>
-        <item quantity="other">Applied after the restart. %d apps that were already open are still on OpenGL.</item>
+        <item quantity="one">%d open app is still on OpenGL.</item>
+        <item quantity="other">%d open apps are still on OpenGL.</item>
     </plurals>
     <string name="tile_label">Vulkan</string>
     <string name="tile_active">Active</string>
@@ -227,7 +227,7 @@
     <string name="apply_failed_title">Vulkan was not applied</string>
     <string name="apply_failed_text">Open Burkan to see what went wrong.</string>
     <string name="apply_waiting_for_lock_title">System UI switches at the next lock</string>
-    <string name="apply_waiting_for_lock_text">New apps, the launcher and the keyboard are on Vulkan. Restarting System UI shows the lock screen, so it waits until you lock the phone.</string>
+    <string name="apply_waiting_for_lock_text">The rest is on Vulkan. Restarting it now would lock your screen.</string>
     <string name="apply_ready_title">Wi-Fi is connected</string>
     <string name="apply_ready_text">Burkan can apply Vulkan now.</string>
     <string name="apply_ready_action">Apply</string>
@@ -309,7 +309,6 @@
     <string name="home_behind_restart_one">Restart %1$s</string>
     <string name="home_behind_keep">Never restart %1$s</string>
     <string name="home_revert">Back to OpenGL</string>
-    <string name="home_revert_text">Undoes Vulkan until you apply it again</string>
     <string name="home_revert_title">Go back to OpenGL?</string>
     <string name="home_revert_confirm_text">New apps start on OpenGL again, and System UI, the launcher and the keyboard are restarted, so the screen locks for a moment. Apps that are open keep Vulkan until they are restarted. If \"Apply after restart\" is on, Burkan applies Vulkan again the next time the phone restarts.</string>
     <string name="home_revert_action">Go back</string>
