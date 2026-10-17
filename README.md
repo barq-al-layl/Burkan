@@ -4,7 +4,7 @@
 
 # Burkan
 
-### Autonomous Vulkan rendering for Samsung Galaxy S23. No computer, no root, zero hassle.
+### Keeps the Vulkan renderer on across restarts on a Samsung Galaxy S23, with no computer and no root.
 
 <br/>
 
@@ -16,104 +16,23 @@
 
 <br/>
 
-[**Download**](#download) · [**Features**](#features) · [**Screenshots**](#screenshots) · [**Quick Setup**](#quick-setup) · [**Safe by Design**](#safe-by-design) · [**For Developers**](#for-developers) · [**FAQ**](#faq)
+[**Download**](#download) · [**Screenshots**](#screenshots) · [**Features**](#features) · [**Quick setup**](#quick-setup) · [**Safe by design**](#safe-by-design) · [**For developers**](#for-developers) · [**FAQ**](#faq)
 
 </div>
-
----
 
 ## Overview
 
-On Samsung Galaxy S23 devices, switching Android's UI rendering pipeline from OpenGL to **Vulkan** (`skiavk`) is widely reported by the S23 community to yield smoother animations, reduced thermal throttling, and better battery efficiency. However, Android resets this setting on every reboot, and modifying it requires privileged shell permissions.
+Galaxy S23 owners widely report that switching Android's UI renderer from OpenGL to Vulkan (`skiavk`) gives smoother animations, less thermal throttling and better battery life. Burkan does not measure any of that itself; it applies the renderer and checks that it took. Android resets the setting on every reboot, and only the privileged shell user can change it.
 
-Historically, this meant tethering your phone to a PC with a USB cable after every restart, or maintaining complex third-party terminal environments.
+Until now that meant plugging the phone into a computer after every restart, or keeping a third-party terminal set up on it.
 
-**Burkan solves this entirely on-device.** By pairing once with your phone's native Wireless Debugging service and connecting to it locally (loopback `127.0.0.1` first, the phone's own Wi-Fi address as a fallback), Burkan autonomously re-enables Vulkan every time your device restarts—silently and without a computer.
-
-<br/>
-
-<div align="center">
-
-| ❄️ Cooler Thermals | 🔋 Extended Battery | ⚡ Smoother UI | 📱 100% On-Device |
-| :---: | :---: | :---: | :---: |
-| Lower operating temperatures during sustained daily usage | Reduced GPU overhead compared to legacy OpenGL rendering | Consistent frame delivery across One UI system surfaces | No PC, no root, and no external background daemons needed |
-
-<sub>The first three are what S23 owners commonly report after switching to Vulkan. Burkan applies and verifies the renderer; it does not measure temperature, battery, or frame rate itself.</sub>
-
-</div>
-
----
-
-## Features
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-
-### 🔄 Autonomous Persistence
-- **Zero-touch boot restoration:** Re-applies Vulkan automatically upon reboot as soon as connected to Wi-Fi.
-- **Seamless System UI handling:** Defers System UI refresh until the next screen lock so your phone never locks in front of you.
-- **Automatic cleanup:** Turns Wireless Debugging back off once applied (if Burkan was the one that enabled it).
-- **Smart network detection:** If the phone restarts without Wi-Fi, Burkan waits and applies the moment a trusted network connects. It keeps the device awake only for the short time a run takes.
-
-</td>
-    <td width="50%" valign="top">
-
-### 🎯 Granular Control
-- **Apply Now:** Instantly applies Vulkan to the system property and core surfaces (System UI, Launcher, Keyboard).
-- **Restart All Apps:** Intelligently closes and relaunches background apps and home widgets so they adopt Vulkan. Choose to restart every app, or limit to the 30 or 70 most recently used.
-- **Open apps check:** Lists the apps that were already open and are still on OpenGL, with their icons. Restart them all, restart one, or keep one from ever being restarted.
-- **Back to OpenGL:** Undo Vulkan at any time, without restarting the phone.
-- **Custom exclusions:** Protect critical background apps, media players, or banking tools from ever being restarted.
-
-</td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-
-### 🔍 Complete Transparency
-- **Real-time status inspector:** Verifies whether Vulkan is actually active across New Apps, System UI, Home Launcher, and Samsung Keyboard.
-- **Detailed run history:** Step-by-step progress ticker and an on-device log of the last 50 runs: how long each step took, what each surface ran on before and after, and a failed command's own error. Shareable as a file that names none of your apps.
-- **Safe error reporting:** Plain-language diagnostics when a connection or system step cannot proceed.
-
-</td>
-    <td width="50%" valign="top">
-
-### 🎨 Native Dual-Engine Design
-- **One UI style:** Meticulously styled to feel indistinguishable from Samsung's stock system apps.
-- **Material 3 Expressive:** Full Material You dynamic theming powered by MaterialKolor.
-- **Dark & light modes:** Smooth fluid circular reveals on theme changes.
-
-</td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-
-### 🤖 Automation
-- **Quick Settings tile:** Shows whether Vulkan is applied since the last restart; tap to apply.
-- **App shortcuts:** *Apply now* and *Restart all apps* from a long press on the icon.
-- **Tasker & routines:** Other apps can start a run with a broadcast, and hear how it ended. See [`docs/architecture.md`](docs/architecture.md) for the actions.
-- **Done notification:** Says when the apply after a restart has finished, and offers to restart open apps still on OpenGL.
-
-</td>
-    <td width="50%" valign="top">
-
-### 🧭 Guided Setup
-- **Straight to the switch:** Each step opens Settings scrolled to the exact row to change, with it highlighted.
-- **Pairing from the notification:** Enter the pairing code without leaving Settings.
-- **Crash reports:** If something goes wrong, a readable report you can share, never sent anywhere by itself.
-
-</td>
-  </tr>
-</table>
-
----
+Burkan does it on the phone. It pairs once with the phone's own Wireless Debugging, then connects to it locally (loopback `127.0.0.1` first, the phone's own Wi-Fi address if that fails) and turns Vulkan back on after each restart, without a computer and without asking you.
 
 ## Screenshots
 
 <div align="center">
 
-### One UI Experience *(Default on Samsung)*
+### One UI *(default on Samsung)*
 <p align="center">
   <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeActiveOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Home Active" />
   <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.setup.ui.SetupScreenKt.SetupPairOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Setup Step" />
@@ -131,7 +50,41 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 
 </div>
 
----
+## Features
+
+### After a restart
+- Applies Vulkan again once the phone is on Wi-Fi, with nothing to tap.
+- Restarts System UI at the next screen lock, so the phone never locks in front of you.
+- Turns Wireless Debugging back off afterwards, if Burkan was the one that turned it on.
+- If the phone restarts without Wi-Fi, Burkan waits and applies as soon as a trusted network connects. It keeps the phone awake only for the short time a run takes.
+
+### By hand
+- *Apply now* sets the system property and restarts System UI, the launcher and the keyboard on Vulkan.
+- *Restart all apps* closes and relaunches background apps and home screen widgets so they pick up Vulkan. It can restart every app, or only the 30 or 70 most recently used.
+- The open apps check lists the apps that were already open and are still on OpenGL, with their icons. Restart them all, restart one, or keep one from ever being restarted.
+- *Back to OpenGL* undoes Vulkan at any time, without restarting the phone.
+- Exclusions keep chosen apps, such as a media player or a banking app, from ever being restarted.
+
+### Status and logs
+- The status check shows whether Vulkan is actually active for new apps, System UI, the home launcher and Samsung Keyboard.
+- A step-by-step progress line during a run, and an on-device log of the last 50 runs: how long each step took, what each surface ran on before and after, and a failed command's own error. You can share it as a file that names none of your apps.
+- When a connection or system step fails, the app says why in plain language.
+
+### Automation
+- A Quick Settings tile shows whether Vulkan has been applied since the last restart; tap it to apply.
+- *Apply now* and *Restart all apps* are app shortcuts on a long press of the icon.
+- Tasker and routines can start a run with a broadcast and hear how it ended. [`docs/architecture.md`](docs/architecture.md) lists the actions.
+- A notification says when the apply after a restart has finished, and offers to restart open apps still on OpenGL.
+
+### Setup
+- Each step opens Settings scrolled to the row to change, with the row highlighted.
+- You enter the pairing code from a notification, without leaving Settings.
+- If Burkan crashes, it keeps a readable report you can share. Nothing is sent anywhere on its own.
+
+### Two designs
+- A One UI style that follows Samsung's own system apps.
+- Material 3 Expressive, with dynamic colour from MaterialKolor.
+- Dark and light modes, with a circular reveal when the theme changes.
 
 ## Download
 
@@ -141,34 +94,28 @@ Historically, this meant tethering your phone to a PC with a USB cable after eve
 | [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Submitted, in review |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
 
----
-
-## Quick Setup
+## Quick setup
 
 > [!NOTE]
-> **Prerequisites:** A Samsung Galaxy S23, S23+, or S23 Ultra running Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16).
+> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16).
 
-Setup takes less than 2 minutes and only needs to be completed once:
+Setup takes under two minutes and is done once.
 
-1. **Install Burkan:** Download the APK from [Releases](https://github.com/barq-al-layl/Burkan/releases/latest) and install it on your device.
-2. **Follow the interactive guide:** Burkan walks you through allowing notifications and enabling *Developer Options* and *Wireless Debugging*, one step at a time.
-3. **Pair from the notification shade:** Tap *Pair device with pairing code* in Developer Options, pull down your notification tray, and enter the 6-digit code into Burkan's prompt.
-4. **Done:** Burkan grants itself the necessary secure settings permission, requests battery optimization exemption to protect boot runs, and automatically takes over boot maintenance.
+1. Download the APK from [Releases](https://github.com/barq-al-layl/Burkan/releases/latest) and install it.
+2. Follow the guide. Burkan walks you through allowing notifications and turning on *Developer options* and *Wireless debugging*, one step at a time.
+3. Tap *Pair device with pairing code* in Developer options, pull down the notification shade, and type the 6-digit code into Burkan's prompt there.
+4. Burkan then grants itself the secure settings permission and asks to be exempt from battery optimization, so runs after a restart are not cut short. From then on it applies Vulkan after each restart.
 
----
+## Safe by design
 
-## Safe by Design
+- Burkan never connects to the internet. It declares `android.permission.INTERNET` only to reach the phone's own `adbd` daemon. The one thing it sends on your Wi-Fi network is Android's standard local service discovery (mDNS), to find the Wireless Debugging port. It has no analytics, no crash uploader and no ads.
+- It does not unlock the bootloader or modify system partitions, so the Knox warranty bit stays at `0x0`.
+- The ADB pairing key (2048-bit RSA) is stored on the phone with Android Keystore through KSafe, and is excluded from cloud backups and device-to-device transfers.
+- Android resets `debug.hwui.renderer` to OpenGL on every normal reboot. To go back at once, tap *Back to OpenGL* on the Home screen; to stay on OpenGL, also turn off *Apply after restart* in Burkan's Settings.
 
-- 🔒 **Zero Telemetry & Local Only:** Burkan never connects to the internet. `android.permission.INTERNET` is declared only to reach the phone's own `adbd` daemon, and the single thing that touches your Wi-Fi network is Android's standard local service discovery (mDNS), used to find the Wireless Debugging port. There are zero remote network calls, no analytics, no crash uploaders, and no ads.
-- 🛡️ **Knox Warranty Safe:** Does not unlock the bootloader or modify system partitions. Your Knox warranty (`0x0`) remains intact.
-- 🔑 **Encrypted Credentials:** ADB pairing keys (2048-bit RSA) are securely stored on-device using Android Keystore via KSafe, and explicitly excluded from cloud backups and device migration transfers.
-- 🔁 **Non-Destructive & Easily Reversible:** Android resets `debug.hwui.renderer` back to OpenGL upon standard reboot. To revert at once, tap *Back to OpenGL* on the Home screen; to stay on OpenGL, also turn off *Apply after restart* in Burkan Settings.
+## For developers
 
----
-
-## For Developers
-
-Burkan is built as an open, modern Android reference application:
+The code is laid out like this:
 
 ```
 io.github.barqallayl.burkan
@@ -184,15 +131,15 @@ io.github.barqallayl.burkan
     └── …            MVI features (setup, status, apply, settings, log)
 ```
 
-### Architecture Highlights
-- **UI:** Jetpack Compose with Material 3 Expressive components and custom segmented layouts.
-- **Dependency Injection:** [Metro](https://github.com/ZacSweers/metro) compiler plugin for build-time graph validation.
-- **State & MVI:** [Orbit MVI](https://github.com/orbit-mvi/orbit-mvi) with container host lifecycles.
-- **Navigation:** [Navigation 3](https://developer.android.com/guide/navigation) with serialized type-safe keys.
-- **Error Handling:** Functional error pipelines with [Arrow](https://arrow-kt.io/) `Either<AppError, T>`.
-- **Screenshot Testing:** Every Compose preview doubles as a screenshot test via [Roborazzi](https://github.com/takahirom/roborazzi) running on Robolectric.
+### Stack
+- UI: Jetpack Compose with Material 3 Expressive components and custom segmented layouts.
+- Dependency injection: the [Metro](https://github.com/ZacSweers/metro) compiler plugin, which checks the graph at build time.
+- State: [Orbit MVI](https://github.com/orbit-mvi/orbit-mvi) container hosts.
+- Navigation: [Navigation 3](https://developer.android.com/guide/navigation) with serializable type-safe keys.
+- Errors: [Arrow](https://arrow-kt.io/) `Either<AppError, T>` throughout.
+- Screenshot tests: every Compose preview is also a [Roborazzi](https://github.com/takahirom/roborazzi) screenshot test, run on Robolectric.
 
-### Building & Verification
+### Building and checking
 
 Requires JDK 25 and Android SDK Platform 37.
 
@@ -210,42 +157,36 @@ Requires JDK 25 and Android SDK Platform 37.
 ./gradlew :app:assembleRelease
 ```
 
-For detailed guides, explore our documentation:
-- [`docs/architecture.md`](docs/architecture.md) — System design, state flows, and service lifecycles.
-- [`docs/device-notes.md`](docs/device-notes.md) — Exact shell commands and real S23 hardware timings.
-- [`docs/testing.md`](docs/testing.md) — Physical device test matrix and verification status.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Code style, pull request rules, and testing standards.
-
----
+More detail is in:
+- [`docs/architecture.md`](docs/architecture.md): how the app is put together, its state flows and its services.
+- [`docs/device-notes.md`](docs/device-notes.md): the exact shell commands, and timings measured on a real S23.
+- [`docs/testing.md`](docs/testing.md): what has been tested on a phone and what has not.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): code style, pull request rules and testing.
 
 ## FAQ
 
 <details>
 <summary><b>Does this work on devices other than the Galaxy S23 series?</b></summary>
 <br>
-Burkan was specifically designed and calibrated for the Qualcomm Snapdragon 8 Gen 2 for Galaxy, and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) shares the same platform and is treated as supported. While Burkan opens on other devices with a warning, renderer stability varies significantly across different SoCs and OEM skins.
+Burkan was built for the Snapdragon 8 Gen 2 for Galaxy and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) has the same platform and is treated as supported. Burkan opens on other phones with a warning, but how stable the Vulkan renderer is varies a lot between chips and manufacturers' Android versions.
 </details>
 
 <details>
-<summary><b>Why does Burkan need Wi-Fi to function?</b></summary>
+<summary><b>Why does Burkan need Wi-Fi?</b></summary>
 <br>
-Android's native Wireless Debugging daemon only operates while the device is connected to a local Wi-Fi network. Once it is running, Burkan connects to it on the phone itself to execute the renderer update command; the Wi-Fi network is what lets Android switch the daemon on, not where the commands travel.
+Android only runs the Wireless Debugging daemon while the phone is on a Wi-Fi network. Once it is running, Burkan connects to it on the phone itself to run the renderer command. The Wi-Fi network is what lets Android turn the daemon on; the commands never travel over it.
 </details>
 
 <details>
-<summary><b>How can I verify that Vulkan is genuinely active?</b></summary>
+<summary><b>How can I check that Vulkan is really active?</b></summary>
 <br>
-Burkan inspects active surface pipelines directly via <code>dumpsys gfxinfo</code> on the Home dashboard. You can also independently verify it by enabling <b>GPUWatch</b> in Android Developer Options and opening any application.
+The Home screen shows what each surface renders with, read from <code>dumpsys gfxinfo</code>. You can also check for yourself by turning on <b>GPUWatch</b> in Developer options and opening any app.
 </details>
-
----
 
 ## Acknowledgements
 
-- Inspired by the open-source research and scripts in [s23-vulkan-support](https://github.com/Ameen-Sha-Cheerangan/s23-vulkan-support).
-- Built upon [libadb-android](https://github.com/MuntashirAkon/libadb-android) for native ADB protocol support.
-
----
+- Inspired by the research and scripts in [s23-vulkan-support](https://github.com/Ameen-Sha-Cheerangan/s23-vulkan-support).
+- Uses [libadb-android](https://github.com/MuntashirAkon/libadb-android) for the ADB protocol.
 
 ## License
 
@@ -253,4 +194,4 @@ Copyright © 2026 Mohammed Barq AL Layl.
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
 
-Third-party libraries retain their own licenses: `libadb-android` is used under its Apache-2.0 option, and its pairing helper `spake2-java` under the LGPL-3.0. A complete list of dependency licenses is accessible in the app under **Settings › Open-source licences**.
+Third-party libraries keep their own licenses: `libadb-android` is used under its Apache-2.0 option, and its pairing helper `spake2-java` under the LGPL-3.0. The full list of dependency licenses is in the app under **Settings › Open-source licences**.
