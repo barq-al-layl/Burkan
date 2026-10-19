@@ -35,7 +35,7 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 ### One UI *(default on Samsung)*
 <p align="center">
   <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeActiveOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Home Active" />
-  <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.setup.ui.SetupScreenKt.SetupPairOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Setup Step" />
+  <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.status.ui.HomeScreenKt.HomeRunningOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Running State" />
   <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.settings.ui.SettingsScreenKt.SettingsOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Settings" />
   <img src="app/src/test/screenshots/io.github.barqallayl.burkan.feature.log.ui.LogScreenKt.LogExpandedOneUiDarkPreview.WITH_BACKGROUND.png" width="23%" alt="One UI Run Log" />
 </p>
