@@ -13,6 +13,9 @@ sealed interface ConnectionError : AppError {
     /** The app switched wireless debugging on and the system switched it straight back off. */
     data object WirelessDebuggingRefused : ConnectionError
 
+    /** The app may not look for services on the network, so it cannot find the port. */
+    data object LocalNetworkDenied : ConnectionError
+
     /** No debugging service was advertised on this phone in time. */
     data object DaemonNotFound : ConnectionError
 
@@ -27,6 +30,9 @@ sealed interface ConnectionError : AppError {
 sealed interface PairingError : AppError {
     /** What was typed is not a six-digit code. */
     data object InvalidCode : PairingError
+
+    /** The app may not look for services on the network, so it cannot find the pairing dialog's port. */
+    data object LocalNetworkDenied : PairingError
 
     /** The pairing dialog is not open: nothing is listening for a code. */
     data object DialogClosed : PairingError

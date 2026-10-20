@@ -18,6 +18,7 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
+import io.github.barqallayl.burkan.feature.connection.data.AdbDiscovery
 import io.github.barqallayl.burkan.feature.connection.data.PairingRepository
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
@@ -58,6 +59,7 @@ data class SetupState(
 
 sealed interface SetupSideEffect {
     data object RequestNotificationPermission : SetupSideEffect
+    data object RequestLocalNetworkPermission : SetupSideEffect
     data object OpenAboutPhone : SetupSideEffect
     data object OpenDeveloperOptions : SetupSideEffect
     data object RequestBatteryExemption : SetupSideEffect
@@ -74,6 +76,7 @@ class SetupViewModel(
     private val pairing: PairingRepository,
     private val pairingLauncher: PairingLauncher,
     private val shellAccess: ShellAccess,
+    private val discovery: AdbDiscovery,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) : OrbitContainerHost<SetupState, SetupState, SetupSideEffect>, ViewModel() {
 
@@ -151,9 +154,13 @@ class SetupViewModel(
             SetupStep.Notifications -> postSideEffect(SetupSideEffect.RequestNotificationPermission)
             SetupStep.DeveloperOptions -> postSideEffect(SetupSideEffect.OpenAboutPhone)
             SetupStep.WirelessDebugging -> postSideEffect(SetupSideEffect.OpenDeveloperOptions)
-            SetupStep.Pair -> {
+            // Without the permission, looking for the pairing dialog would bring up the system's device picker,
+            // which closes the dialog.
+            SetupStep.Pair -> if (discovery.isAllowed()) {
                 pairingLauncher.start()
                 postSideEffect(SetupSideEffect.OpenDeveloperOptions)
+            } else {
+                postSideEffect(SetupSideEffect.RequestLocalNetworkPermission)
             }
             SetupStep.Connect, SetupStep.Permission -> runStep(step)
             SetupStep.Battery -> postSideEffect(SetupSideEffect.RequestBatteryExemption)
@@ -168,6 +175,11 @@ class SetupViewModel(
         } else {
             refresh()
         }
+    }
+
+    /** The answer to the permission Pair asked for: with it, pairing goes on as if it had been there all along. */
+    fun onLocalNetworkResult(granted: Boolean) = intent {
+        if (granted && state.current == SetupStep.Pair) onAction(SetupStep.Pair)
     }
 
     fun skipBattery() = intent {

@@ -148,6 +148,7 @@
     <string name="error_no_wifi">Wireless debugging needs Wi-Fi. Connect to a Wi-Fi network and try again.</string>
     <string name="error_wireless_debugging_off">Wireless debugging is off. Switch it on in Developer options.</string>
     <string name="error_wireless_debugging_refused">The phone switched wireless debugging straight back off. Turn it on once by hand on this Wi-Fi network and tick “Always allow on this network”.</string>
+    <string name="error_local_network_denied">Burkan finds wireless debugging by looking for it on your Wi-Fi network, which Android counts as finding nearby devices. Allow Burkan to find nearby devices, then try again.</string>
     <string name="error_daemon_not_found">Wireless debugging did not answer. Check that it is on, then try again.</string>
     <string name="error_not_authorised">The phone no longer accepts Burkan’s pairing. Pair again.</string>
     <string name="error_connect_failed">Burkan could not connect to wireless debugging. Try again.</string>
@@ -277,6 +278,7 @@
     <string name="home_headline_no_wifi">Not connected to Wi-Fi</string>
     <string name="home_no_wifi_text">Burkan reads the status over wireless debugging, which works only on Wi-Fi.</string>
     <string name="home_headline_debugging_off">Wireless debugging is off</string>
+    <string name="home_headline_local_network">Burkan needs nearby devices</string>
     <string name="home_headline_not_paired">Burkan is no longer paired</string>
     <string name="home_headline_partly">Partly applied</string>
     <string name="home_headline_unknown">Unknown — cannot connect</string>
@@ -326,6 +328,7 @@
     <string name="home_step_done">Done</string>
     <string name="home_step_failed">Failed</string>
     <string name="home_retry">Try again</string>
+    <string name="home_allow">Allow</string>
     <string name="home_cancel_run">Cancel</string>
     <string name="home_confirm_apply_title">The screen will lock for a moment</string>
     <string name="home_confirm_apply_text">Restarting System UI brings up the lock screen, and wireless debugging disconnects and reconnects. Unlock the phone afterwards; Burkan finishes by itself.</string>

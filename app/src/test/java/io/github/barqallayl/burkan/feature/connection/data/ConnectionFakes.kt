@@ -51,6 +51,9 @@ class FakeAdbClient : AdbClient {
 class FakeAdbDiscovery : AdbDiscovery {
     val endpoints = mutableMapOf<AdbService, AdbEndpoint>()
     val searches = mutableListOf<AdbService>()
+    var allowed = true
+
+    override fun isAllowed(): Boolean = allowed
 
     override suspend fun find(service: AdbService, timeout: Duration): AdbEndpoint? {
         searches += service

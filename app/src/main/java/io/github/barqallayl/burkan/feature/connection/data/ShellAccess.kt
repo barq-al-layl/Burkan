@@ -114,6 +114,7 @@ class AdbShellAccess(
      * switch back first.
      */
     private suspend fun Raise<ConnectionError>.open(settle: Duration): OpenConnection = coroutineScope {
+        ensure(discovery.isAllowed()) { ConnectionError.LocalNetworkDenied }
         val settling = launch { delay(settle) }
         val switchedOn = switchOn()
         try {

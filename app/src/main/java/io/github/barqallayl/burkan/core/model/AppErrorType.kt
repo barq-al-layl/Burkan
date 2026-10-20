@@ -14,6 +14,7 @@ enum class AppErrorType(@StringRes val resource: Int) {
     NoWifi(R.string.error_no_wifi),
     WirelessDebuggingOff(R.string.error_wireless_debugging_off),
     WirelessDebuggingRefused(R.string.error_wireless_debugging_refused),
+    LocalNetworkDenied(R.string.error_local_network_denied),
     DaemonNotFound(R.string.error_daemon_not_found),
     NotAuthorised(R.string.error_not_authorised),
     ConnectFailed(R.string.error_connect_failed),
@@ -42,6 +43,7 @@ fun AppError.type(): AppErrorType = when (this) {
     ConnectionError.NoWifi -> AppErrorType.NoWifi
     ConnectionError.WirelessDebuggingOff -> AppErrorType.WirelessDebuggingOff
     ConnectionError.WirelessDebuggingRefused -> AppErrorType.WirelessDebuggingRefused
+    ConnectionError.LocalNetworkDenied, PairingError.LocalNetworkDenied -> AppErrorType.LocalNetworkDenied
     ConnectionError.DaemonNotFound -> AppErrorType.DaemonNotFound
     ConnectionError.NotAuthorised -> AppErrorType.NotAuthorised
     ConnectionError.ConnectFailed -> AppErrorType.ConnectFailed

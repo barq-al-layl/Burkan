@@ -42,6 +42,14 @@ When you check one, tick it here and record what you saw in the device notes.
       times. (It used to go on waiting the second time. Seen on an emulator with Android 17; not on a phone.)
 - [ ] With wireless debugging off, tap Apply now and then Cancel within two seconds: wireless debugging is off
       again afterwards. (It used to stay on. Covered by a test only.)
+- [x] On Android 17, Start pairing asks for the nearby devices permission first, and allowing it goes on to
+      Developer options. Pairing, Connect and Home then bring up no "choose a device" picker. (Device notes,
+      section 15.)
+- [x] On Android 17, with the permission revoked, Home says Burkan needs nearby devices and its Allow button
+      raises the system dialog; allowing it reads the status.
+- [ ] On Android 17, refuse the nearby devices permission twice: the third Allow opens Burkan's page in Settings.
+- [x] On Android 17, after a restart, the run applies Vulkan with no picker, and switches wireless debugging off
+      again at its end.
 - [ ] On Wi-Fi that has no internet behind it, with mobile data on: the status reads and Apply now works, and
       neither says the phone is not on Wi-Fi.
 

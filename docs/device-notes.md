@@ -508,3 +508,19 @@ Not about the shell, but measured on the same phone and easy to get wrong from A
 | A blur the app draws of its own content (a render effect on its own layers) works, behind a sheet's window as well | Measured |
 | A ripple is animated by the system's render thread. Drawn again into a bitmap, it is drawn from its start, so a picture taken that way of a screen being tapped shows the ripple reset. A copy of the window (`PixelCopy`) shows it as it is, a few frames late | Measured, frame by frame from a screen recording |
 | `adb shell monkey … 1` writes `accelerometer_rotation=1` as it exits, whatever app it launches. `dumpsys settings` keeps the last five writes to a setting, with the time and the package that made each, which is how two such launches from other work on the phone were found | Measured |
+
+## 15. Android 17 and the local network
+
+Measured on One UI 9 (Android 17, `CP2A.260605.016.S911BXXUAGZIF`) with the 1.1.0 release build, and then with
+the fix, on a Wi-Fi network marked "Always allow".
+
+| Fact | Status |
+|---|---|
+| Android 17 adds `android.permission.ACCESS_LOCAL_NETWORK`, `dangerous`, in the Nearby devices group. Its dialog reads as the Nearby devices one: find, connect to and determine the relative position of nearby devices | Measured |
+| An app that targets 37 and does not hold it gets, for an mDNS discovery (`NsdManager`, through libadb-android's `AdbMdns`), the system's `NsdPickerActivity` instead of the services: a "choose a device" dialog from `com.google.android.connectivity.resources`, started by `NsdService` | Measured: 1.1.0 brought it up on every connection, and on the reply with a pairing code |
+| The picker, opening over Settings, closes the pairing dialog: `AdbDebuggingManager` unregisters `_adb-tls-pairing._tcp` in the same millisecond, so pairing with a code cannot succeed without the permission | Measured |
+| Holding the permission, discovery finds `_adb-tls-pairing._tcp` and `_adb-tls-connect._tcp` with no dialog, and pairing, connecting and reading the status work as before | Measured |
+| After a reboot, the run switched wireless debugging on, connected, applied Vulkan and switched it off again 14 seconds later, with no picker | Measured |
+| Switching wireless debugging on through `adb_wifi_enabled` raises no prompt on a network marked "Always allow", as before | Measured |
+| `pm revoke` of the permission leaves Home showing "Burkan needs nearby devices"; Allow raises the system dialog, and allowing reads the status | Measured |
+

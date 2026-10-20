@@ -68,7 +68,7 @@ step carries its instructions and its action, and the ones still to come wait un
 | Notifications | Request `POST_NOTIFICATIONS` | Granted |
 | Developer options | Open About phone and explain how to unlock Developer options there (the Developer options screen cannot open while they are locked) | `development_settings_enabled` is 1 |
 | Wireless debugging | Open Developer options; ask the user to switch Wireless debugging on and tick "Always allow on this network" | `adb_wifi_enabled` is 1 |
-| Pair | Start the pairing service and open Developer options; tell the user to tap "Pair device with pairing code" and type the code into Burkan's notification | Pairing succeeded |
+| Pair | On Android 17, ask for the nearby devices permission first if it is not held. Then start the pairing service and open Developer options; tell the user to tap "Pair device with pairing code" and type the code into Burkan's notification | Pairing succeeded |
 | Connect | Automatic | A shell command returns |
 | Permission | Automatic: the app grants itself `WRITE_SECURE_SETTINGS` over the connection | The permission is held |
 | Battery | Ask to be exempt from battery optimisation, with one sentence saying why | Exempt. It can also be skipped |
@@ -264,6 +264,12 @@ A flow is a function that returns the list of steps, and a runner that executes 
   notification and to the Setup screen.
 - **Connecting**: discover `_adb-tls-connect._tcp`, connect to `127.0.0.1` on that port, with the device's Wi-Fi
   address as fallback. Retry discovery for up to 30 seconds after wireless debugging is switched on.
+- **Local network access**: on Android 17, an app that targets it may look for services on the network only with
+  `ACCESS_LOCAL_NETWORK`, a runtime permission in the Nearby devices group. Without it, the system answers a
+  discovery with its own device picker, over whatever is on screen, and opening the picker closes Settings' pairing
+  dialog. So nothing is looked for without the permission: a connection or a pairing fails at once with its own
+  error instead. Setup asks for it when Pair is started; Home, which on a phone set up before Android 17 is where
+  the missing permission first shows, offers Allow in place of Try again.
 - **Enabling wireless debugging**: write `Settings.Global` `adb_wifi_enabled` through the content resolver. Read
   it back after two seconds: if it is 0 again, the system refused (no Wi-Fi, or network not trusted) and the
   result is a specific error, not a retry loop. A run cancelled in those two seconds switches it off again.
@@ -318,6 +324,7 @@ force-stop cancelled the network callback. An unknown count is taken as a restar
 ### Permissions and manifest
 
 `INTERNET` (loopback sockets), `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE` (mDNS),
+`ACCESS_LOCAL_NETWORK` (mDNS on Android 17; asked for at runtime, see Connection),
 `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` (System UI's restart once the screen is off), `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`,
 `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `QUERY_ALL_PACKAGES` (the exclusions picker),
 `WRITE_SECURE_SETTINGS` (declared; granted over ADB) and `PACKAGE_USAGE_STATS` (declared; allowed over ADB when a

@@ -50,6 +50,15 @@ class PairingRepositoryTest {
     }
 
     @Test
+    fun `without the local network permission the pairing dialog is not looked for`() = runTest {
+        discovery.allowed = false
+
+        assertEquals(PairingError.LocalNetworkDenied.left(), repository.pair("123456"))
+        assertEquals(emptyList(), discovery.searches)
+        assertFalse(deviceState.isPaired.value)
+    }
+
+    @Test
     fun `a wrong code is its own failure`() = runTest {
         client.pairResults["127.0.0.1"] = PairingError.WrongCode.left()
 

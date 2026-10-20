@@ -147,6 +147,15 @@ class AdbShellAccessTest {
     }
 
     @Test
+    fun `without the local network permission nothing is switched on or looked for`() = runTest {
+        discovery.allowed = false
+
+        assertEquals(ConnectionError.LocalNetworkDenied.left(), access().withShell { })
+        assertEquals(emptyList(), wirelessDebugging.writes)
+        assertEquals(emptyList(), discovery.searches)
+    }
+
+    @Test
     fun `no advertised daemon fails and still switches off`() = runTest {
         discovery.endpoints.clear()
 

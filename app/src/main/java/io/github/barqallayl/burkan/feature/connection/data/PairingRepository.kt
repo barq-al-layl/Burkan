@@ -52,6 +52,7 @@ class PairingRepository(
         val result = either {
             val digits = code.filterNot { it.isWhitespace() }
             ensure(CODE.matches(digits)) { PairingError.InvalidCode }
+            ensure(discovery.isAllowed()) { PairingError.LocalNetworkDenied }
             mutableStatus.value = PairingStatus.Pairing
             val endpoint = discovery.find(AdbService.Pairing, DISCOVERY_TIMEOUT) ?: raise(PairingError.DialogClosed)
             withTimeoutOrNull(EXCHANGE_TIMEOUT) { exchange(endpoint, digits) }?.bind() ?: raise(PairingError.TimedOut)

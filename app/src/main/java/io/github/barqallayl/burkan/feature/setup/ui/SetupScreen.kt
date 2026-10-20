@@ -110,6 +110,7 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
+import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
@@ -126,6 +127,7 @@ fun SetupScreen() {
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             viewModel.refresh()
         }
+    val requestLocalNetwork = rememberLocalNetworkRequest(viewModel::onLocalNetworkResult)
     // Most steps are done in Settings, so every return to the app re-checks them.
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -135,6 +137,8 @@ fun SetupScreen() {
         when (effect) {
             SetupSideEffect.RequestNotificationPermission ->
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+
+            SetupSideEffect.RequestLocalNetworkPermission -> requestLocalNetwork()
 
             SetupSideEffect.OpenAboutPhone -> context.openSettings(buildNumberIntent())
             SetupSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())

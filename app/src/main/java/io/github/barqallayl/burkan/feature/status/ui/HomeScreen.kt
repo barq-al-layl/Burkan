@@ -177,6 +177,7 @@ import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
+import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import io.github.barqallayl.burkan.feature.log.ui.RunResultBadge
@@ -199,6 +200,7 @@ fun HomeScreen() {
     val state by viewModel.collectAsState()
     val navigator = LocalNavigator.current
     val context = LocalContext.current
+    val requestLocalNetwork = rememberLocalNetworkRequest { granted -> if (granted) viewModel.refresh() }
     LifecycleResumeEffect(viewModel) {
         viewModel.onResume()
         onPauseOrDispose { viewModel.onPause() }
@@ -215,7 +217,11 @@ fun HomeScreen() {
         zone = ZoneId.systemDefault(),
         icon = remember(viewModel) { IconLoader(viewModel::cachedIcon, viewModel::icon) },
         actions = HomeActions(
-            onRetry = viewModel::refresh,
+            // A phone set up before Android 17 has never been asked for the permission it now needs.
+            onRetry = {
+                val failed = state.status as? StatusState.Failed
+                if (failed?.error?.type() == AppErrorType.LocalNetworkDenied) requestLocalNetwork() else viewModel.refresh()
+            },
             onApplyNow = viewModel::applyNow,
             onConfirmApply = viewModel::confirmApply,
             onDismissApply = viewModel::dismissApply,
@@ -1043,8 +1049,13 @@ private fun AppError.failureTitle(): Int = when (type()) {
     AppErrorType.NoWifi -> R.string.home_headline_no_wifi
     AppErrorType.WirelessDebuggingOff, AppErrorType.WirelessDebuggingRefused -> R.string.home_headline_debugging_off
     AppErrorType.NotAuthorised -> R.string.home_headline_not_paired
+    AppErrorType.LocalNetworkDenied -> R.string.home_headline_local_network
     else -> R.string.home_headline_unknown
 }
+
+/** Where the user must allow something first, the button asks for it; otherwise it tries again. */
+private fun AppError.retryLabel(): Int =
+    if (type() == AppErrorType.LocalNetworkDenied) R.string.home_allow else R.string.home_retry
 
 private fun AppError.failureText(): Int = when (type()) {
     AppErrorType.NoWifi -> R.string.home_no_wifi_text
@@ -1129,7 +1140,7 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> 
                         textAlign = TextAlign.Center,
                     )
                     Button(onClick = onRetry, enabled = !state.isRefreshing) {
-                        Text(stringResource(R.string.home_retry))
+                        Text(stringResource(failed.error.retryLabel()))
                     }
                 }
             }

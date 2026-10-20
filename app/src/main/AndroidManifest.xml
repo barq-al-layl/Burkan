@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- mDNS, to find the ports wireless debugging advertises. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- From Android 17, mDNS discovery without it brings up the system's device picker instead of the ports. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Keeps the CPU awake for System UI's restart once the phone has locked, with the screen off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

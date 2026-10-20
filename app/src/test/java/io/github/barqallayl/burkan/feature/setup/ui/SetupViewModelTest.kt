@@ -36,7 +36,8 @@ class SetupViewModelTest {
     private val checks = FakeSetupChecks()
     private val wirelessDebugging = FakeWirelessDebugging(permitted = false)
     private val deviceState = FakeDeviceStateStorage()
-    private val pairing = PairingRepository(FakeAdbClient(), FakeAdbDiscovery(), deviceState)
+    private val discovery = FakeAdbDiscovery()
+    private val pairing = PairingRepository(FakeAdbClient(), discovery, deviceState)
     private val launcher = FakePairingLauncher()
     private val shell = FakeShellExecutor()
     private val shellAccess = FakeShellAccess(shell)
@@ -51,6 +52,7 @@ class SetupViewModelTest {
         pairing,
         launcher,
         shellAccess,
+        discovery,
         ownPackage,
     )
 
@@ -176,6 +178,28 @@ class SetupViewModelTest {
             assertEquals(SetupSideEffect.OpenDeveloperOptions, awaitSideEffect())
             containerHost.onAction(SetupStep.Battery)
             assertEquals(SetupSideEffect.RequestBatteryExemption, awaitSideEffect())
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `pairing without the local network permission asks for it first`() = runTest {
+        discovery.allowed = false
+        deviceState.setupStepsDone.value = SetupStep.Pair.ordinal
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Pair }
+
+            containerHost.onAction(SetupStep.Pair)
+            assertEquals(SetupSideEffect.RequestLocalNetworkPermission, awaitSideEffect())
+            assertEquals(0, launcher.starts)
+
+            discovery.allowed = true
+            containerHost.onLocalNetworkResult(granted = true)
+            assertEquals(SetupSideEffect.OpenDeveloperOptions, awaitSideEffect())
+            assertEquals(1, launcher.starts)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()
