@@ -91,7 +91,7 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 | Source | Channel | Status |
 | :--- | :--- | :--- |
 | [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.0`) |
-| [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Submitted, in review |
+| [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Accepted, first build being published |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
 
 ## Quick setup

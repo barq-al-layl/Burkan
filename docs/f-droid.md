@@ -1,7 +1,7 @@
 # Publishing on F-Droid
 
-What is in place for [F-Droid](https://f-droid.org), what is still to do, and where its build may stumble. F-Droid
-builds the app itself from this repository and signs it with its own key, so everything it needs has to be here.
+How Burkan is published on [F-Droid](https://f-droid.org), what a new version needs to get there, and where its
+build may stumble. F-Droid builds the app itself from this repository, so everything it needs has to be here.
 
 ## In place
 
@@ -9,30 +9,65 @@ builds the app itself from this repository and signs it with its own key, so eve
   changelog for each version code, the icon and six screenshots. F-Droid reads these straight from the repository.
   The screenshots are copies of the app's own screenshot tests, so they show sample data only.
 - **No dependency list in the APK.** `dependenciesInfo` is switched off in `app/build.gradle.kts`, as F-Droid asks.
-- **The build recipe**, in [`f-droid/io.github.barqallayl.burkan.yml`](f-droid/io.github.barqallayl.burkan.yml),
-  in the form F-Droid's own formatter writes it. It carries no comments, because F-Droid's files do not keep them;
-  what each part is for is under "The recipe, line by line" below.
+- **The build recipe**, merged into F-Droid's
+  [fdroiddata](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/io.github.barqallayl.burkan.yml) by
+  [merge request 51717](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/51717). The copy in
+  [`f-droid/io.github.barqallayl.burkan.yml`](f-droid/io.github.barqallayl.burkan.yml) is the recipe as merged,
+  for reference. From now on the one in fdroiddata is the one that counts: F-Droid's bot adds each new version to
+  it, and this copy is not kept up with it. It carries no comments, because F-Droid's files do not keep them; what
+  each part is for is under "The recipe, line by line" below.
 - **F-Droid's own checks pass**, run with its tools (`fdroidserver` 2.4.5) against this repository: `fdroid lint`
   has no complaint, `fdroid rewritemeta` changes nothing, and `fdroid scanner` finds 0 problems in the source.
 - **The recipe asks for a reproducible build.** F-Droid builds the app, checks that its build is the same as
   the APK published on GitHub, and then ships that APK, signed with this project's own key.
-- **The merge request's pipeline passes.** F-Droid's build server built 1.0.0 from the tagged commit and found
-  its APK identical to the published one.
+- **1.1.0 built on F-Droid's build server**, in the build cycle that started on 19 October 2026, where it is
+  listed as `io.github.barqallayl.burkan:2`. With `Binaries` in the recipe, a build whose APK differs from the
+  published one fails, so a successful one is a reproduced one. 1.1.0 was also the first release with
+  `gradle/verification-metadata.xml`, a pinned checksum for the Gradle distribution, Kotlin 2.4.21 and Material 3
+  1.5.0-beta01; the build server took all of them.
+- **The package page**, <https://f-droid.org/packages/io.github.barqallayl.burkan/>, answers 404 until the build
+  cycle that built the app has finished and its builds have been signed and published. That is usually a day or
+  two after the build itself, and nothing here or in the recipe hurries it.
 - **Nothing F-Droid forbids.** The licence is Apache-2.0, every library is open source, and the libraries come from
   Maven Central, Google's repository and JitPack, all of which F-Droid trusts. There is no Google Play Services,
   Firebase, advertising or analytics, and the licence list is generated without the network.
 
-## Still to do
+## Releasing a new version
 
-1. **Point the merge request at each release until it is merged.** The recipe names the commit a release's tag
-   points at by its full hash, which F-Droid asks for in place of the tag's name. While the merge request is
-   open nothing updates it by itself: after a release, its build entry, `CurrentVersion` and
-   `CurrentVersionCode` are changed by hand, in the fork and in the copy kept here. Once it is merged, later
-   versions are picked up from their tags, as long as each raises `versionCode` and is tagged `v` and the
-   version; `./gradlew :app:githubRelease` does the tagging.
-2. **Add a changelog for each new version**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
-3. **Wait for the merge request** on fdroiddata to be reviewed and merged. Once it is, the app appears in a day
-   or two.
+F-Droid finds new versions by itself. Its bot checks the repository's tags, and for a tag shaped like `v1.2.3`
+reads `versionName` and `versionCode` from `app/build.gradle.kts` at that tag, adds a build entry for it to the
+recipe in fdroiddata and updates `CurrentVersion`. Nothing in fdroiddata is edited by hand for a release. What a
+release needs here:
+
+1. **A higher `versionCode`**, and the new `versionName`, in `app/build.gradle.kts`. A tag whose `versionCode` is
+   not higher than the last one is not picked up.
+2. **A changelog**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. F-Droid shows it with the
+   version.
+3. **The release itself, with `./gradlew :app:githubRelease`** from a clean `main`. It tags `v<versionName>` and
+   publishes the APK under the name the recipe's `Binaries` expects. F-Droid compares its own build with that
+   APK, so neither the tag nor the APK may change after the release.
+4. **Watching the build.** Once the bot has picked up the tag, the version shows on
+   <https://monitor.f-droid.org/builds>, with its log if the build fails, and it reaches the package page when
+   its build cycle is published. The bot's runs are on the same site, which is where to look if a tag has not
+   been picked up within a few days.
+
+The recipe needs a change by hand only when the build itself must change: another JDK, another NDK, a new step
+before the build. That is a merge request to fdroiddata, changing the new version's build entry once the bot has
+added it.
+
+### What the next release brings that F-Droid has not built yet
+
+Each of these builds on a Mac and has not yet been through F-Droid's build server. If the next build fails, or
+its APK differs from the published one, look here first.
+
+- **Android 17's second minor SDK.** The app compiles against SDK 37 minor 2 (`release(37) { minorApiLevel = 2 }`
+  in `app/build.gradle.kts`), so the build server has to install that platform; 1.1.0 needed only platform 37.
+- **Gradle 9.8.2**, with its distribution's checksum pinned in `gradle/wrapper/gradle-wrapper.properties`.
+- **kotlinx.serialization 1.12.0.** Nothing to check for it in `gradle/verification-metadata.xml`, which pins only
+  the libraries from JitPack.
+- **A new permission, `ACCESS_LOCAL_NETWORK`.** F-Droid lists an app's permissions on its page. It is the Nearby
+  devices permission Android 17 asks for before an app looks for services on the network, and the app uses it
+  only to find the phone's own wireless debugging.
 
 ## What the build needed
 
@@ -53,8 +88,8 @@ platform 37 and the Gradle version the wrapper names. Its scanner removes the si
 
 ## The recipe, line by line
 
-- `commit`: the full hash of the commit that the tag `v1.0.0` points at. F-Droid wants the hash, not the tag's
-  name.
+- `commit`: the full hash of the commit the version's tag points at, `v1.1.0` in the copy here. F-Droid wants
+  the hash, not the tag's name, and its bot writes it for each new version.
 - `sudo`: installs JDK 25 from Debian's packages and makes it the default, since the project builds with it.
 - `gradle: yes`: build the release with Gradle, with no product flavour.
 - `prebuild`: takes out the plugin that would fetch a JDK, written the way F-Droid's other recipes write it.
@@ -89,9 +124,3 @@ answered by 1.1.0.
   come back.
 - **A smaller APK.** About 7 MB of the 15 MB of 1.0.0 is native code for processors no Galaxy S23 has (x86,
   x86_64 and 32-bit ARM). The build is limited to 64-bit ARM from 1.1.0.
-
-## Not yet tried on F-Droid's build server
-
-1.1.0 is the first release with `gradle/verification-metadata.xml`, a pinned checksum for the Gradle
-distribution, Kotlin 2.4.21 and Material 3 1.5.0-beta01. None of these has been through F-Droid's build yet. If
-its APK differs from the published one, or its build fails on a checksum, these are what changed.
