@@ -80,8 +80,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.filled.Clock
-import com.composables.icons.tabler.filled.Settings
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.AppWindow
 import com.composables.icons.tabler.outline.ArrowBackUp
@@ -92,6 +90,7 @@ import com.composables.icons.tabler.outline.ExclamationMark
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CircleCheck
 import com.composables.icons.tabler.outline.CircleX
+import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Home
@@ -283,14 +282,13 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 contentScroll = { scrollState.value },
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    // Material asks for filled icons in a bar where there are any; One UI's are drawn in outline.
                     BurkanIconButton(
-                        icon = if (oneUi) Tabler.Outline.History else Tabler.Filled.Clock,
+                        icon = if (oneUi) Tabler.Outline.History else Tabler.Outline.Clock,
                         label = stringResource(R.string.home_open_log),
                         onClick = actions.onOpenLog,
                     )
                     BurkanIconButton(
-                        icon = if (oneUi) Tabler.Outline.Settings else Tabler.Filled.Settings,
+                        icon = Tabler.Outline.Settings,
                         label = stringResource(R.string.home_open_settings),
                         onClick = actions.onOpenSettings,
                     )
