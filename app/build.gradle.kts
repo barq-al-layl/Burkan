@@ -34,7 +34,9 @@ val keystoreProperties: Properties? = rootProject.file("keystore.properties").ta
 android {
     namespace = "io.github.barqallayl.burkan"
     compileSdk {
-        version = release(37)
+        version = release(37) {
+            minorApiLevel = 2
+        }
     }
     // Nothing here is compiled with the NDK, but the build uses it to strip the debug symbols from the native
     // libraries the app's dependencies bring. F-Droid rebuilds each release and ships it only if its build is
