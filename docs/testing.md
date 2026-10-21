@@ -217,9 +217,6 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] Home in the Material style: the surfaces as a list, Restart all apps as its last row, and Apply now alone
       at the bottom, turning into Cancel during a run. A second tap on Apply now does not cancel the run it
       started. (Seen in previews only.)
-- [ ] Home in the One UI style: Apply after restart is the summary card's second row, on the first screen without
-      scrolling, also at the largest text size; tapping it opens Settings, and the glow still spreads from under
-      the whole card. (Seen in previews only.)
 - [ ] The phone held sideways: every screen's content is centred at a readable width, and the bars span the
       screen. (Seen in one preview of Home only.)
 - [ ] In the Material style, going from one screen to the next slides a short way and fades, and the back gesture
@@ -299,5 +296,6 @@ These are not checks to tick but things the last pass turned up and left as they
   is the system's own, raised for every new wireless debugging connection, so the app cannot withhold it; it can
   only connect less often. It no longer connects on the way back from Log or Settings (see the check above); it
   still does when the app is opened.
+- In One UI, Apply after restart is below the fold on Home: it is reached by scrolling.
 - Not covered at all in this pass, because each needs a system setting changed or the phone unlocked by hand:
   Wi-Fi off, a network not marked "Always allow", a reboot, and anything that restarts System UI.
