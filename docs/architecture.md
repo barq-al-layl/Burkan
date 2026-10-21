@@ -134,13 +134,16 @@ The status, and the two actions. The two styles lay it out differently; what it 
 - **In the One UI style** nothing is docked: a summary card at the top carries the state in large words and the
   two actions side by side. During a run the card's one button is Cancel, and the surfaces give way to the run's
   steps as a checklist, each ticked as it ends; a step that failed is marked. When the run has ended the button
-  is Done, which puts the surfaces back.
+  is Done, which puts the surfaces back. Apply after restart is the card's second row, with its value in the
+  accent, so that it is on the first screen; lower down, under the surfaces, it was reached only by scrolling.
 - The run's notification carries Cancel too.
 - If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for.
   When the run after a restart left System UI for the next lock, a card says so.
 - After a run, Home shows the status the run read at its end, without connecting again. It reads the status when
-  the screen resumes, unless it read it in the last 30 seconds. Reading needs a connection; if wireless debugging
-  is off and the app holds the permission, it may switch it on to read and off again after.
+  the screen resumes, unless it read it in the last 30 seconds or the user is only back from Log or Settings:
+  while the user stays in the app nothing else starts, so the status cannot have moved, and each new connection
+  drops the system's notification over Home's top bar. Reading needs a connection; if wireless debugging is off
+  and the app holds the permission, it may switch it on to read and off again after.
 
 ### Settings (`SettingsRoute`)
 

@@ -217,6 +217,9 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] Home in the Material style: the surfaces as a list, Restart all apps as its last row, and Apply now alone
       at the bottom, turning into Cancel during a run. A second tap on Apply now does not cancel the run it
       started. (Seen in previews only.)
+- [ ] Home in the One UI style: Apply after restart is the summary card's second row, on the first screen without
+      scrolling, also at the largest text size; tapping it opens Settings, and the glow still spreads from under
+      the whole card. (Seen in previews only.)
 - [ ] The phone held sideways: every screen's content is centred at a readable width, and the bars span the
       screen. (Seen in one preview of Home only.)
 - [ ] In the Material style, going from one screen to the next slides a short way and fades, and the back gesture
@@ -260,6 +263,8 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] `Settings.Global.BOOT_COUNT` reads on the phone.
 - [x] It goes up by one across a reboot.
 - [ ] Opening Home twice within 30 seconds raises "Wireless debugging connected" once.
+- [ ] Home, then Log or Settings for more than 30 seconds, then back: Home does not connect again and no "Wireless
+      debugging connected" notification drops. Leaving the app for as long and coming back does connect.
 - [ ] After a run, Home shows the result without a new "Wireless debugging connected" notification.
 - [x] `cmd package resolve-activity --brief` and `cmd role get-role-holders` print the formats in the device notes,
       section 2.
@@ -292,7 +297,7 @@ These are not checks to tick but things the last pass turned up and left as they
 - The system's "Wireless debugging connected" notification drops over Home's top bar each time Burkan connects,
   and for a few seconds a tap meant for Log or Settings lands on it and opens Developer options. The notification
   is the system's own, raised for every new wireless debugging connection, so the app cannot withhold it; it can
-  only connect less often.
-- In One UI, Apply after restart is below the fold on Home: it is reached by scrolling.
+  only connect less often. It no longer connects on the way back from Log or Settings (see the check above); it
+  still does when the app is opened.
 - Not covered at all in this pass, because each needs a system setting changed or the phone unlocked by hand:
   Wi-Fi off, a network not marked "Always allow", a reboot, and anything that restarts System UI.

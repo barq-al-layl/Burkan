@@ -49,6 +49,7 @@ import org.orbitmvi.orbit.test.OrbitScopedTestContextInternal
 import org.orbitmvi.orbit.test.testWithInternalState
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 private typealias HomeTest = OrbitScopedTestContextInternal<HomeState, HomeState, HomeSideEffect, HomeViewModel>
@@ -314,6 +315,26 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingItems()
         }
     }
+
+    @Test
+    fun `back from another of the app's screens, the status is shown as it is however long ago it was read`() =
+        runTest {
+            viewModel().testWithInternalState(this) {
+                val creating = runOnCreate()
+
+                containerHost.onResume().join()
+                containerHost.onPause(leavingApp = false).join()
+                clock.advance(10.minutes)
+                containerHost.onResume().join()
+                assertEquals(1, statusReads())
+
+                containerHost.onPause(leavingApp = true).join()
+                containerHost.onResume().join()
+                assertEquals(2, statusReads())
+                creating.cancel()
+                cancelAndIgnoreRemainingItems()
+            }
+        }
 
     @Test
     fun `leaving the screen lets the connection go`() = runTest {

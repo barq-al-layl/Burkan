@@ -148,16 +148,34 @@ class HomeViewModel(
         }
     }
 
-    /** Called when the screen resumes. Reads the status unless it was read moments ago. */
+    /**
+     * Whether the screen last went away for another of the app's screens. While the user stays among them nothing
+     * else starts or restarts, so the status read before still holds, however long ago that was.
+     */
+    @Volatile
+    private var backFromOwnScreen = false
+
+    /**
+     * Called when the screen resumes. Reads the status unless it was read moments ago, or the user is only back
+     * from another of the app's screens: each read is a new connection, and each new connection drops the
+     * system's notification over the top bar, just where the user reaches for Log and Settings.
+     */
     fun onResume(): Job = intent {
         val readAt = state.statusReadAt
-        val fresh =
-            state.status is StatusState.Loaded && readAt != null && clock.now() - readAt < FRESH_FOR
+        val fresh = state.status is StatusState.Loaded && readAt != null &&
+            (backFromOwnScreen || clock.now() - readAt < FRESH_FOR)
+        backFromOwnScreen = false
         if (!fresh) refresh().join()
     }
 
-    /** The screen is going away: nothing will need the connection soon, so close it now. */
-    fun onPause(): Job = intent { statusRepository.release() }
+    /**
+     * The screen is going away: nothing will need the connection soon, so close it now. [leavingApp] is false when
+     * another of the app's screens takes its place.
+     */
+    fun onPause(leavingApp: Boolean = true): Job = intent {
+        backFromOwnScreen = !leavingApp
+        statusRepository.release()
+    }
 
     /** Reads the status again. Skipped while a run holds the connection; the run's end refreshes it. */
     fun refresh(): Job = intent {

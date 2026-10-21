@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -78,6 +79,8 @@ import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
@@ -199,10 +202,15 @@ fun HomeScreen() {
     val state by viewModel.collectAsState()
     val navigator = LocalNavigator.current
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val requestLocalNetwork = rememberLocalNetworkRequest { granted -> if (granted) viewModel.refresh() }
     LifecycleResumeEffect(viewModel) {
         viewModel.onResume()
-        onPauseOrDispose { viewModel.onPause() }
+        onPauseOrDispose {
+            // The activity still in front means another of the app's screens took Home's place.
+            val stayingInApp = (activity as? LifecycleOwner)?.lifecycle?.currentState == Lifecycle.State.RESUMED
+            viewModel.onPause(leavingApp = !stayingInApp)
+        }
     }
     viewModel.collectSideEffect { effect ->
         when (effect) {
@@ -713,6 +721,9 @@ private fun SectionLabel(text: Int) {
  * explanation, and the action as a pill, all centred. It keeps this shape in every state. During a run the words
  * are the run and its current step and the pill stops it; when the run has ended the pill says so and puts the
  * screen back. A glow of the state's colour spreads from under the card.
+ *
+ * Under it, in the same group, whether Vulkan is applied by itself after a restart: the setting most people come
+ * for, which further down would sit below the fold on a phone's screen.
  */
 @Composable
 private fun OneUiSummary(state: HomeState, actions: HomeActions) {
@@ -757,66 +768,81 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                 }
             },
     ) {
-        BurkanSegment(index = 0, count = 1) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 28.dp, bottom = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                // One line always: a longer answer is set smaller, so the card never grows a line.
-                Text(
-                    when {
-                        run != null -> stringResource(run.kind.runningLabel)
-                        failed != null -> stringResource(failed.error.failureTitle())
-                        headline == null -> stringResource(R.string.home_checking)
-                        else -> stringResource(headline.title)
-                    },
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
-                    // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
-                    color = when {
-                        run != null -> accent
-                        tone == Tone.Good -> statusGreenText
-                        tone == Tone.HeldUp -> noticeAccentColor
-                        tone == Tone.Bad -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurface
-                    },
-                )
-                // Always two lines' room, used or not, so a longer or shorter sentence does not move what follows.
-                Text(
-                    when {
-                        run != null -> run.phase.label().text()
-                        failed != null -> stringResource(failed.error.failureText())
-                        headline == null -> ""
-                        headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
-                            stringResource(R.string.home_open_apps_note)
-                        else -> stringResource(headline.text)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    minLines = 2,
-                    maxLines = 2,
+        SegmentedColumn {
+            BurkanSegment(index = 0, count = 2) {
+                Column(
                     modifier = Modifier
-                        .padding(top = 6.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                SummaryAction(
-                    action = when {
-                        run != null -> SummaryActions.Cancel
-                        state.runSteps.isNotEmpty() -> SummaryActions.Done
-                        else -> SummaryActions.Apply
-                    },
-                    actions = actions,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 28.dp, bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // One line always: a longer answer is set smaller, so the card never grows a line.
+                    Text(
+                        when {
+                            run != null -> stringResource(run.kind.runningLabel)
+                            failed != null -> stringResource(failed.error.failureTitle())
+                            headline == null -> stringResource(R.string.home_checking)
+                            else -> stringResource(headline.title)
+                        },
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
+                        // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
+                        color = when {
+                            run != null -> accent
+                            tone == Tone.Good -> statusGreenText
+                            tone == Tone.HeldUp -> noticeAccentColor
+                            tone == Tone.Bad -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    // Always two lines' room, used or not, so a longer or shorter sentence does not move what follows.
+                    Text(
+                        when {
+                            run != null -> run.phase.label().text()
+                            failed != null -> stringResource(failed.error.failureText())
+                            headline == null -> ""
+                            headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
+                                stringResource(R.string.home_open_apps_note)
+                            else -> stringResource(headline.text)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        minLines = 2,
+                        maxLines = 2,
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    SummaryAction(
+                        action = when {
+                            run != null -> SummaryActions.Cancel
+                            state.runSteps.isNotEmpty() -> SummaryActions.Done
+                            else -> SummaryActions.Apply
+                        },
+                        actions = actions,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
             }
+            // One UI writes a setting's value under its name, in the accent. Until the setting is read the row keeps
+            // its place, so the card does not grow under the user's thumb.
+            BurkanSegmentItem(
+                index = 1,
+                count = 2,
+                headline = stringResource(R.string.settings_apply_on_boot),
+                supporting = state.applyOnBoot
+                    ?.let { stringResource(if (it) R.string.value_on else R.string.value_off) }
+                    .orEmpty(),
+                supportingColor = MaterialTheme.colorScheme.primary,
+                onClick = actions.onOpenSettings,
+                leading = { BurkanIconBadge(Tabler.Outline.Power) },
+            )
         }
     }
 }
@@ -1091,7 +1117,9 @@ private fun StatusMark(icon: ImageVector, tone: Tone, size: Dp) {
         BurkanIconBadge(icon, tone = Tone.Neutral, size = size)
         return
     }
-    Box(modifier = Modifier.size(size).background(fill, CircleShape), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier
+        .size(size)
+        .background(fill, CircleShape), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(size * MARK_GLYPH_SHARE), tint = MarkGlyph)
     }
 }
@@ -1121,7 +1149,13 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> 
             SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi)
             SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher)
             SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard)
-            OpenAppsRow(4, renderers?.newApps, state.behind, state.isCheckingBehind, onShowBehind.takeUnless { running })
+            OpenAppsRow(
+                4,
+                renderers?.newApps,
+                state.behind,
+                state.isCheckingBehind,
+                onShowBehind.takeUnless { running },
+            )
         }
         if (failed != null) {
             BurkanSegment(index = 0, count = 1, modifier = Modifier.matchParentSize()) {
@@ -1447,7 +1481,7 @@ private fun NextLockNotice() {
 
 /**
  * What stands behind the status, as one group: the newest run, which opens the log, and whether Vulkan is applied
- * by itself after a restart, which opens Settings.
+ * by itself after a restart, which opens Settings. One UI has the second in its summary card instead.
  */
 @Composable
 private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showError: Boolean) {
@@ -1460,22 +1494,12 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
     // The way back is offered once there is something to go back from: anything at all on Vulkan.
     val applied = (state.status as? StatusState.Loaded)?.status?.headline()
     val revertRow = applied == Headline.VulkanActive || applied == Headline.PartlyApplied
-    val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (restartRow) 1 else 0) + (if (revertRow) 1 else 0)
+    val afterRestartRow = applyOnBoot != null && !oneUi
+    val count = 1 + (if (afterRestartRow) 1 else 0) + (if (restartRow) 1 else 0) + (if (revertRow) 1 else 0)
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
     SegmentedColumn(modifier = Modifier.animateContentSize(motion.settle())) {
         LastRun(state.lastRun, zone, count, actions.onOpenLog, showError)
-        if (applyOnBoot != null && oneUi) {
-            // One UI writes a setting's value under its name, in the accent.
-            BurkanSegmentItem(
-                index = 1,
-                count = count,
-                headline = stringResource(R.string.settings_apply_on_boot),
-                supporting = stringResource(if (applyOnBoot) R.string.value_on else R.string.value_off),
-                supportingColor = MaterialTheme.colorScheme.primary,
-                onClick = actions.onOpenSettings,
-                leading = { BurkanIconBadge(Tabler.Outline.Power) },
-            )
-        } else if (applyOnBoot != null) {
+        if (afterRestartRow) {
             BurkanSegmentItem(
                 index = 1,
                 count = count,
