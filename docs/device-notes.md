@@ -524,3 +524,6 @@ the fix, on a Wi-Fi network marked "Always allow".
 | Switching wireless debugging on through `adb_wifi_enabled` raises no prompt on a network marked "Always allow", as before | Measured |
 | `pm revoke` of the permission leaves Home showing "Burkan needs nearby devices"; Allow raises the system dialog, and allowing reads the status | Measured |
 
+On 21 Oct 2026 a release build of `main` with the fix (6bdcd4a, ahead of 1.1.1) was used on the same phone on One
+UI 9, and the app worked as it does on Android 16. Which checks that use covered was not recorded, so it ticks
+none in `testing.md` beyond the ones above.
