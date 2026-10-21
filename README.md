@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Burkan App Icon" width="128" height="128" />
+<img src="docs/images/poster.png" alt="Burkan: Vulkan on your Galaxy S23, back after every restart. No root, no computer, no internet, open source." width="100%" />
 
 # Burkan
 
