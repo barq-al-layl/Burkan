@@ -90,7 +90,7 @@ class SetupViewModel(
             val done = device?.let { doneSteps(it.setupStepsDone, it.isPaired) }
             SetupState(
                 done = done,
-                isCurrentMet = done?.currentStep()?.let { isMet(it, device?.isPaired == true) } ?: false,
+                isCurrentMet = done?.currentStep()?.let { isMet(it, device.isPaired) } ?: false,
                 isUntestedModel = !isTestedModel(checks.deviceModel),
             )
         },

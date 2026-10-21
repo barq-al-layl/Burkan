@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.crash.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -61,7 +62,10 @@ class CrashActivity : ComponentActivity() {
     }
 
     private fun openReportForm() {
-        // No browser is no reason to crash here of all places.
-        runCatching { startActivity(Intent(Intent.ACTION_VIEW, About.REPORT_URL.toUri())) }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, About.REPORT_URL.toUri()))
+        } catch (_: ActivityNotFoundException) {
+            // No browser is no reason to crash here of all places.
+        }
     }
 }

@@ -110,7 +110,7 @@ class ApplyRunner(
         if (defaultKeyboard().getOrElse { return it } == before) return null
         val restores = listOf(ShellCommands.setInputMethod(before), ShellCommands.putSetting(DefaultKeyboard, before))
         for (restore in restores) {
-            shell.run(restore).getOrElse { return it }
+            shell.run(restore).leftOrNull()?.let { return it }
             if (defaultKeyboard().getOrElse { return it } == before) return null
         }
         return ApplyError.KeyboardNotRestored

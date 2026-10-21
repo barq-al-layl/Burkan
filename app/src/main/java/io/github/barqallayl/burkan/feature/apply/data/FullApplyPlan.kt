@@ -94,7 +94,7 @@ object FullApplyPlan {
                 if (stopped.isNotEmpty()) {
                     add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.forceStopAll(stopped)))
                 }
-                if (restartLauncher && launcher != null) {
+                if (restartLauncher) {
                     add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(launcher)))
                 }
                 if (relaunched.isNotEmpty()) {

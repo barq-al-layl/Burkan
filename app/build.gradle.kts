@@ -340,7 +340,7 @@ val releaseVersionName = android.defaultConfig.versionName!!
 val releaseVersionCode = android.defaultConfig.versionCode!!
 val releaseOnCi = providers.environmentVariable("GITHUB_ACTIONS").map { it == "true" }.orElse(false)
 
-val checkRelease by tasks.registering(CheckRelease::class) {
+val checkRelease = tasks.register<CheckRelease>("checkRelease") {
     group = "release"
     description = "Says what stands in the way of releasing this commit. Changes nothing."
     versionName = releaseVersionName

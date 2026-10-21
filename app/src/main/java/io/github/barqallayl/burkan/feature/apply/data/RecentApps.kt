@@ -33,7 +33,7 @@ class UsageStatsRecentApps(private val application: Application, private val clo
 
     override fun isAllowed(): Boolean {
         val appOps = application.getSystemService(AppOpsManager::class.java)
-        val mode = appOps.unsafeCheckOpNoThrow(
+        val mode = appOps.checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(),
             application.packageName,
