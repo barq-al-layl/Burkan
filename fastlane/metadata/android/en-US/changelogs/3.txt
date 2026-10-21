@@ -1,0 +1,3 @@
+* Works on Android 17 (One UI 9): Burkan asks for the Nearby devices permission, which Android 17 needs before an app can find the phone's own wireless debugging. Without it, a "choose a device" window got in the way of pairing and of every run
+* Home no longer reconnects when you come back from Log or Settings, so the "Wireless debugging connected" banner turns up less often
+* Outlined icons in Home's top bar in the Material style

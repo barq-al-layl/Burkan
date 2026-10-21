@@ -260,8 +260,9 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] `Settings.Global.BOOT_COUNT` reads on the phone.
 - [x] It goes up by one across a reboot.
 - [ ] Opening Home twice within 30 seconds raises "Wireless debugging connected" once.
-- [ ] Home, then Log or Settings for more than 30 seconds, then back: Home does not connect again and no "Wireless
-      debugging connected" notification drops. Leaving the app for as long and coming back does connect.
+- [x] Home, then Log or Settings for more than 30 seconds, then back: Home does not connect again and no "Wireless
+      debugging connected" notification drops. Leaving the app for as long and coming back does connect. (The
+      1.1.1 release build on One UI 9, counted from adbd's log; device notes, section 15.)
 - [ ] After a run, Home shows the result without a new "Wireless debugging connected" notification.
 - [x] `cmd package resolve-activity --brief` and `cmd role get-role-holders` print the formats in the device notes,
       section 2.

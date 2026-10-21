@@ -55,7 +55,7 @@ The recipe needs a change by hand only when the build itself must change: anothe
 before the build. That is a merge request to fdroiddata, changing the new version's build entry once the bot has
 added it.
 
-### What the next release brings that F-Droid has not built yet
+### What 1.1.1 brings that F-Droid has not built yet
 
 Each of these builds on a Mac and has not yet been through F-Droid's build server. If the next build fails, or
 its APK differs from the published one, look here first.
@@ -65,6 +65,8 @@ its APK differs from the published one, look here first.
 - **Gradle 9.8.2**, with its distribution's checksum pinned in `gradle/wrapper/gradle-wrapper.properties`.
 - **kotlinx.serialization 1.12.0.** Nothing to check for it in `gradle/verification-metadata.xml`, which pins only
   the libraries from JitPack.
+- **Conscrypt 2.8.0**, whose `libconscrypt_jni.so` is the largest native library in the APK; it is stripped with
+  the same NDK as before.
 - **A new permission, `ACCESS_LOCAL_NETWORK`.** F-Droid lists an app's permissions on its page. It is the Nearby
   devices permission Android 17 asks for before an app looks for services on the network, and the app uses it
   only to find the phone's own wireless debugging.

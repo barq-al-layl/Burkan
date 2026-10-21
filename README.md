@@ -97,7 +97,7 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 ## Quick setup
 
 > [!NOTE]
-> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16).
+> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16) and One UI 9 (Android 17).
 
 Setup takes under two minutes and is done once.
 

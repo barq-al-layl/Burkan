@@ -527,3 +527,13 @@ the fix, on a Wi-Fi network marked "Always allow".
 On 21 Oct 2026 a release build of `main` with the fix (6bdcd4a, ahead of 1.1.1) was used on the same phone on One
 UI 9, and the app worked as it does on Android 16. Which checks that use covered was not recorded, so it ticks
 none in `testing.md` beyond the ones above.
+
+The same day the 1.1.1 release build, with Conscrypt 2.8.0, was installed over it, with the USB cable plugged in,
+and its connections counted from adbd's log, where each new one is a line `New TLS connection`:
+
+| Fact | Status |
+|---|---|
+| Opening Home makes one connection; the TLS handshake succeeds with Conscrypt 2.8.0, the connection is closed about 11 seconds later and wireless debugging is switched off again | Measured |
+| Home, then Settings for 40 seconds, then back: no connection, and wireless debugging is not switched on | Measured |
+| Home, then Log for 35 seconds, then back: no connection | Measured |
+| Leaving the app for 35 seconds and opening it again: one connection | Measured |
