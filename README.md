@@ -102,7 +102,7 @@ F-Droid builds Burkan from source, checks that its build matches the APK on GitH
 ## Quick setup
 
 > [!NOTE]
-> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16) and One UI 9 (Android 17).
+> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16) and One UI 9 (Android 17). Other Android 13+ phones should work but are not verified; see the [FAQ](#faq) for the risks.
 
 Setup takes under two minutes and is done once.
 
@@ -173,7 +173,16 @@ More detail is in:
 <details>
 <summary><b>Does this work on devices other than the Galaxy S23 series?</b></summary>
 <br>
-Burkan was built for the Snapdragon 8 Gen 2 for Galaxy and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) has the same platform and is treated as supported. Burkan opens on other phones with a warning, but how stable the Vulkan renderer is varies a lot between chips and manufacturers' Android versions.
+Burkan was built for the Snapdragon 8 Gen 2 for Galaxy and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) has the same platform and is treated as supported.
+<br><br>
+Other phones on Android 13 or newer should work too, but none has been verified. Wireless Debugging, the renderer property and the status check are standard Android, and Burkan asks the phone which home app, keyboard and wallpaper it uses. On other phones it shows a warning and lets you continue. What could go wrong there:
+<ul>
+<li>How well Vulkan works depends on the phone's graphics driver and its maker's Android version, and varies a lot between them. Burkan only turns it on. If something looks wrong, tap <i>Back to OpenGL</i> or restart the phone.</li>
+<li><i>Restart all apps</i> leaves a fixed list of Samsung apps running so that Wi-Fi calling and VoLTE keep working. On another phone it would restart that maker's equivalents, which can drop Wi-Fi calling or VoLTE. <i>Apply now</i> and the apply after a restart leave those apps alone.</li>
+<li>Some makers block parts of the shell until a separate switch is turned on. Xiaomi's <i>USB debugging (Security settings)</i> is one, and Burkan needs it to grant itself the secure settings permission. Some phones also stop background work hard enough to cut the apply after a restart short.</li>
+<li>Setup is worded for One UI, and the Settings rows it points to may be named or placed differently elsewhere.</li>
+</ul>
+If you try it on another phone, a report of how it went, with the shared run log, is welcome.
 </details>
 
 <details>
