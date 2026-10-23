@@ -25,9 +25,11 @@ build may stumble. F-Droid builds the app itself from this repository, so everyt
   published one fails, so a successful one is a reproduced one. 1.1.0 was also the first release with
   `gradle/verification-metadata.xml`, a pinned checksum for the Gradle distribution, Kotlin 2.4.21 and Material 3
   1.5.0-beta01; the build server took all of them.
-- **The package page**, <https://f-droid.org/packages/io.github.barqallayl.burkan/>, answers 404 until the build
-  cycle that built the app has finished and its builds have been signed and published. That is usually a day or
-  two after the build itself, and nothing here or in the recipe hurries it.
+- **The package page**, <https://f-droid.org/packages/io.github.barqallayl.burkan/>, published on 22 October
+  2026 with 1.1.0, three days after the build cycle started. It says the version is "built and signed by the
+  original developer": F-Droid ships the APK from GitHub, so an install from either place updates from the other.
+  A new version reaches the page only when the build cycle that built it has finished and been published, usually
+  a day or more after the build itself, and nothing here or in the recipe hurries it.
 - **Nothing F-Droid forbids.** The licence is Apache-2.0, every library is open source, and the libraries come from
   Maven Central, Google's repository and JitPack, all of which F-Droid trusts. There is no Google Play Services,
   Firebase, advertising or analytics, and the licence list is generated without the network.
@@ -57,8 +59,10 @@ added it.
 
 ### What 1.1.1 brings that F-Droid has not built yet
 
-Each of these builds on a Mac and has not yet been through F-Droid's build server. If the next build fails, or
-its APK differs from the published one, look here first.
+F-Droid's bot has added 1.1.1 to the recipe, at commit `8f278e5` with NDK r28c as before, and made it the
+current version; on 23 October 2026 the package page still offered 1.1.0 alone. Each of these builds on a Mac and
+has not yet been through F-Droid's build server. If the build fails, or its APK differs from the published one,
+look here first.
 
 - **Android 17's second minor SDK.** The app compiles against SDK 37 minor 2 (`release(37) { minorApiLevel = 2 }`
   in `app/build.gradle.kts`), so the build server has to install that platform; 1.1.0 needed only platform 37.

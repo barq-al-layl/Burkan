@@ -9,6 +9,7 @@
 <br/>
 
 [![Latest Release](https://img.shields.io/github/v/release/barq-al-layl/Burkan?style=for-the-badge&labelColor=1a1b26&color=41a6b5)](https://github.com/barq-al-layl/Burkan/releases/latest)
+[![F-Droid](https://img.shields.io/f-droid/v/io.github.barqallayl.burkan?style=for-the-badge&logo=fdroid&logoColor=white&labelColor=1a1b26&color=1976d2)](https://f-droid.org/packages/io.github.barqallayl.burkan/)
 [![Platform](https://img.shields.io/badge/Platform-Android%2013%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white&labelColor=1a1b26)](https://www.android.com)
 [![Target](https://img.shields.io/badge/Device-Galaxy%20S23%20Series-1428A0?style=for-the-badge&logo=samsung&logoColor=white&labelColor=1a1b26)](https://news.samsung.com/global/galaxy-s23-series)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge&labelColor=1a1b26)](LICENSE)
@@ -88,11 +89,15 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 
 ## Download
 
+<a href="https://f-droid.org/packages/io.github.barqallayl.burkan/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
+
 | Source | Channel | Status |
 | :--- | :--- | :--- |
-| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.0`) |
-| [**F-Droid**](docs/f-droid.md) | F-Droid Repository | Accepted, first build being published |
+| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.1`) |
+| [**F-Droid**](https://f-droid.org/packages/io.github.barqallayl.burkan/) | F-Droid Repository | Stable (`v1.1.0`), `v1.1.1` on its way |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
+
+F-Droid builds Burkan from source, checks that its build matches the APK on GitHub, and ships that APK. Both are signed with the same key, so you can switch between them without uninstalling.
 
 ## Quick setup
 
