@@ -611,7 +611,7 @@ private fun RestartAllSheet(
 @Composable
 private fun RestartScope.label(): String {
     val limit = limit ?: return stringResource(R.string.restart_scope_all)
-    return stringResource(R.string.restart_scope_recent, limit)
+    return pluralStringResource(R.plurals.restart_scope_recent, limit, limit)
 }
 
 /**

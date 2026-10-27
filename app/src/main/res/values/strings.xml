@@ -55,7 +55,10 @@
     <string name="settings_turn_off_wireless_debugging_text">Only if Burkan switched it on</string>
     <string name="settings_exclusions">Never restart these apps</string>
     <string name="restart_scope_all">Every app</string>
-    <string name="restart_scope_recent">The %1$d most recent</string>
+    <plurals name="restart_scope_recent">
+        <item quantity="one">The most recent</item>
+        <item quantity="other">The %1$d most recent</item>
+    </plurals>
     <string name="settings_exclusions_none">None chosen. Restart all apps restarts every app it can.</string>
     <plurals name="settings_exclusions_count">
         <item quantity="one">%d app is kept running</item>
