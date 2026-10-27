@@ -262,7 +262,8 @@ A flow is a function that returns the list of steps, and a runner that executes 
 - What a full apply has to put back is kept in the phone's state file from before its first step until it is back
   (`CapturedSettings`). Where the shell no longer answers, the app writes a value back itself, which
   `WRITE_SECURE_SETTINGS` lets it do. A run whose process died under it is undone the same way, the next time a run
-  starts or Home opens.
+  starts or Home opens, if that is within an hour of when the values were kept. Later than that, what the phone
+  holds is taken as the user's own, and the kept values are dropped unwritten.
 - Tests assert on the plan (exact commands, in order) without running anything, and on the runner with a fake
   shell that fails at a chosen step.
 - A process that has to be crashed to restart, System UI and the keyboard, is named by its process ID, found by

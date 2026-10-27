@@ -40,7 +40,7 @@ class ApplyFlowTest {
     private val runner = ApplyRunner(
         shell,
         SystemUiCooldown(FakeSystemUiRestarts(), FixedClock),
-        CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings()),
+        CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings(), FixedClock),
     )
     private val records = mutableListOf<StepRecord>()
 

@@ -188,11 +188,17 @@ class FakeDeviceSettings(var refuses: Boolean = false) : DeviceSettings {
     }
 }
 
-class FakeCapturedSettingsStorage(var kept: Map<RestoredSetting, String> = emptyMap()) : CapturedSettingsStorage {
+class FakeCapturedSettingsStorage(
+    var kept: Map<RestoredSetting, String> = emptyMap(),
+    var keptAt: Instant? = null,
+) : CapturedSettingsStorage {
     override suspend fun get(): Map<RestoredSetting, String> = kept
 
-    override suspend fun set(values: Map<RestoredSetting, String>) {
+    override suspend fun keptAt(): Instant? = keptAt
+
+    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
         kept = values
+        keptAt = at.takeIf { values.isNotEmpty() }
     }
 }
 

@@ -40,7 +40,7 @@ class ApplyRunnerTest {
     private val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), clock)
     private val deviceSettings = FakeDeviceSettings()
     private val kept = FakeCapturedSettingsStorage()
-    private val captured = CapturedSettings(kept, deviceSettings)
+    private val captured = CapturedSettings(kept, deviceSettings, clock)
     private val runner = ApplyRunner(shell, cooldown, captured)
     private val records = mutableListOf<StepRecord>()
 

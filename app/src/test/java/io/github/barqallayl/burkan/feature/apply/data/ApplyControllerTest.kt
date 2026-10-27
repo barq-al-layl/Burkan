@@ -73,7 +73,7 @@ class ApplyControllerTest {
         log,
         settings,
         cooldown,
-        CapturedSettings(kept, deviceSettings),
+        CapturedSettings(kept, deviceSettings, FixedClock),
         lockEvents,
         recentApps,
         clock,

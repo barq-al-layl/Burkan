@@ -78,7 +78,7 @@ class HomeViewModelTest {
         log,
         settings,
         cooldown,
-        CapturedSettings(kept, deviceSettings),
+        CapturedSettings(kept, deviceSettings, clock),
         FakeLockEvents(),
         FakeRecentApps(),
         clock,

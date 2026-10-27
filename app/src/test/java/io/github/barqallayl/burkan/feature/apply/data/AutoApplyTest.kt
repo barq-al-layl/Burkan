@@ -400,7 +400,7 @@ class AutoApplyTest {
         val access = FakeShellAccess(shell)
         val log = FakeRunLogStorage()
         val cooldown = SystemUiCooldown(FakeSystemUiRestarts(), FixedClock)
-        val captured = CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings())
+        val captured = CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings(), FixedClock)
         val controller = ApplyController(
             access,
             log,
