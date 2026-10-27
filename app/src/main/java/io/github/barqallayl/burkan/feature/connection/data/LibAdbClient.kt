@@ -19,6 +19,8 @@ import io.github.muntashirakon.adb.AdbPairingRequiredException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.ConnectException
@@ -44,6 +46,9 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     @Volatile
     private var manager: Manager? = null
+
+    /** Held while the manager is made, so that pairing and connecting at once on first use make only one. */
+    private val making = Mutex()
 
     override suspend fun pair(host: String, port: Int, code: String): Either<PairingError, Unit> =
         withContext(Dispatchers.IO) {
@@ -112,7 +117,7 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
     }
 
     private suspend fun manager(): Manager =
-        manager ?: Manager(keyStore.keys()).also { manager = it }
+        manager ?: making.withLock { manager ?: Manager(keyStore.keys()).also { manager = it } }
 
     /**
      * libadb reports pairing failures as plain exceptions. A refused connection means the pairing dialog, which owns
