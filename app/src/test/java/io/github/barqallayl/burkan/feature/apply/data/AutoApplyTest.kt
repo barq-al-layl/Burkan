@@ -62,6 +62,16 @@ class AutoApplyTest {
     }
 
     @Test
+    fun `a restart forgets that the app had switched wireless debugging on, as the restart switched it off`() =
+        runTest {
+            deviceState.switchedOnWirelessDebugging.value = true
+
+            autoApply.onBoot()
+
+            assertFalse(deviceState.switchedOnWirelessDebugging.value)
+        }
+
+    @Test
     fun `BOOT_COMPLETED again in the same boot is not a restart, and applies nothing`() = runTest {
         autoApply.onBoot()
         assertEquals(1, launcher.automaticStarts)

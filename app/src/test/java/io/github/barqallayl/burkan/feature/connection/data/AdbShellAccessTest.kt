@@ -67,6 +67,39 @@ class AdbShellAccessTest {
     }
 
     @Test
+    fun `switching wireless debugging on is written down until it is off again`() = runTest {
+        val access = access()
+
+        access.withShell { assertTrue(deviceState.switchedOnWirelessDebugging.value, "kept while it is on") }
+        afterLinger()
+
+        assertFalse(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
+    fun `wireless debugging left on by a process that died is switched off by the next connection`() = runTest {
+        // The process switched it on, and died before it could switch it off.
+        wirelessDebugging.on = true
+        deviceState.switchedOnWirelessDebugging.value = true
+
+        access().withShell { "ran" }
+        afterLinger()
+
+        assertEquals(listOf(false), wirelessDebugging.writes)
+        assertFalse(wirelessDebugging.on)
+        assertFalse(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
+    fun `a switch the system puts back is not written down as on`() = runTest {
+        wirelessDebugging.systemRefuses = true
+
+        access().withShell { "ran" }
+
+        assertFalse(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
     fun `waiting for adbd to settle overlaps the wait for the switch`() = runTest {
         val result = access().withShell(settle = 3.seconds) { currentTime }
 

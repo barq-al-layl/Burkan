@@ -136,11 +136,19 @@ class AdbShellAccess(
         if (open.switchedOn) switchOff()
     }
 
-    /** True when this call switched wireless debugging on, and so must switch it off. */
+    /**
+     * True when this app switched wireless debugging on, and so must switch it off. That includes a switch left on by
+     * an earlier process that died before it could switch it off: what it switched on is still the app's.
+     */
     private suspend fun Raise<ConnectionError>.switchOn(): Boolean {
-        if (wirelessDebugging.isOn()) return false
+        if (wirelessDebugging.isOn()) return deviceState.switchedOnWirelessDebugging.first()
         ensure(wirelessDebugging.isWifiConnected()) { ConnectionError.NoWifi }
-        ensure(wirelessDebugging.set(true)) { ConnectionError.WirelessDebuggingOff }
+        // Written down first, so that a process dying from here on still leaves the switch to be put back.
+        deviceState.setSwitchedOnWirelessDebugging(true)
+        if (!wirelessDebugging.set(true)) {
+            deviceState.setSwitchedOnWirelessDebugging(false)
+            raise(ConnectionError.WirelessDebuggingOff)
+        }
         try {
             // The system may refuse (an untrusted network, or Wi-Fi lost) and put the switch back by itself.
             delay(SETTLE_TIME)
@@ -149,12 +157,16 @@ class AdbShellAccess(
             withContext(NonCancellable) { switchOff() }
             throw e
         }
-        ensure(wirelessDebugging.isOn()) { ConnectionError.WirelessDebuggingRefused }
+        if (!wirelessDebugging.isOn()) {
+            deviceState.setSwitchedOnWirelessDebugging(false)
+            raise(ConnectionError.WirelessDebuggingRefused)
+        }
         return true
     }
 
     private suspend fun switchOff() {
         if (settings.turnOffWirelessDebugging.first()) wirelessDebugging.set(false)
+        deviceState.setSwitchedOnWirelessDebugging(false)
     }
 
     /**

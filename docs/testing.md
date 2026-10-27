@@ -42,6 +42,9 @@ When you check one, tick it here and record what you saw in the device notes.
       times. (It used to go on waiting the second time. Seen on an emulator with Android 17; not on a phone.)
 - [ ] With wireless debugging off, tap Apply now and then Cancel within two seconds: wireless debugging is off
       again afterwards. (It used to stay on. Covered by a test only.)
+- [ ] With wireless debugging off, open Home and force-stop Burkan from Settings within ten seconds, while the
+      connection is still kept: wireless debugging stays on until Burkan is opened again, and is off once that
+      connection has closed. (It used to stay on until the next restart. Covered by tests only.)
 - [x] On Android 17, Start pairing asks for the nearby devices permission first, and allowing it goes on to
       Developer options. Pairing, Connect and Home then bring up no "choose a device" picker. (Device notes,
       section 15.)

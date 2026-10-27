@@ -10,6 +10,7 @@ class FakeDeviceStateStorage(
     override val isPaired = MutableStateFlow(paired)
     override val setupStepsDone = MutableStateFlow(setupStepsDone)
     override val isSetupComplete = MutableStateFlow(setupComplete)
+    override val switchedOnWirelessDebugging = MutableStateFlow(false)
 
     override suspend fun setPaired(paired: Boolean) {
         isPaired.value = paired
@@ -21,5 +22,9 @@ class FakeDeviceStateStorage(
 
     override suspend fun setSetupComplete(complete: Boolean) {
         isSetupComplete.value = complete
+    }
+
+    override suspend fun setSwitchedOnWirelessDebugging(switchedOn: Boolean) {
+        switchedOnWirelessDebugging.value = switchedOn
     }
 }

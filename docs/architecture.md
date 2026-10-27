@@ -274,7 +274,10 @@ A flow is a function that returns the list of steps, and a runner that executes 
   dialog. So nothing is looked for without the permission: a connection or a pairing fails at once with its own
   error instead. Setup asks for it when Pair is started; Home, which on a phone set up before Android 17 is where
   the missing permission first shows, offers Allow in place of Try again.
-- **Enabling wireless debugging**: write `Settings.Global` `adb_wifi_enabled` through the content resolver. Read
+- **Enabling wireless debugging**: write `Settings.Global` `adb_wifi_enabled` through the content resolver. That the
+  app switched it on is written to the phone's state file first, and cleared once it is off again or the phone
+  restarts: a process that dies while the switch is on leaves it to the next connection, which switches it off
+  when it closes, rather than taking it for the user's. Read
   it back after two seconds: if it is 0 again, the system refused (no Wi-Fi, or network not trusted) and the
   result is a specific error, not a retry loop. A run cancelled in those two seconds switches it off again.
   "On Wi-Fi" means connected to a Wi-Fi network, whether or not the phone reaches the internet through it: for a

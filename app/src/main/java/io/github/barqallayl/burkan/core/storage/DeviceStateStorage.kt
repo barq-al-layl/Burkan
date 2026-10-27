@@ -31,11 +31,19 @@ interface DeviceStateStorage {
     /** Whether every setup step is done. `App.kt` chooses the start screen from it. */
     val isSetupComplete: Flow<Boolean>
 
+    /**
+     * Whether wireless debugging is on because this app switched it on, from just before it does until it is
+     * switched off again. Kept on disk so that a process that dies in between leaves the switch to the next one.
+     */
+    val switchedOnWirelessDebugging: Flow<Boolean>
+
     suspend fun setPaired(paired: Boolean)
 
     suspend fun setSetupStepsDone(count: Int)
 
     suspend fun setSetupComplete(complete: Boolean)
+
+    suspend fun setSwitchedOnWirelessDebugging(switchedOn: Boolean)
 }
 
 @Inject
@@ -53,6 +61,7 @@ class DataStoreDeviceStateStorage(
     override val setupStepsDone: Flow<Int> =
         preferences.map { it[Keys.setupStepsDone] ?: 0 }.distinctUntilChanged()
     override val isSetupComplete: Flow<Boolean> = read(Keys.setupComplete)
+    override val switchedOnWirelessDebugging: Flow<Boolean> = read(Keys.switchedOnWirelessDebugging)
 
     override suspend fun setPaired(paired: Boolean) = write(Keys.paired, paired)
 
@@ -61,6 +70,9 @@ class DataStoreDeviceStateStorage(
     }
 
     override suspend fun setSetupComplete(complete: Boolean) = write(Keys.setupComplete, complete)
+
+    override suspend fun setSwitchedOnWirelessDebugging(switchedOn: Boolean) =
+        write(Keys.switchedOnWirelessDebugging, switchedOn)
 
     private fun read(key: Preferences.Key<Boolean>): Flow<Boolean> =
         preferences.map { it[key] ?: false }.distinctUntilChanged()
@@ -73,6 +85,7 @@ class DataStoreDeviceStateStorage(
         val paired = booleanPreferencesKey("paired")
         val setupStepsDone = intPreferencesKey("setup_steps_done")
         val setupComplete = booleanPreferencesKey("setup_complete")
+        val switchedOnWirelessDebugging = booleanPreferencesKey("switched_on_wireless_debugging")
     }
 
     companion object {

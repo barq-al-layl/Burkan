@@ -66,6 +66,8 @@ class AutoApply(
             return
         }
         if (boot != null) storage.setLastBoot(boot)
+        // A restart switches wireless debugging off, so whatever the app had switched on is off already.
+        deviceState.setSwitchedOnWirelessDebugging(false)
         stopWaiting()
         if (!isEnabled()) return
         if (!wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
