@@ -350,6 +350,28 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
         manager.notify(FAILURE_ID, notification)
     }
 
+    override fun showNotStarted(kind: ApplyKind) {
+        createChannel()
+        // Tapped, the notification is the user's own doing, which Android lets start the service.
+        val start = PendingIntent.getForegroundService(
+            application,
+            0,
+            Intent(application, ApplyService::class.java)
+                .putExtra(ApplyService.EXTRA_KIND, kind.name)
+                .putExtra(ApplyService.EXTRA_TRIGGER, RunTrigger.External.name),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val text = application.getString(R.string.apply_not_started_text)
+        val notification = base()
+            .setContentTitle(application.getString(R.string.apply_not_started_title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .addAction(0, application.getString(R.string.apply_not_started_action), start)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(FAILURE_ID, notification)
+    }
+
     private fun base(): NotificationCompat.Builder = NotificationCompat.Builder(application, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_notification)
         .setOnlyAlertOnce(true)

@@ -119,6 +119,13 @@ class FakeRunAlerts : RunAlerts {
         readyToApply++
     }
 
+    /** Each run Android would not let start from the background, offered in a notification instead. */
+    val notStarted = mutableListOf<ApplyKind>()
+
+    override fun showNotStarted(kind: ApplyKind) {
+        notStarted += kind
+    }
+
     var applied = 0
 
     /** How many open apps each notice said were behind. */

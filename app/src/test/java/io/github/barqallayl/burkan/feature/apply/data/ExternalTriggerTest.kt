@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import kotlinx.coroutines.test.runTest
@@ -14,7 +15,8 @@ class ExternalTriggerTest {
 
     private val deviceState = FakeDeviceStateStorage(paired = true, setupStepsDone = 7, setupComplete = true)
     private val launcher = FakeApplyLauncher()
-    private val trigger = ExternalTrigger(deviceState, launcher)
+    private val alerts = FakeRunAlerts()
+    private val trigger = ExternalTrigger(deviceState, launcher, alerts)
 
     @Test
     fun `each action starts its run`() = runTest {
@@ -44,6 +46,17 @@ class ExternalTriggerTest {
 
         assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_APPLY))
         assertFalse(trigger.onShortcut(ExternalTrigger.SHORTCUT_APPLY))
+        assertTrue(alerts.notStarted.isEmpty(), "nothing to offer either")
+    }
+
+    @Test
+    fun `a run Android will not start from the background is offered in a notification`() = runTest {
+        launcher.backgroundStartAllowed = false
+
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+        assertFalse(trigger.onTile())
+
+        assertEquals(listOf(ApplyKind.Full, ApplyKind.Light), alerts.notStarted)
     }
 
     @Test

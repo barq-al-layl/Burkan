@@ -134,6 +134,8 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] With the screen lock set to None: the run after a restart restarts System UI once the screen goes off, and
       the "waiting for the lock" notification goes. A tile, shortcut or Tasker run with the screen on leaves
       System UI for the screen going off. (It used to wait for ever. Expected from Android's documentation.)
+- [ ] With the battery exemption refused, a Tasker broadcast or the tile shows "Burkan could not start", and its
+      Start action starts the run.
 - [x] The exclusions picker lists the installed apps, with their icons.
 - [ ] An app ticked there survives Restart all apps.
 - [x] Redo setup returns to Setup at its first step, and pairing again works.

@@ -22,8 +22,12 @@ import kotlinx.coroutines.flow.first
 class ExternalTrigger(
     private val deviceState: DeviceStateStorage,
     private val launcher: ApplyLauncher,
+    private val alerts: RunAlerts,
 ) {
-    /** A broadcast with [action] arrived from another app. True when a run was started. */
+    /**
+     * A broadcast with [action] arrived from another app. True when a run was started. When Android would not let it
+     * start from the background, a notification offers to start it instead of nothing happening.
+     */
     suspend fun onBroadcast(action: String?): Boolean {
         val kind = kindFor(action) ?: return false
         return start(kind)
@@ -47,7 +51,9 @@ class ExternalTrigger(
 
     private suspend fun start(kind: ApplyKind): Boolean {
         if (!deviceState.isSetupComplete.first()) return false
-        return launcher.startUnattended(kind, RunTrigger.External)
+        val started = launcher.startUnattended(kind, RunTrigger.External)
+        if (!started) alerts.showNotStarted(kind)
+        return started
     }
 
     companion object {

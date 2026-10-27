@@ -235,6 +235,9 @@
     <string name="apply_ready_title">Wi-Fi is connected</string>
     <string name="apply_ready_text">Burkan can apply Vulkan now.</string>
     <string name="apply_ready_action">Apply</string>
+    <string name="apply_not_started_title">Burkan could not start</string>
+    <string name="apply_not_started_text">Android did not let Burkan start in the background. Tap Start to run it now. Allowing Burkan to run without battery restrictions lets it start by itself next time.</string>
+    <string name="apply_not_started_action">Start</string>
 
     <!-- Non-breaking spaces keep each number with its unit at large text sizes. -->
     <string name="duration_seconds">%1$d\u00A0s</string>

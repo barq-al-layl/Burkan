@@ -368,6 +368,9 @@ reachable through it.
   applies it. Its state comes from the log, not from the phone: asking the phone needs a connection, too much
   for a tile redrawn whenever the shade opens. A run counts only if it began after the phone started, and going
   back to OpenGL is the last word until the next apply. A long press opens the app.
+- A run asked for by the tile, a shortcut or another app that Android will not let start from the background,
+  which it may refuse while the app is held to battery optimisation, is not dropped: a notification, "Burkan could
+  not start", offers to start it.
 - When the apply after a restart is done, System UI included, a notification says so, on a channel of its own
   that can be turned off in the phone's settings without losing the notice of a run that failed. When apps that
   started before the run are still on OpenGL, it says how many and offers to restart them, as Home's sheet does.

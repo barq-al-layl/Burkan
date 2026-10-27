@@ -8,6 +8,7 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
@@ -27,6 +28,12 @@ interface RunAlerts {
 
     /** Wi-Fi is back but the app could not start the run by itself; the notification starts it. */
     fun showReadyToApply()
+
+    /**
+     * A run of [kind] asked for from outside the app (its tile, a shortcut, another app) could not start, as Android
+     * did not let the app start it from the background. The notification starts it.
+     */
+    fun showNotStarted(kind: ApplyKind)
 
     /**
      * The apply after a restart is done, System UI included: Vulkan is active with nothing left to wait for. [behind]
