@@ -71,6 +71,9 @@ This is where the original scripts were wrong, so read it carefully.
 | `am force-stop com.sec.android.app.launcher`, then launching it | Launcher restarted on `Skia (Vulkan)` | Measured |
 | Leaving the keyboard alone | Samsung Keyboard stayed on `Skia (OpenGL)` | Measured |
 | `am crash <keyboard package>` | Restarts Samsung Keyboard, which stayed the default input method | Measured |
+| `am stop-app <package>` (`cmd activity stop-app`, from Android 13) | Not yet run on the S23. On an Android 14 emulator, Google's Clock with an alarm set: its process ended, and its alarms, its next alarm clock and its jobs were all still listed, and the package was not left stopped | Measured on the emulator only |
+| `am force-stop <package>` on the same Clock | On the emulator: every one of its alarms was gone, the next alarm clock with them, and the package was left stopped. Opening Clock again did not bring the alarm back | Measured on the emulator only |
+| `am <a command it does not know>` | Prints `Unknown command: …` on standard output and exits with 255 | Measured on the emulator only |
 | `am crash "$(pidof -s <package> \|\| echo <package>)"` for a package that is not running | Exits with 0 | Measured on the emulator only |
 | `dumpsys gfxinfo <package>` for a package that is not running | Prints `No process found for: <package>` and exits with 0 | Measured on the emulator only |
 
@@ -85,6 +88,12 @@ This is where the original scripts were wrong, so read it carefully.
   whatever the property gives when it is next shown.
 - **Force-stopping an app disables its accessibility service** and can reset auto-rotation and Edge panel
   settings. Hence section 4.
+- **Stop apps with `stop-app`, not `force-stop`.** Android documents `force-stop` as cancelling an app's alarms
+  and scheduled jobs, and leaving it in the stopped state, where its broadcasts and push messages are held back
+  until it is next opened: a force-stopped Clock loses the alarm it was to ring. `stop-app` ends the processes and
+  keeps the rest. The bulk stop falls back to `force-stop` for a package when `stop-app` fails, as it does on an
+  `am` without it. Whether `stop-app` also leaves accessibility services and notifications alone is not known, so
+  the restore in section 4 stays.
 - After a restart, check the result with `dumpsys gfxinfo` rather than assuming it.
 
 **The launcher is whatever home app the user chose**, not necessarily Samsung's. Ask the system:
@@ -184,7 +193,7 @@ The port of the script's full flow, for a phone that has been running on OpenGL 
 4. Work out which packages are running (section 6), and the widget providers and hosts (section 7), and remember
    them. All of it is read before anything is changed.
 5. `setprop debug.hwui.renderer skiavk`.
-6. `am force-stop <package>` for each remaining package.
+6. `am stop-app <package>` for each remaining package, or `am force-stop <package>` where that fails (section 2).
 7. `am force-stop <home package>`, wait about two seconds, start home again (section 2).
 8. Relaunch the remembered running apps and the widget packages with `am start`.
 9. `am crash <current keyboard package>`.
@@ -213,7 +222,9 @@ and any package whose name contains `providers.media.module` (the media provider
 with the substring `ia.mo`).
 
 **Measured on the full flow:** about 600 packages are force-stopped and about 110 relaunched; the run took 73
-seconds over USB. Sending all the `force-stop` commands as one shell line of roughly 30 KB worked.
+seconds over USB. Sending all the `force-stop` commands as one shell line of roughly 30 KB worked. The line now
+defines a shell function once and calls it for each package (`stop_app <package>;`), which is shorter than the
+line that was measured; with `stop-app` it has not been run on the S23.
 
 **Errors that are expected.** On a phone with Secure Folder, `pm list packages` prints
 

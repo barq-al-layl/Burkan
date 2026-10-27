@@ -320,7 +320,7 @@
         <item quantity="one">%1$d app you chose stays running.</item>
         <item quantity="other">%1$d apps you chose stay running.</item>
     </plurals>
-    <string name="restart_scope_all_text">Closes and reopens everything.</string>
+    <string name="restart_scope_all_text">Closes every app, and reopens the ones that were open.</string>
     <string name="restart_scope_recent_text">Only the apps you used last.</string>
     <string name="home_apply_now">Apply now</string>
     <string name="home_restart_all">Restart all apps</string>
@@ -336,7 +336,7 @@
     <string name="home_confirm_apply_text">Restarting System UI brings up the lock screen, and wireless debugging disconnects and reconnects. Unlock the phone afterwards; Burkan finishes by itself.</string>
     <string name="home_confirm_apply_action">Apply</string>
     <string name="home_confirm_title">Restart all apps?</string>
-    <string name="home_confirm_text">Every app closes and opens again, which takes about a minute, and the screen will flash. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
+    <string name="home_confirm_text">Every app is closed, and those that were open or show a widget are opened again. It takes about a minute, and the screen will flash. Burkan puts auto-rotation, accessibility services and Edge panels back afterwards.</string>
     <string name="home_confirm_lock_text">At the end the screen locks for a moment while System UI restarts.</string>
     <string name="home_confirm_action">Restart</string>
     <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts. To know which apps you used last, Burkan gives itself usage access, which stays on until you turn it off in the phone’s Settings.</string>

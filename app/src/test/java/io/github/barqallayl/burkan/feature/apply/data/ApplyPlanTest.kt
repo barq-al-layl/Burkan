@@ -6,6 +6,7 @@ import io.github.barqallayl.burkan.core.model.Renderer.Unknown
 import io.github.barqallayl.burkan.core.model.Renderer.Vulkan
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.STOP_ALL_PREFIX
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
@@ -362,8 +363,8 @@ class ApplyPlanTest {
 
     private fun stopped(plan: ApplyPlan): List<PackageName> {
         val line = plan.steps.single { it.kind is StepKind.StopApps }.command.line
-        return line.split("; ").filter { it.startsWith("am force-stop ") }
-            .map { PackageName.known(it.removePrefix("am force-stop ")) }
+        return line.removePrefix(STOP_ALL_PREFIX).split("; ").filter { it.startsWith("stop_app ") }
+            .map { PackageName.known(it.removePrefix("stop_app ")) }
     }
 
     private fun names(vararg names: String): List<PackageName> = names.map(PackageName::known)

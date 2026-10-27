@@ -118,7 +118,8 @@ The status, and the two actions. The two styles lay it out differently; what it 
   is on.
 - **Apply now** — the light apply. When System UI is to be restarted, a confirmation says first that the screen
   will lock for a moment.
-- **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app, takes
+- **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app and opens
+  again those that were open or show a widget, takes
   about a minute, the screen will flash, and, when System UI is to be restarted, it locks for a moment at the end.
   The confirmation also asks how far to go: every app, which it starts from each time, or only the 30 or 70 used
   most recently. Fewer is quicker; an app left out keeps its old renderer until it next starts. Android
@@ -126,6 +127,9 @@ The status, and the two actions. The two styles lay it out differently; what it 
   the first time a limited run needs it, and the confirmation says so. If Android still names none, the run fails
   rather than restart everything.
   At its end the full apply brings Burkan back to the front.
+  An app is closed with `am stop-app`, which keeps its alarms and scheduled jobs: `am force-stop` cancels them, and
+  a force-stopped Clock app loses the alarm it was to ring. A phone whose `am` has no `stop-app` gets
+  `force-stop` for each app instead.
 - **In the Material style** the screen reads from the top as the answer, then lists: the status card, the four
   surfaces as a list with each renderer at the end of its row, then the last run, After a restart, and Restart
   all apps as a row that opens its confirmation. Apply now is the one button, docked at the bottom. While a run

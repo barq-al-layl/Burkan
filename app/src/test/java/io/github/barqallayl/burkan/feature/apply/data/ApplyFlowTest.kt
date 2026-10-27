@@ -9,6 +9,7 @@ import io.github.barqallayl.burkan.core.shell.RendererReader
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.core.shell.stopLine
 import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
 import io.github.barqallayl.burkan.feature.apply.FakeSystemUiRestarts
@@ -107,18 +108,19 @@ class ApplyFlowTest {
                 "setprop debug.hwui.renderer skiavk",
                 // Not stopped: keyboards, the wallpaper, fixed exclusions, the media provider, the user's
                 // exclusion, and Burkan. Whole names only: com.example.notes.widget is still stopped.
-                "am force-stop com.android.systemui; " +
-                    "am force-stop com.sec.android.app.launcher; " +
-                    "am force-stop com.google.android.googlequicksearchbox; " +
-                    "am force-stop com.samsung.android.app.dressroom; " +
-                    "am force-stop com.android.settings; " +
-                    "am force-stop com.android.settings.intelligence; " +
-                    "am force-stop com.example.notes.widget; " +
-                    "am force-stop org.example.weather; " +
-                    "am force-stop net.example.reader; " +
-                    "am force-stop com.example.camera.pro; " +
-                    "am force-stop org.example.chat; " +
-                    "true",
+                stopLine(
+                    "com.android.systemui",
+                    "com.sec.android.app.launcher",
+                    "com.google.android.googlequicksearchbox",
+                    "com.samsung.android.app.dressroom",
+                    "com.android.settings",
+                    "com.android.settings.intelligence",
+                    "com.example.notes.widget",
+                    "org.example.weather",
+                    "net.example.reader",
+                    "com.example.camera.pro",
+                    "org.example.chat",
+                ),
                 "am force-stop com.sec.android.app.launcher; sleep 2; " +
                     "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
                 // What was running or backs a widget, and was stopped; then Burkan itself, to be left in front.

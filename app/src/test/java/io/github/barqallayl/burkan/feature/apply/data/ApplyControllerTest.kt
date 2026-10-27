@@ -5,10 +5,12 @@ import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.STOP_ALL_PREFIX
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
+import io.github.barqallayl.burkan.core.shell.stopLine
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeCapturedSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeDeviceSettings
@@ -190,7 +192,7 @@ class ApplyControllerTest {
 
         controller.run(ApplyKind.Full, RunTrigger.Manual)
 
-        val stopAll = shell.lines.single { it.startsWith("am force-stop com.android.systemui;") }
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
         assertFalse("org.example.weather" in stopAll)
         assertTrue("com.example.notes;" in stopAll)
     }
@@ -209,7 +211,7 @@ class ApplyControllerTest {
 
         assertTrue(allow.line in shell.lines)
         // The most recent first; one that is never stopped and one no longer installed are left out.
-        assertTrue("am force-stop org.example.chat; am force-stop com.example.notes; true" in shell.lines)
+        assertTrue(stopLine("org.example.chat", "com.example.notes") in shell.lines)
         assertEquals(StepKind.StopApps(2), log.runs.value.single().steps[1].kind)
     }
 
@@ -230,7 +232,7 @@ class ApplyControllerTest {
             RunOutcome(RunResult.Failed, ApplyError.RecentAppsUnknown),
             controller.run(ApplyKind.Full, RunTrigger.Manual, RestartScope.Recent30)?.copy(status = null),
         )
-        assertTrue(shell.lines.none { it.startsWith("am force-stop") })
+        assertTrue(shell.lines.none { it.startsWith(STOP_ALL_PREFIX) || it.startsWith("am force-stop") })
     }
 
     @Test
@@ -268,7 +270,7 @@ class ApplyControllerTest {
         val stopAll = CompletableDeferred<Unit>()
         shell.beforeEach = { command ->
             // Hold the bulk stop open until the run is cancelled.
-            if (command.line.startsWith("am force-stop com.android.systemui;")) {
+            if (command.line.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;")) {
                 stopAll.complete(Unit)
                 awaitCancellation()
             }
@@ -313,7 +315,7 @@ class ApplyControllerTest {
         val stopping = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         shell.beforeEach = { command ->
-            if (command.line.startsWith("am force-stop com.android.systemui;")) {
+            if (command.line.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;")) {
                 stopping.complete(Unit)
                 release.await()
             }
@@ -494,10 +496,7 @@ class ApplyControllerTest {
 
         // In the order the phone lists its packages. Not the keyboard, the launcher, the wallpaper or the service
         // that keeps calls working, though each is on OpenGL too.
-        assertTrue(
-            "am force-stop com.example.notes; am force-stop org.example.weather; am force-stop org.example.chat; true"
-                in shell.lines,
-        )
+        assertTrue(stopLine("com.example.notes", "org.example.weather", "org.example.chat") in shell.lines)
         assertTrue(shell.lines.none { it.startsWith("am crash") || it.startsWith("setprop") })
         val kinds = log.runs.value.single().steps.map { it.kind }
         assertEquals(StepKind.StopApps(3), kinds.first())
@@ -511,7 +510,7 @@ class ApplyControllerTest {
 
         controller.run(ApplyKind.OpenApps, RunTrigger.Manual, only = setOf(PackageName.known("org.example.chat")))
 
-        assertTrue("am force-stop org.example.chat; true" in shell.lines)
+        assertTrue(stopLine("org.example.chat") in shell.lines)
         assertTrue(shell.lines.none { "com.example.notes" in it && it.startsWith("am ") })
     }
 

@@ -83,6 +83,12 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] What `am crash` exits with for a package that is not running. (0 on an Android 14 emulator, which also
       answers `dumpsys gfxinfo` for it with "No process found". A keyboard that reports nothing is no longer
       restarted at all; check that a keyboard not yet shown after a restart comes up on Vulkan.)
+- [ ] Full apply with `am stop-app`: every app it stops is reopened on Vulkan, and an alarm set in Clock beforehand
+      is still listed by `dumpsys alarm` afterwards, and rings. (Seen on an Android 14 emulator only: `stop-app`
+      kept Clock's alarm where `force-stop` lost it. Device notes, section 2.) Also whether the apps it stops keep
+      their notifications, and whether accessibility services still need putting back.
+- [ ] The confirmation before Restart all apps reads true to what happens: every app closed, and those that were
+      open or show a widget opened again.
 - [x] What `pm list packages` exits with on a phone with Secure Folder. (0, with an error about the other user
       printed besides the list. Device notes, section 13.)
 - [x] During a full apply, with other apps relaunched over Burkan, the run carries on to the restore steps and

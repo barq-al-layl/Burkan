@@ -92,7 +92,7 @@ object FullApplyPlan {
             steps = buildList {
                 if (!appsOnly) rendererStep(before.status.newApps, target)?.let(::add)
                 if (stopped.isNotEmpty()) {
-                    add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.forceStopAll(stopped)))
+                    add(ApplyStep.Run(StepKind.StopApps(stopped.size), ShellCommands.stopAll(stopped)))
                 }
                 if (restartLauncher) {
                     add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(launcher)))

@@ -68,10 +68,31 @@ class ShellCommandsTest {
     fun `the bulk stop ends with true so its status is the line's, not the last package's`() {
         val packages = listOf("com.example.a", "org.example.b").map(PackageName::known)
 
-        assertEquals(
-            "am force-stop com.example.a; am force-stop org.example.b; true",
-            ShellCommands.forceStopAll(packages).line,
-        )
+        assertEquals(stopLine("com.example.a", "org.example.b"), ShellCommands.stopAll(packages).line)
+    }
+
+    @Test
+    fun `the bulk stop keeps each app's alarms with stop-app`() {
+        val line = ShellCommands.stopAll(listOf("com.example.a", "org.example.b").map(PackageName::known)).line
+        val calls = File.createTempFile("am-calls", ".txt").apply { deleteOnExit() }
+        // A stand-in for the phone's `am`, which writes down what it was asked.
+        val am = "am() { echo \"\$1 \$2\" >> '$calls'; }; "
+
+        sh(am + line)
+
+        assertEquals(listOf("stop-app com.example.a", "stop-app org.example.b"), calls.readLines())
+    }
+
+    @Test
+    fun `the bulk stop force-stops on a phone whose am has no stop-app`() {
+        val line = ShellCommands.stopAll(listOf("com.example.a", "org.example.b").map(PackageName::known)).line
+        val calls = File.createTempFile("am-calls", ".txt").apply { deleteOnExit() }
+        // As `am` answers a command it does not know: on standard output, with status 255.
+        val am = "am() { if [ \"\$1\" = stop-app ]; then echo \"Unknown command: \$1\"; return 255; fi; " +
+            "echo \"\$1 \$2\" >> '$calls'; }; "
+
+        assertEquals("", sh(am + line), "the unknown command is not passed on")
+        assertEquals(listOf("force-stop com.example.a", "force-stop org.example.b"), calls.readLines())
     }
 
     @Test
@@ -107,7 +128,7 @@ class ShellCommandsTest {
         listOf(ShellCommands.dumpWallpaper(), ShellCommands.dumpProcesses(), ShellCommands.dumpAppWidgets())
             .forEach { assertEquals(20.seconds, it.timeout, it.line) }
         val packages = listOf(PackageName.known("com.example.a"))
-        assertEquals(3.minutes, ShellCommands.forceStopAll(packages).timeout)
+        assertEquals(3.minutes, ShellCommands.stopAll(packages).timeout)
         assertEquals(3.minutes, ShellCommands.launchAll(packages).timeout)
     }
 
@@ -123,3 +144,10 @@ class ShellCommandsTest {
         assertEquals("dumpsys gfxinfo", ShellCommands.gfxInfoAll().line)
     }
 }
+
+/** How the bulk stop's line begins: the shell function it calls once a package. */
+const val STOP_ALL_PREFIX = "stop_app() { am stop-app \"\$1\" >/dev/null 2>&1 || am force-stop \"\$1\"; }; "
+
+/** The bulk stop's line for [packages], in that order, as the phone receives it. */
+fun stopLine(vararg packages: String): String =
+    STOP_ALL_PREFIX + packages.joinToString(separator = "") { "stop_app $it; " } + "true"

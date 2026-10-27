@@ -79,11 +79,20 @@ object ShellCommands {
         )
 
     /**
-     * Force-stops every package in one line. The trailing `true` makes the exit status say whether the line ran to
-     * the end, not whether the last package stopped; each `force-stop` complaining on stderr is normal.
+     * Stops every package in one line. The trailing `true` makes the exit status say whether the line ran to the end,
+     * not whether the last package stopped; a package complaining on stderr is normal.
+     *
+     * `am stop-app` ends an app's processes as `force-stop` does, but keeps its alarms and scheduled jobs and does not
+     * put it in the stopped state, in which Android holds back its broadcasts and push messages until it is next
+     * opened: a force-stopped Clock app loses the alarm it was to ring. A phone whose `am` has no `stop-app` answers
+     * it as an unknown command, with a failing status, and that package is force-stopped instead.
      */
-    fun forceStopAll(packages: List<PackageName>): ShellCommand =
-        ShellCommand(packages.joinToString(separator = "") { "am force-stop $it; " } + "true", BulkTimeout)
+    fun stopAll(packages: List<PackageName>): ShellCommand =
+        ShellCommand(
+            "$STOP_APP() { am stop-app \"\$1\" >/dev/null 2>&1 || am force-stop \"\$1\"; }; " +
+                packages.joinToString(separator = "") { "$STOP_APP $it; " } + "true",
+            BulkTimeout,
+        )
 
     /**
      * Stops the home app, gives it about two seconds, and starts home again. The exit status is that of starting it.
@@ -143,6 +152,9 @@ object ShellCommands {
     }
 
     private const val ACTION_MAIN = "android.intent.action.MAIN"
+
+    /** The shell function [stopAll] defines and calls once a package. */
+    private const val STOP_APP = "stop_app"
     private const val CATEGORY_HOME = "android.intent.category.HOME"
     private const val CATEGORY_LAUNCHER = "android.intent.category.LAUNCHER"
 
