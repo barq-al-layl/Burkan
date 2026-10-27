@@ -377,8 +377,9 @@ reachable through it.
   started before the run are still on OpenGL, it says how many and offers to restart them, as Home's sheet does.
 - The app has two shortcuts on its icon, "Apply now" and "Restart all apps", the second being the full flow:
   Vulkan applied and every app restarted. Each opens `ShortcutActivity`, which starts the run and closes without
-  showing anything. There is no schedule in the app: a routine that runs one of these at night does that. That activity is not exported: a launcher starts a shortcut in the app's own
-  name.
+  showing anything: its window is translucent and empty, and it finishes once it has read from the phone's state
+  file, off the main thread, whether setup is complete. There is no schedule in the app: a routine that runs one of
+  these at night does that. That activity is not exported: a launcher starts a shortcut in the app's own name.
 - The main activity is `singleTask`: started again from the shell at the end of a full apply, it comes to the
   front as it is, where a second copy would have lost the run it was showing.
 - `minSdk` 33: the S23 shipped with Android 13, and it removes every pre-13 branch. `targetSdk` and `compileSdk`

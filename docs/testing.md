@@ -136,6 +136,8 @@ When you check one, tick it here and record what you saw in the device notes.
       System UI for the screen going off. (It used to wait for ever. Expected from Android's documentation.)
 - [ ] With the battery exemption refused, a Tasker broadcast or the tile shows "Burkan could not start", and its
       Start action starts the run.
+- [ ] A shortcut on the app's icon starts its run with nothing shown, now that its activity's window is
+      translucent rather than `Theme.NoDisplay`.
 - [x] The exclusions picker lists the installed apps, with their icons.
 - [ ] An app ticked there survives Restart all apps.
 - [x] Redo setup returns to Setup at its first step, and pairing again works.

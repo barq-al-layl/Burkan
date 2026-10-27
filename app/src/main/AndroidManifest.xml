@@ -86,14 +86,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- What the app's shortcuts open: it starts the run the shortcut names and closes, showing nothing. Not exported:
-             the launcher starts a shortcut in the app's own name. -->
+        <!-- What the app's shortcuts open: it starts the run the shortcut names and closes, showing nothing. Its window
+             is translucent and empty, as it finishes only once it has read the phone's state. Not exported: the
+             launcher starts a shortcut in the app's own name. -->
         <activity
             android:name=".feature.apply.ShortcutActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.NoDisplay" />
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Shown after a crash, in a process of its own: it starts when the app's has died, and needs nothing
              of the app to be in working order. -->
