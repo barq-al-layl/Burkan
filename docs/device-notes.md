@@ -458,6 +458,12 @@ The user unlocked after 3 seconds, so System UI restarted in front of them and t
 app checks that the keyguard is still locked immediately before `am crash`, and otherwise goes back to waiting for
 the next lock.
 
+**A phone with no screen lock.** With the lock set to None the keyguard never comes up, so
+`KeyguardManager.isKeyguardLocked()` is never true, and a wait for it never ends. On a phone whose lock is not
+secure (`isDeviceSecure()` false: None or Swipe) the app takes the screen going off as the lock, and "still locked"
+as the screen still being off. (Expected, from Android's documentation; not seen on a phone. Whether adbd restarts
+when the screen goes off on such a phone, as it does at a keyguard change, is not known either.)
+
 What follows for the app:
 
 - A second `BOOT_COMPLETED` in the same boot is not a restart. The app compares the boot count with the one it last

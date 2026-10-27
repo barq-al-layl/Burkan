@@ -23,16 +23,26 @@ import kotlin.time.Duration.Companion.seconds
 
 /** Tells when the phone locks. */
 interface LockEvents {
-    /** Emits each time the screen is off and the keyguard is up, and at once if that is already so when collected. */
+    /**
+     * Emits each time the phone is locked with its screen off, and at once if that is already so when collected. A
+     * phone with no secure lock counts as locked once its screen is off.
+     */
     val locks: Flow<Unit>
 
-    /** True while the keyguard is up: false once the user has unlocked. */
+    /**
+     * True while the keyguard is up: false once the user has unlocked. A phone with no secure lock is locked while its
+     * screen is off.
+     */
     fun isLocked(): Boolean
 }
 
 /**
  * Watches the screen going off, then asks the keyguard whether it is up: a phone can wait a while after the screen
  * goes off before it locks. A collector must keep the process alive; `ApplyService` does, in the foreground.
+ *
+ * A phone whose screen lock is "None" never shows the keyguard, so for it the screen going off is the lock. Waiting
+ * for the keyguard there would leave System UI for a lock that never comes. "Swipe" shows the keyguard and is no
+ * more secure, so it is taken the same way.
  */
 @Inject
 @ContributesBinding(AppScope::class)
@@ -46,7 +56,8 @@ class KeyguardLockEvents(private val application: Application) : LockEvents {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 watching?.cancel()
-                if (intent.action == Intent.ACTION_SCREEN_OFF) watching = launch { watchForLock() }
+                if (intent.action != Intent.ACTION_SCREEN_OFF) return
+                watching = launch { if (keyguard.isDeviceSecure) watchForLock() else send(Unit) }
             }
         }
         // Screen on and off are protected broadcasts: only the system sends them, so the receiver need not be exported.
@@ -59,11 +70,12 @@ class KeyguardLockEvents(private val application: Application) : LockEvents {
             },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        if (!power.isInteractive && keyguard.isKeyguardLocked) send(Unit)
+        if (!power.isInteractive && isLocked()) send(Unit)
         awaitClose { application.unregisterReceiver(receiver) }
     }
 
-    override fun isLocked(): Boolean = keyguard.isKeyguardLocked
+    override fun isLocked(): Boolean =
+        keyguard.isKeyguardLocked || (!keyguard.isDeviceSecure && !power.isInteractive)
 
     /**
      * With the screen off the CPU may sleep, so a short wake lock covers the wait for the keyguard. Asked every

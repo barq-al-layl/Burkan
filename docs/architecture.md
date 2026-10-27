@@ -314,6 +314,8 @@ A flow is a function that returns the list of steps, and a runner that executes 
    Immediately before `am crash` it checks that the keyguard is still locked. If the user has unlocked meanwhile,
    it leaves System UI alone, disconnects, switches wireless debugging back, logs "Left for the next lock" and waits
    for the next lock. Home says System UI will switch at the next lock. A manual apply meanwhile replaces the wait.
+   A phone whose screen lock is None never shows the keyguard, so for it, and for one set to Swipe, the screen
+   going off is the lock: the run starts then, and goes ahead while the screen stays off.
 6. On failure, post a notification that opens the app. Never retry in a tight loop.
 
 `BOOT_COMPLETED` arrives after the first unlock, which is also when encrypted storage becomes readable. The app

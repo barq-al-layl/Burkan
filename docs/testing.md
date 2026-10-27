@@ -116,6 +116,9 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] An automatic run when Vulkan is already active logs "Already applied" and restarts nothing.
 - [ ] After a restart, with System UI left for the lock, tap Restart them on Home's open apps: System UI is still
       restarted at the next lock. (It used not to be. Covered by tests only.)
+- [ ] With the screen lock set to None: the run after a restart restarts System UI once the screen goes off, and
+      the "waiting for the lock" notification goes. A tile, shortcut or Tasker run with the screen on leaves
+      System UI for the screen going off. (It used to wait for ever. Expected from Android's documentation.)
 - [x] The exclusions picker lists the installed apps, with their icons.
 - [ ] An app ticked there survives Restart all apps.
 - [x] Redo setup returns to Setup at its first step, and pairing again works.
