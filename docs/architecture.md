@@ -244,7 +244,8 @@ data class ShellResult(val exitCode: Int, val stdout: String, val stderr: String
 - The ADB implementation uses the shell protocol that returns the exit code and separates stderr. libadb-android
   names only the legacy `shell:` service, but `openStream(String)` takes any destination, so the app opens
   `shell,v2,raw:<command>` and decodes the v2 packets itself (`ShellProtocolDecoder`).
-- Every command has a timeout. A `dumpsys` gets 20 seconds; the bulk stop gets three minutes.
+- Every command has a timeout. A `dumpsys` gets 20 seconds; the bulk stop gets three minutes. Opening the stream
+  counts towards it: libadb waits for the daemon to answer an open with no limit of its own.
 - `ShellCommands` is the one place commands are built: a function per command, taking validated types
   (`PackageName`, not `String`). Quoting lives there and nowhere else.
 

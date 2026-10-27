@@ -93,6 +93,22 @@ class AdbShellExecutorTest {
     }
 
     @Test
+    fun `a daemon that never answers the open times out`() = runBlocking {
+        // Real threads: libadb waits for the open with no limit of its own, and reports an interrupt as an IOException.
+        val answered = CountDownLatch(1)
+        val executor = AdbShellExecutor({
+            try {
+                answered.await()
+            } catch (e: InterruptedException) {
+                throw IOException(e)
+            }
+            BytesStream(exit(0))
+        })
+
+        assertEquals(ShellError.TimedOut.left(), executor.run(ShellCommand("echo ok", 200.milliseconds)))
+    }
+
+    @Test
     fun `the decoder waits for a whole packet`() {
         val decoder = ShellProtocolDecoder()
         val bytes = packet(1, "hello") + exit(0)
