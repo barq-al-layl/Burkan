@@ -111,7 +111,10 @@ class AutoApply(
                 wifiWatch.stop()
                 storage.set(AutoApplyState(systemUiAtNextLock = true))
             }
-            outcome.result == RunResult.Succeeded || outcome.result == RunResult.AlreadyApplied -> stopWaiting()
+            // Restarting the open apps applies nothing: System UI is still left for the lock, or the apply after a
+            // restart still waits for Wi-Fi, as before it.
+            done && outcome.appsOnly -> Unit
+            done -> stopWaiting()
             // Not the apply after a restart, so there is nothing of it to wait for again: the failure is only said.
             trigger == RunTrigger.Manual || trigger.isUnattended ->
                 if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)

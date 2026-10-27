@@ -138,6 +138,8 @@ The status, and the two actions. The two styles lay it out differently; what it 
 - The run's notification carries Cancel too.
 - If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for.
   When the run after a restart left System UI for the next lock, a card says so.
+  Restarting the open apps changes neither: it applies nothing, so whatever the run after a restart waits for, it
+  still waits for.
 - After a run, Home shows the status the run read at its end, without connecting again. It reads the status when
   the screen resumes, unless it read it in the last 30 seconds or the user is only back from Log or Settings:
   while the user stays in the app nothing else starts, so the status cannot have moved, and each new connection

@@ -67,6 +67,11 @@ data class RunOutcome(
     val systemUiDeferred: Boolean = false,
     /** The open apps the run found still on the other renderer at its end; null when it did not read them. */
     val behind: Set<PackageName>? = null,
+    /**
+     * The run restarted open apps alone ([ApplyKind.OpenApps]): it set nothing and left System UI as it was, so
+     * whatever the apply after a restart was waiting for, it is still waiting for.
+     */
+    val appsOnly: Boolean = false,
 )
 
 /**
@@ -238,7 +243,14 @@ class ApplyController(
                 else -> RunResult.Failed
             }
             val leftForLock = (systemUiDeferred || systemUiLeft) && result != RunResult.Failed
-            return RunOutcome(result, runError ?: stepError, status, leftForLock, behind)
+            return RunOutcome(
+                result,
+                runError ?: stepError,
+                status,
+                leftForLock,
+                behind,
+                appsOnly = kind == ApplyKind.OpenApps,
+            )
         } catch (e: CancellationException) {
             result = RunResult.Cancelled
             throw e

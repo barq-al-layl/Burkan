@@ -486,7 +486,11 @@ class ApplyControllerTest {
         onVulkan()
         shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
 
-        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.OpenApps, RunTrigger.Manual)?.result)
+        val outcome = controller.run(ApplyKind.OpenApps, RunTrigger.Manual)
+
+        assertEquals(RunResult.Succeeded, outcome?.result)
+        // It applies nothing, so it settles nothing the apply after a restart waits for.
+        assertEquals(true, outcome?.appsOnly)
 
         // In the order the phone lists its packages. Not the keyboard, the launcher, the wallpaper or the service
         // that keeps calls working, though each is on OpenGL too.

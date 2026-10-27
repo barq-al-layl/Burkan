@@ -349,6 +349,34 @@ class AutoApplyTest {
     }
 
     @Test
+    fun `restarting the open apps leaves System UI waiting for the lock`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        val waiting = async { autoApply.awaitLockWhilePending() }
+        runCurrent()
+        // "Restart them" on Home's open apps, with System UI still on OpenGL.
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded, appsOnly = true))
+        autoApply.onRunFinished(RunTrigger.External, RunOutcome(RunResult.AlreadyApplied, appsOnly = true))
+        runCurrent()
+
+        assertFalse(waiting.isCompleted, "still waiting for the lock")
+        assertTrue(autoApply.isWaitingForLock())
+        lockEvents.lock()
+        assertTrue(waiting.await())
+    }
+
+    @Test
+    fun `restarting the open apps leaves the apply after a restart waiting for Wi-Fi`() = runTest {
+        storage.state.value = AutoApplyState(WaitReason.Wifi, triedNetwork = HOME_NETWORK)
+        wifiWatch.watching = true
+
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded, appsOnly = true))
+
+        assertEquals(AutoApplyState(WaitReason.Wifi, triedNetwork = HOME_NETWORK), storage.state.value)
+        assertTrue(wifiWatch.watching)
+    }
+
+    @Test
     fun `with nothing left for the lock there is nothing to wait for`() = runTest {
         assertFalse(autoApply.awaitLockWhilePending())
     }
