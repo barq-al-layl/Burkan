@@ -81,6 +81,11 @@ data class HomeState(
     val isCheckingBehind: Boolean = false,
     val isShowingBehind: Boolean = false,
     val isConfirmingRevert: Boolean = false,
+    /**
+     * Android forgets a paired device that has not connected for a while, so a phone neither restarted nor opened in
+     * Burkan for that long would have to be paired again. Read with the status.
+     */
+    val pairingCanLapse: Boolean = false,
 )
 
 sealed interface HomeSideEffect {
@@ -185,6 +190,7 @@ class HomeViewModel(
             statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
         // The open apps are asked about once the status is on the screen: it is the slower of the two questions.
         val loaded = status is StatusState.Loaded
+        val pairingCanLapse = statusRepository.pairingCanLapse()
         reduce {
             state.copy(
                 status = status,
@@ -192,6 +198,7 @@ class HomeViewModel(
                 isRefreshing = false,
                 behind = null,
                 isCheckingBehind = loaded,
+                pairingCanLapse = pairingCanLapse,
             )
         }
         if (loaded) {

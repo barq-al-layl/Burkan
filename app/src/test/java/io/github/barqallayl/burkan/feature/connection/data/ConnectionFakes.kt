@@ -67,6 +67,7 @@ class FakeWirelessDebugging(
     var permitted: Boolean = true,
     var wifi: Boolean = true,
     var systemRefuses: Boolean = false,
+    var forgetsPairings: Boolean = false,
 ) : WirelessDebugging {
     val writes = mutableListOf<Boolean>()
 
@@ -82,6 +83,8 @@ class FakeWirelessDebugging(
     override fun canSwitch(): Boolean = permitted
 
     override fun isWifiConnected(): Boolean = wifi
+
+    override fun forgetsPairings(): Boolean = forgetsPairings
 }
 
 /** Runs each block on [shell] once its settle time has passed, or fails before connecting with [failure]. */

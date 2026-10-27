@@ -373,6 +373,7 @@ recorded.
 | The connect port changes every time; it is advertised over mDNS as `_adb-tls-connect._tcp` | Expected |
 | Pairing uses a six-digit code and a separate port advertised as `_adb-tls-pairing._tcp`, only while the system's pairing dialog is open | Measured: the app found the port and paired with the code typed into its notification |
 | Once paired, the app's key stays authorised across reboots | Measured: the run after the reboot connected |
+| Android revokes the authorisation of a key that has not connected within `Settings.Global` `adb_allowed_connection_time` milliseconds, 7 days by default, unless Developer options' "Disable adb authorization timeout" sets it to 0. Whether that covers a key paired through wireless debugging, and whether an app may read the key, has not been seen | Expected — from the description of that switch in Developer options. Home warns while the timeout is on |
 | The daemon is reachable on `127.0.0.1` | Expected — `adb-auto-enable` connects over loopback, with the LAN address as fallback |
 | `pm grant <package> android.permission.WRITE_SECURE_SETTINGS` succeeds from the shell on One UI | Measured, over the app's own connection |
 | A foreground service of type `specialUse` may be started from a `BOOT_COMPLETED` receiver on Android 15 and later | Measured on Android 16. The types Android 15 forbids there are `dataSync`, `camera`, `mediaPlayback`, `phoneCall`, `mediaProjection` and `microphone` |

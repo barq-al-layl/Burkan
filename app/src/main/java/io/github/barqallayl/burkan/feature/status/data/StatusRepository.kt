@@ -13,6 +13,7 @@ import io.github.barqallayl.burkan.core.shell.Surfaces
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.apply.data.OpenAppsReader
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.WirelessDebugging
 import io.github.barqallayl.burkan.feature.settings.data.InstalledApps
 import io.github.barqallayl.burkan.feature.status.model.BehindApp
 import kotlinx.coroutines.flow.first
@@ -23,6 +24,7 @@ class StatusRepository(
     private val shellAccess: ShellAccess,
     private val installedApps: InstalledApps,
     private val settings: SettingsStorage,
+    private val wirelessDebugging: WirelessDebugging,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) {
     /** What [read] last found, which says what the open apps are compared with and which of them are surfaces. */
@@ -63,4 +65,7 @@ class StatusRepository(
 
     /** Closes the connection now rather than keeping it for a next read. */
     suspend fun release() = shellAccess.release()
+
+    /** Whether Android will forget the pairing if Burkan does not connect for a while. See [WirelessDebugging]. */
+    fun pairingCanLapse(): Boolean = wirelessDebugging.forgetsPairings()
 }

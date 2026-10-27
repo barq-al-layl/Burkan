@@ -99,6 +99,7 @@ import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Hourglass
 import com.composables.icons.tabler.outline.Keyboard
+import com.composables.icons.tabler.outline.Link
 import com.composables.icons.tabler.outline.ListSearch
 import com.composables.icons.tabler.outline.Lock
 import com.composables.icons.tabler.outline.PlugConnected
@@ -1286,8 +1287,8 @@ private fun TrailingText(text: String) {
 private const val SURFACE_COUNT = 5
 
 /**
- * What the automatic apply is waiting for, if anything. Each notice opens and closes its own room, with the gap
- * above it, so the cards under it slide instead of jumping.
+ * What the automatic apply is waiting for, if anything, and whether Android may forget the pairing. Each notice opens
+ * and closes its own room, with the gap above it, so the cards under it slide instead of jumping.
  */
 @Composable
 private fun ColumnScope.Notices(state: HomeState, onOpenDeveloperOptions: () -> Unit) {
@@ -1298,6 +1299,7 @@ private fun ColumnScope.Notices(state: HomeState, onOpenDeveloperOptions: () -> 
         lastWait?.let { WaitingNotice(it, onOpenDeveloperOptions) }
     }
     SlidingNotice(visible = state.systemUiAtNextLock) { NextLockNotice() }
+    SlidingNotice(visible = state.pairingCanLapse) { PairingLapseNotice(onOpenDeveloperOptions) }
 }
 
 @Composable
@@ -1432,25 +1434,36 @@ private fun WaitingNotice(reason: WaitReason, onOpenDeveloperOptions: () -> Unit
             Tabler.Outline.Hourglass,
             R.string.home_waiting_network_title,
             R.string.home_waiting_network_text,
-        ) {
-            // A pill in the notice's own tint: the scheme's button colours are not made to sit on amber.
-            val colors = noticeColors
-            BurkanTonalButton(
-                onClick = onOpenDeveloperOptions,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = colors.content.copy(alpha = BADGE_TINT),
-                    contentColor = colors.content,
-                ),
-            ) {
-                Text(stringResource(R.string.home_waiting_open_developer_options))
-            }
-        }
+        ) { OpenDeveloperOptionsButton(onOpenDeveloperOptions) }
+    }
+}
+
+/** A pill in the notice's own tint: the scheme's button colours are not made to sit on amber. */
+@Composable
+private fun OpenDeveloperOptionsButton(onClick: () -> Unit) {
+    val colors = noticeColors
+    BurkanTonalButton(
+        onClick = onClick,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = colors.content.copy(alpha = BADGE_TINT),
+            contentColor = colors.content,
+        ),
+    ) {
+        Text(stringResource(R.string.home_waiting_open_developer_options))
     }
 }
 
 @Composable
 private fun NextLockNotice() {
     Notice(Tabler.Outline.Lock, R.string.home_next_lock_title, R.string.home_next_lock_text)
+}
+
+/** Android forgets a pairing that goes unused for a while, unless its timeout is switched off. */
+@Composable
+private fun PairingLapseNotice(onOpenDeveloperOptions: () -> Unit) {
+    Notice(Tabler.Outline.Link, R.string.home_pairing_lapse_title, R.string.home_pairing_lapse_text) {
+        OpenDeveloperOptionsButton(onOpenDeveloperOptions)
+    }
 }
 
 /**
@@ -1864,6 +1877,14 @@ private fun HomeSystemUiAtNextLockPreview() = HomePreviewContent(
         ),
         lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot),
     ).copy(systemUiAtNextLock = true),
+)
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun HomePairingCanLapsePreview() = HomePreviewContent(
+    sample(status = vulkanEverywhere, lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot))
+        .copy(pairingCanLapse = true),
 )
 
 @PreviewWrapper(BurkanPreviewWrapper::class)

@@ -35,6 +35,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
 import io.github.barqallayl.burkan.feature.log.data.RunLogStore
@@ -64,6 +65,7 @@ class HomeViewModelTest {
         }
     }
     private val access = FakeShellAccess(shell)
+    private val wirelessDebugging = FakeWirelessDebugging()
     private val log = FakeRunLogStorage()
     private val settings = FakeSettingsStorage()
     private val clock = TestClock()
@@ -91,7 +93,7 @@ class HomeViewModelTest {
     private val autoApply = FakeAutoApplyStorage()
 
     private fun TestScope.viewModel() = HomeViewModel(
-        StatusRepository(access, installedApps, settings, FixtureDevice.Self),
+        StatusRepository(access, installedApps, settings, wirelessDebugging, FixtureDevice.Self),
         controller,
         launcher,
         RunLogStore(log, backgroundScope),
@@ -128,6 +130,21 @@ class HomeViewModelTest {
             containerHost.refresh()
 
             assertEquals(notApplied, awaitState { !it.isRefreshing && it.status != StatusState.Loading }.status)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `reading the status says whether Android may forget the pairing`() = runTest {
+        wirelessDebugging.forgetsPairings = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.refresh()
+
+            assertTrue(awaitState { !it.isRefreshing && it.status != StatusState.Loading }.pairingCanLapse)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

@@ -23,6 +23,13 @@ interface WirelessDebugging {
 
     /** Whether the phone is connected to a Wi-Fi network, which need not be the one it reaches the internet through. */
     fun isWifiConnected(): Boolean
+
+    /**
+     * Whether Android forgets a paired device that has not connected for a while: 7 days, unless the user set
+     * another time or switched on Developer options' "Disable adb authorization timeout". A forgotten app has to
+     * pair again before it can connect. False when the phone will not say.
+     */
+    fun forgetsPairings(): Boolean
 }
 
 @Inject
@@ -42,9 +49,25 @@ class SettingsWirelessDebugging(private val application: Application) : Wireless
     override fun isWifiConnected(): Boolean =
         application.getSystemService(ConnectivityManager::class.java).wifiNetwork() != null
 
+    override fun forgetsPairings(): Boolean = try {
+        Settings.Global.getLong(application.contentResolver, ADB_ALLOWED_CONNECTION_TIME, DEFAULT_CONNECTION_TIME) != 0L
+    } catch (_: SecurityException) {
+        // A key Android does not let this app read: say nothing rather than warn on a guess.
+        false
+    }
+
     private companion object {
         /** `Settings.Global.ADB_WIFI_ENABLED`, which is hidden from the SDK. */
         const val ADB_WIFI_ENABLED = "adb_wifi_enabled"
+
+        /**
+         * `Settings.Global.ADB_ALLOWED_CONNECTION_TIME`, hidden from the SDK: how long, in milliseconds, a key that
+         * has not connected stays authorised. 0 when the timeout is switched off.
+         */
+        const val ADB_ALLOWED_CONNECTION_TIME = "adb_allowed_connection_time"
+
+        /** What Android takes when the key is unset: 7 days. */
+        const val DEFAULT_CONNECTION_TIME = 7L * 24 * 60 * 60 * 1000
     }
 }
 

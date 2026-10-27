@@ -267,6 +267,8 @@
     <string name="home_waiting_open_developer_options">Open Developer options</string>
     <string name="home_next_lock_title">System UI switches at the next lock</string>
     <string name="home_next_lock_text">New apps, the launcher and the keyboard are on Vulkan. Restarting System UI shows the lock screen, so Burkan waits until you next lock the phone rather than lock it on you now.</string>
+    <string name="home_pairing_lapse_title">Android may forget Burkan’s pairing</string>
+    <string name="home_pairing_lapse_text">A paired device that does not connect for 7 days is forgotten, and Burkan would have to be paired again before it can apply Vulkan. In Developer options, switch on “Disable adb authorization timeout”.</string>
     <string name="home_open_log">Log</string>
     <string name="home_open_settings">Settings</string>
     <string name="home_headline_active">Vulkan is active</string>

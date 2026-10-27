@@ -16,6 +16,7 @@ import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.fixture
 import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -42,6 +43,7 @@ class StatusRepositoryTest {
         access,
         FakeInstalledApps(mapOf("com.example.notes" to "Notes", "org.example.chat" to "Chat")),
         settings,
+        FakeWirelessDebugging(),
         FixtureDevice.Self,
     )
 

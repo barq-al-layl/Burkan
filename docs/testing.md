@@ -45,6 +45,11 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] With wireless debugging off, open Home and force-stop Burkan from Settings within ten seconds, while the
       connection is still kept: wireless debugging stays on until Burkan is opened again, and is off once that
       connection has closed. (It used to stay on until the next restart. Covered by tests only.)
+- [ ] `settings get global adb_allowed_connection_time` on the S23: with Developer options' "Disable adb
+      authorization timeout" off, does Burkan's entry under Paired devices lapse after that long without a
+      connection, and does the next run then send setup back to Pair? Home now warns while the timeout is on;
+      check that the notice shows, that the switch in Developer options takes it away, and that Android lets the
+      app read the key at all (if not, the notice never shows).
 - [x] On Android 17, Start pairing asks for the nearby devices permission first, and allowing it goes on to
       Developer options. Pairing, Connect and Home then bring up no "choose a device" picker. (Device notes,
       section 15.)
