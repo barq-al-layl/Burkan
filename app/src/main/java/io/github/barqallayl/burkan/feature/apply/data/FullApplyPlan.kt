@@ -106,7 +106,7 @@ object FullApplyPlan {
                         ),
                     )
                 }
-                if (!appsOnly && inputs.keyboard != null && before.status.keyboard != target) {
+                if (!appsOnly && inputs.keyboard != null && keyboardNeedsRestart(before.status.keyboard, target)) {
                     add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(inputs.keyboard)))
                 }
             },

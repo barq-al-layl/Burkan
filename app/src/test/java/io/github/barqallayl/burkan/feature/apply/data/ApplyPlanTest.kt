@@ -69,14 +69,30 @@ class ApplyPlanTest {
     }
 
     @Test
-    fun `a surface that reports nothing is restarted, as only Vulkan counts as done`() {
+    fun `a surface that reports nothing is restarted, as only Vulkan counts as done, but a keyboard is not`() {
         val plan = LightApplyPlan.create(surfaces(systemUi = Unknown, launcher = Unknown, keyboard = Unknown))
 
-        assertEquals(
-            listOf(StepKind.SetRenderer, StepKind.RestartLauncher, StepKind.RestartKeyboard),
-            plan.steps.map { it.kind },
-        )
+        // A keyboard that reports nothing is not running, and starts on Vulkan when it is next shown.
+        assertEquals(listOf(StepKind.SetRenderer, StepKind.RestartLauncher), plan.steps.map { it.kind })
         assertTrue(plan.restartSystemUi)
+    }
+
+    @Test
+    fun `a keyboard running but not drawn yet is restarted, as nothing says what it would draw with`() {
+        val plan = LightApplyPlan.create(surfaces(keyboard = Renderer.NotDrawn))
+
+        assertTrue(StepKind.RestartKeyboard in plan.steps.map { it.kind })
+    }
+
+    @Test
+    fun `a full apply leaves a keyboard that is not running alone`() {
+        val plan = fullPlan(
+            installed = names("org.example.app"),
+            keyboard = FixtureDevice.Keyboard,
+            before = RendererStatus(OpenGL, OpenGL, OpenGL, keyboard = Unknown),
+        )
+
+        assertTrue(StepKind.RestartKeyboard !in plan.steps.map { it.kind })
     }
 
     @Test

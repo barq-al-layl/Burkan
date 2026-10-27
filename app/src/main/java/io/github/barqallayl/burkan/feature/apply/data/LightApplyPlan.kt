@@ -29,7 +29,7 @@ object LightApplyPlan {
                 add(ApplyStep.Run(StepKind.RestartLauncher, ShellCommands.restartLauncher(before.launcher)))
             }
             // Never force-stop an input method: that clears it as the default keyboard.
-            if (before.keyboard != null && before.status.keyboard != target) {
+            if (before.keyboard != null && keyboardNeedsRestart(before.status.keyboard, target)) {
                 add(ApplyStep.Run(StepKind.RestartKeyboard, ShellCommands.crash(before.keyboard)))
             }
         },

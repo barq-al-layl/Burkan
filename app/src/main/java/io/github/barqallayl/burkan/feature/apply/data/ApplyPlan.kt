@@ -47,6 +47,13 @@ fun rendererStep(now: Renderer, target: Renderer): ApplyStep.Run? = when {
     else -> ApplyStep.Run(StepKind.ClearRenderer, ShellCommands.clearRenderer())
 }
 
+/**
+ * Whether the keyboard, reporting [now], has to be restarted to be on [target]. One that reports nothing is not
+ * running (`dumpsys gfxinfo` answers "No process found"), and starts on whatever the property gives when it is next
+ * shown, so there is nothing to restart.
+ */
+fun keyboardNeedsRestart(now: Renderer, target: Renderer): Boolean = now != target && now != Renderer.Unknown
+
 val RestoredSetting.key: SettingKey
     get() = when (this) {
         RestoredSetting.AutoRotation -> SettingKey.AutoRotation

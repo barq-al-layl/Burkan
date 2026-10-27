@@ -80,8 +80,9 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] The question before Restart all apps mentions the lock only when System UI is to be restarted.
 - [ ] Home-screen widgets work after a full apply. The app reads the widget providers and hosts before stopping
       anything, where the script read them after; check that nothing is missed.
-- [ ] What `am crash` exits with for a package that is not running (the keyboard, right after boot). A non-zero
-      exit fails the step. Record it.
+- [ ] What `am crash` exits with for a package that is not running. (0 on an Android 14 emulator, which also
+      answers `dumpsys gfxinfo` for it with "No process found". A keyboard that reports nothing is no longer
+      restarted at all; check that a keyboard not yet shown after a restart comes up on Vulkan.)
 - [x] What `pm list packages` exits with on a phone with Secure Folder. (0, with an error about the other user
       printed besides the list. Device notes, section 13.)
 - [x] During a full apply, with other apps relaunched over Burkan, the run carries on to the restore steps and

@@ -71,6 +71,8 @@ This is where the original scripts were wrong, so read it carefully.
 | `am force-stop com.sec.android.app.launcher`, then launching it | Launcher restarted on `Skia (Vulkan)` | Measured |
 | Leaving the keyboard alone | Samsung Keyboard stayed on `Skia (OpenGL)` | Measured |
 | `am crash <keyboard package>` | Restarts Samsung Keyboard, which stayed the default input method | Measured |
+| `am crash "$(pidof -s <package> \|\| echo <package>)"` for a package that is not running | Exits with 0 | Measured on the emulator only |
+| `dumpsys gfxinfo <package>` for a package that is not running | Prints `No process found for: <package>` and exits with 0 | Measured on the emulator only |
 
 - **SystemUI is a persistent system process and `force-stop` skips it.** It must be crashed. The status bar,
   notification shade, quick settings and lock screen stay on OpenGL otherwise.
@@ -79,6 +81,8 @@ This is where the original scripts were wrong, so read it carefully.
   process is the one named exactly as the package. The app does this for the keyboard as well.
 - **Never `force-stop` an input method.** The scripts exclude keyboards from the bulk stop to avoid resetting the
   default keyboard. Restart the current one with `am crash` instead, and verify that on the device.
+- **A keyboard that is not running is not restarted.** It reports no renderer (`No process found`), and starts on
+  whatever the property gives when it is next shown.
 - **Force-stopping an app disables its accessibility service** and can reset auto-rotation and Edge panel
   settings. Hence section 4.
 - After a restart, check the result with `dumpsys gfxinfo` rather than assuming it.
