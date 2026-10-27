@@ -71,7 +71,7 @@ One UI cannot be tested without the device.
 | Settings storage | DataStore Preferences |
 | Secret storage | KSafe |
 | Logging | Kermit |
-| Icons | Tabler outline (`com.composables:icons-tabler-outline-cmp`), and Tabler filled (`icons-tabler-filled-cmp`) in Material's top bars |
+| Icons | Tabler outline (`com.composables:icons-tabler-outline-cmp`) |
 | Blur | Haze (`dev.chrisbanes.haze:haze`, `haze-blur`), for the Material style's frosted bars |
 | ADB client | `libadb-android` with Conscrypt |
 | Serialization | kotlinx-serialization (routes, stored models) |
@@ -84,8 +84,8 @@ Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpda
 Metro is a compiler plugin tied to the Kotlin version: move Kotlin first, then Metro.
 
 The Compose BOM 2026.09.00 selects material3 1.4.0, which keeps the Expressive components `internal`, so
-`androidx.compose.material3:material3` is pinned to a 1.5.0 alpha, with a comment beside the pin. Drop the pin
-once the BOM selects a material3 that has them.
+`androidx.compose.material3:material3` is pinned to a 1.5.0 pre-release (a beta at present), with a comment beside
+the pin. Drop the pin once the BOM selects a material3 that has them.
 
 ---
 
@@ -98,16 +98,15 @@ One module, `:app`. Under the package root `io.github.barqallayl.burkan`:
 ├── MainActivity.kt, BurkanApplication.kt, App.kt   Entry points and the composition root — nothing else here
 ├── designsystem/    BurkanTheme, theme options, component/, preview/
 ├── core/
-│   ├── di/          AppGraph; bindings that belong to no feature
+│   ├── di/          AppGraph; the bindings no class can make for itself
 │   ├── model/       Types more than one feature needs: AppError, AppErrorType
 │   ├── navigation/  Routes, Navigator, navigation entries
 │   ├── shell/       ShellExecutor and its ADB implementation
 │   ├── storage/     DataStore- and KSafe-backed storage
-│   ├── ui/          Composables more than one feature uses
-│   └── util/
+│   ├── store/       The app-scoped stores the screens open on
+│   └── ui/          Composables more than one feature uses
 └── feature/<feature>/
     ├── data/        Repositories, parsers, anything that touches the shell or the system
-    ├── di/          The feature's own @BindingContainer
     ├── model/       Domain types and the feature's errors
     └── ui/          *Screen.kt, *ViewModel.kt
 ```
@@ -124,7 +123,10 @@ One module, `:app`. Under the package root `io.github.barqallayl.burkan`:
   Removing the last caller removes the API.
 
 Services and broadcast receivers are entry points like an activity: they resolve what they need from the graph
-and hand over to a class in a feature's `data/`. No logic lives in them.
+and hand over to a class in a feature's `data/`. No logic lives in them. The one service that does more is
+`ApplyService`: it holds the run's job and the job that waits for the lock, which have to live as long as the
+service does, and decides between them as intents arrive. What a run does and what it waits for are decided in
+`ApplyController` and `AutoApply`, which are tested; keep it that way.
 
 ---
 
@@ -212,19 +214,22 @@ Metro, one graph:
 
 - `core/di/AppGraph` is the `@DependencyGraph(AppScope::class)`, created in `BurkanApplication` with the
   `Application` passed to its factory.
-- **Each feature contributes its own bindings** from `feature/<feature>/di/`, so adding a feature never edits a
-  file another feature shares:
+- **A class binds itself**, so adding a feature never edits a file another feature shares. An implementation
+  carries `@ContributesBinding(AppScope::class)` beside `@Inject`, and one the app holds a single copy of adds
+  `@SingleIn(AppScope::class)`:
 
   ```kotlin
-  @ContributesTo(AppScope::class)
-  @BindingContainer
-  object ApplyModule {
-      @Provides
-      @SingleIn(AppScope::class)
-      fun provideApplyRepository(shell: ShellExecutor): ApplyRepository = DefaultApplyRepository(shell)
-  }
+  @Inject
+  @SingleIn(AppScope::class)
+  @ContributesBinding(AppScope::class)
+  class DataStoreDeviceStateStorage(
+      @Named(DEVICE_STATE_STORE) private val dataStore: DataStore<Preferences>,
+  ) : DeviceStateStorage
   ```
 
+- **A `@BindingContainer` in `core/di/` provides only what no class can bind itself**: values (the app's own
+  package name, its version, the app-wide coroutine scope, the clock) and the DataStore files (`AppBindings`,
+  `StorageBindings`).
 - ViewModels are contributed with `@ContributesIntoMap` + `@ViewModelKey` and resolved with `metroViewModel()`.
   `LocalMetroViewModelFactory` is provided once, in `App.kt`.
 - Activities, services and receivers are constructed through `metrox-android`'s component factory.
@@ -389,9 +394,8 @@ Metro, one graph:
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
 - Use `start`/`end`, never `left`/`right`.
-- **Icons are Tabler outline.** Do not hand-roll a vector the set has. Anything that points — back, a chevron,
-  an arrow — is `Icons.AutoMirrored.Outlined.*`. The one exception is a Material top bar, whose action icons are
-  Tabler's filled ones where the set has them; One UI's stay in outline.
+- **Icons are Tabler outline**, in both styles and in the top bars too. Do not hand-roll a vector the set has.
+  Anything that points — back, a chevron, an arrow — is `Icons.AutoMirrored.Outlined.*`.
 - **Never colour alone** to carry meaning. Pair a status colour with an icon or a label: "Vulkan" and "OpenGL"
   are written out, not shown as green and red dots.
 - **Status colours are fixed, not generated**, because the Material scheme follows a seed the user chooses. They
