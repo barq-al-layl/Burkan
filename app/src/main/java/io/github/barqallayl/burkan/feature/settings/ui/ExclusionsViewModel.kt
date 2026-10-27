@@ -60,8 +60,7 @@ class ExclusionsViewModel(
     fun list() = intent { installedApps.refresh() }
 
     fun toggle(app: PackageName) = intent {
-        val excluded = state.excluded
-        settings.setUserExclusions(if (app in excluded) excluded - app else excluded + app)
+        settings.updateUserExclusions { excluded -> if (app in excluded) excluded - app else excluded + app }
     }
 
     /** An app's icon if it is already at hand. */

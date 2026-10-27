@@ -46,7 +46,12 @@ interface SettingsStorage {
     suspend fun setPaletteStyle(style: PaletteStyles)
     suspend fun setApplyOnBoot(enabled: Boolean)
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
-    suspend fun setUserExclusions(packages: Set<PackageName>)
+
+    /**
+     * Replaces the user's exclusions with what [change] makes of them, read and written in one go: two changes made
+     * at once both land, where reading the set, then writing it, would lose one.
+     */
+    suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>)
 
     /**
      * What a fresh install gets, and what previews render with. The style is the exception: a Samsung phone starts
@@ -99,9 +104,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
 
     /** A stored name that is not a valid package name is dropped: it never reaches a command. */
     override val userExclusions: Flow<Set<PackageName>> =
-        read { preferences ->
-            preferences[Keys.userExclusions].orEmpty().mapNotNull(PackageName::parse).toSet()
-        }
+        read { it.userExclusions() }
 
     override suspend fun setAppStyle(style: AppStyle) = write(Keys.appStyle, style.name)
 
@@ -117,8 +120,14 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) =
         write(Keys.turnOffWirelessDebugging, enabled)
 
-    override suspend fun setUserExclusions(packages: Set<PackageName>) =
-        write(Keys.userExclusions, packages.map { it.value }.toSet())
+    override suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>) {
+        dataStore.edit { preferences ->
+            preferences[Keys.userExclusions] = change(preferences.userExclusions()).map { it.value }.toSet()
+        }
+    }
+
+    private fun Preferences.userExclusions(): Set<PackageName> =
+        this[Keys.userExclusions].orEmpty().mapNotNull(PackageName::parse).toSet()
 
     private fun <T> read(transform: (Preferences) -> T): Flow<T> =
         preferences.map(transform).distinctUntilChanged()

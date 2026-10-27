@@ -13,6 +13,8 @@ import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import java.io.File
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -106,7 +108,7 @@ class DataStoreSettingsStorageTest {
         storage.setPaletteStyle(PaletteStyles.Rainbow)
         storage.setApplyOnBoot(false)
         storage.setTurnOffWirelessDebugging(false)
-        storage.setUserExclusions(excluded)
+        storage.updateUserExclusions { excluded }
 
         assertEquals(ThemeMode.Light, storage.themeMode.first())
         assertEquals(SeedColors.Purple, storage.seedColor.first())
@@ -114,6 +116,17 @@ class DataStoreSettingsStorageTest {
         assertFalse(storage.applyOnBoot.first())
         assertFalse(storage.turnOffWirelessDebugging.first())
         assertEquals(excluded, storage.userExclusions.first())
+    }
+
+    @Test
+    fun `two changes to the exclusions at once both land`() = runTest {
+        val storage = DataStoreSettingsStorage(dataStore())
+        val notes = PackageName.known("com.example.notes")
+        val chat = PackageName.known("org.example.chat")
+
+        listOf(notes, chat).map { app -> async { storage.updateUserExclusions { it + app } } }.awaitAll()
+
+        assertEquals(setOf(notes, chat), storage.userExclusions.first())
     }
 
     @Test

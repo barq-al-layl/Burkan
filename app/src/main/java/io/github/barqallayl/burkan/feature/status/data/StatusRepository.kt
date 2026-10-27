@@ -60,7 +60,7 @@ class StatusRepository(
 
     /** Adds [packageName] to the apps no run restarts. */
     suspend fun keep(packageName: PackageName) {
-        settings.setUserExclusions(settings.userExclusions.first() + packageName)
+        settings.updateUserExclusions { it + packageName }
     }
 
     /** Closes the connection now rather than keeping it for a next read. */

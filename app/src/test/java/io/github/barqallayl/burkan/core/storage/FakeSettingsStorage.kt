@@ -6,6 +6,7 @@ import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /** Holds what is written, starting from the defaults. */
 class FakeSettingsStorage : SettingsStorage {
@@ -42,7 +43,7 @@ class FakeSettingsStorage : SettingsStorage {
         turnOffWirelessDebugging.value = enabled
     }
 
-    override suspend fun setUserExclusions(packages: Set<PackageName>) {
-        userExclusions.value = packages
+    override suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>) {
+        userExclusions.update(change)
     }
 }
