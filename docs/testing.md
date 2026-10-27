@@ -95,6 +95,8 @@ When you check one, tick it here and record what you saw in the device notes.
 
 - [x] Reboot on a trusted Wi-Fi network: Vulkan is applied with no interaction, and wireless debugging is off
       again afterwards.
+- [x] Turn Developer options off after setup: opening the app reads the status, and a reboot applies Vulkan.
+      (S23, 24 Oct 2026; device notes, section 9.)
 - [ ] Reboot with Wi-Fi off, then switch Wi-Fi on later: it applies then.
 - [ ] The same with mobile data on: it applies as Wi-Fi connects, and does not fail with "not on Wi-Fi" in the
       moment before Wi-Fi becomes the phone's way to the internet.

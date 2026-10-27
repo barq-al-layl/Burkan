@@ -192,6 +192,12 @@ Android only runs the Wireless Debugging daemon while the phone is on a Wi-Fi ne
 </details>
 
 <details>
+<summary><b>Do Developer options and Wireless Debugging have to stay on?</b></summary>
+<br>
+No. Burkan switches Wireless Debugging on only for the few seconds a run takes, after a restart or when you open the app to read the status. By default it switches it off again afterwards. Once setup is done you can turn Developer options off too, because Burkan holds the permission to switch Wireless Debugging on by itself and keeps its pairing.
+</details>
+
+<details>
 <summary><b>How can I check that Vulkan is really active?</b></summary>
 <br>
 The Home screen shows what each surface renders with, read from <code>dumpsys gfxinfo</code>. You can also check for yourself by turning on <b>GPUWatch</b> in Developer options and opening any app.

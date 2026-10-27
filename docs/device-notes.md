@@ -367,6 +367,7 @@ recorded.
 |---|---|
 | Wireless debugging is switched off by every reboot | Measured: after the reboot the app had to switch it on |
 | An app holding `WRITE_SECURE_SETTINGS` can switch it on by writing `Settings.Global` key `adb_wifi_enabled` to `1` | Measured: on a trusted Wi-Fi network, after a reboot, with no prompt; and off again after the run |
+| Developer options need not stay on once setup is done: with them switched off, writing `adb_wifi_enabled` still switches wireless debugging on, and the saved pairing still connects | Measured on the S23 on 24 October 2026, with Developer options off throughout: opening the app read the status, and after a reboot the run applied Vulkan |
 | The system refuses, and resets the key to `0`, when there is no Wi-Fi connection | Expected |
 | On a Wi-Fi network the user has not ticked "Always allow on this network" for, the system shows a confirmation dialog instead of enabling | Expected |
 | The connect port changes every time; it is advertised over mDNS as `_adb-tls-connect._tcp` | Expected |
