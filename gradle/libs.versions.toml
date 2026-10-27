@@ -5,7 +5,7 @@ aboutLibraries = "15.3.0"
 aboutLibrariesPlugin = "15.1.0"
 activityCompose = "1.13.0"
 agp = "9.4.1"
-arrow = "2.2.3"
+arrow = "2.3.0"
 # The version libadb-android brings for bcprov; bcpkix must match it.
 bouncycastle = "1.86"
 composablePreviewScanner = "0.9.3"
@@ -25,13 +25,13 @@ lifecycle = "2.11.0"
 # The material3 the Compose BOM selects (1.4.0) keeps the Expressive components internal.
 material3 = "1.5.0-beta02"
 materialKolor = "6.0.0"
-metro = "1.4.5"
+metro = "1.5.0"
 navigation3 = "1.3.0-alpha03"
 orbit = "12.0.1"
 robolectric = "4.17"
 roborazzi = "1.77.0"
 tablerIcons = "2.2.1"
-versionCatalogUpdate = "1.1.1"
+versionCatalogUpdate = "1.1.2"
 
 [libraries]
 aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutLibraries" }
