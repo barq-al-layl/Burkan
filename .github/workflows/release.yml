@@ -51,14 +51,15 @@ jobs:
           ndk=$(sed -n 's/^ *ndkVersion = "\(.*\)"$/\1/p' app/build.gradle.kts)
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" > /dev/null
 
+      - name: Check
+        run: ./gradlew :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
+
+      # Only after the checks: the tests and lint run the build's code and its plugins', none of which needs the key.
       - name: Put the release key in place
         env:
           RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
         run: |
           printf '%s' "$RELEASE_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.p12"
-
-      - name: Check
-        run: ./gradlew :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
 
       - name: Release
         if: github.event_name == 'push'
