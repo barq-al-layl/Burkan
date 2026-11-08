@@ -80,6 +80,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
+        // The shell Shizuku starts for the app is a bound service in a process of its own: IShellService.aidl.
+        aidl = true
         compose = true
     }
     // The build tools would add a list of the dependencies to the APK, encrypted with a key of Google's, for the
@@ -192,6 +194,8 @@ dependencies {
     implementation(libs.metrox.viewmodel.compose)
     implementation(libs.orbit.compose)
     implementation(libs.orbit.viewmodel)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     implementation(libs.haze)
     implementation(libs.haze.blur)
     implementation(libs.tabler.icons.outline)

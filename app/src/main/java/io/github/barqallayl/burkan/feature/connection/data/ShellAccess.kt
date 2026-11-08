@@ -5,7 +5,7 @@ import arrow.core.raise.Raise
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
+
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
@@ -42,9 +42,13 @@ interface ShellAccess {
      * [settle] is how long adbd may still be restarting from now, as it does when the phone has just locked: a new
      * connection is not tried before it has passed. Switching wireless debugging on, which has its own wait, starts at
      * once, so the two waits overlap.
+     *
+     * [patience] is how long a shell that is still coming up may be waited for, as Shizuku is after a restart, when
+     * it has to start itself first. Wireless debugging has its waits of its own and takes none of this.
      */
     suspend fun <T> withShell(
         settle: Duration = Duration.ZERO,
+        patience: Duration = Duration.ZERO,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T>
 
@@ -59,10 +63,11 @@ interface ShellAccess {
  *
  * Every new connection raises the system's "Wireless debugging connected" notification, so a connection is kept for
  * [LINGER] after a block ends, and a block that starts in that time reuses it.
+ *
+ * Not bound as the [ShellAccess] itself: [BackendShellAccess] chooses between this and Shizuku.
  */
 @Inject
 @SingleIn(AppScope::class)
-@ContributesBinding(AppScope::class)
 class AdbShellAccess(
     private val client: AdbClient,
     private val discovery: AdbDiscovery,
@@ -80,6 +85,7 @@ class AdbShellAccess(
 
     override suspend fun <T> withShell(
         settle: Duration,
+        patience: Duration,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()

@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.core.storage
 
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
@@ -15,6 +16,7 @@ class FakeSettingsStorage : SettingsStorage {
     override val seedColor = MutableStateFlow(SettingsStorage.Defaults.seedColor)
     override val paletteStyle = MutableStateFlow(SettingsStorage.Defaults.paletteStyle)
     override val applyOnBoot = MutableStateFlow(SettingsStorage.Defaults.APPLY_ON_BOOT)
+    override val shellBackend = MutableStateFlow(SettingsStorage.Defaults.shellBackend)
     override val turnOffWirelessDebugging =
         MutableStateFlow(SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING)
     override val userExclusions = MutableStateFlow(emptySet<PackageName>())
@@ -37,6 +39,10 @@ class FakeSettingsStorage : SettingsStorage {
 
     override suspend fun setApplyOnBoot(enabled: Boolean) {
         applyOnBoot.value = enabled
+    }
+
+    override suspend fun setShellBackend(backend: ShellBackend) {
+        shellBackend.value = backend
     }
 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) {

@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
@@ -126,6 +127,18 @@ class AutoApplyTest {
         autoApply.onBoot()
 
         assertEquals(2, launcher.automaticStarts)
+    }
+
+    @Test
+    fun `with Shizuku the apply after a restart does not wait for Wi-Fi, which it has no use for`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        wirelessDebugging.wifi = false
+
+        autoApply.onBoot()
+
+        assertEquals(1, launcher.automaticStarts)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertFalse(wifiWatch.watching)
     }
 
     @Test

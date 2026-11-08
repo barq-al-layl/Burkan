@@ -58,6 +58,7 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 - Restarts System UI at the next screen lock, so the phone never locks in front of you.
 - Turns Wireless Debugging back off afterwards, if Burkan was the one that turned it on.
 - If the phone restarts without Wi-Fi, Burkan waits and applies as soon as a trusted network connects. It keeps the phone awake only for the short time a run takes.
+- Optionally, *Use Shizuku* in Settings gets the shell from Shizuku instead of from Wireless Debugging, for a phone where Shizuku already starts itself after a restart, such as with a fork that has start on boot. Burkan then needs no pairing and no Wi-Fi of its own, and starts nothing: Shizuku has to be running. This is off by default.
 
 ### By hand
 - *Apply now* sets the system property and restarts System UI, the launcher and the keyboard on Vulkan.

@@ -61,6 +61,36 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] On Wi-Fi that has no internet behind it, with mobile data on: the status reads and Apply now works, and
       neither says the phone is not on Wi-Fi.
 
+## Shizuku as the way to a shell
+
+The code was written against Shizuku's API and its source, and is covered
+by tests with a fake only. Device notes, section 16, has what is expected. Use a Shizuku that starts itself after a
+restart (a fork such as thedjchi's, or Sui) for the restart checks.
+
+- [x] Settings › Use Shizuku asks first; confirming goes to Setup, with notifications still done and the steps
+      Allow Shizuku, Connect, Permission and Battery after it. Wireless debugging's own steps are not listed.
+- [x] With Shizuku stopped, the Allow Shizuku step offers Open Shizuku, which opens its app. With it running, the
+      step offers Allow, which raises Shizuku's dialog; allowing it ticks the step when Burkan is next in front.
+- [ ] After a "deny and don't ask again", the step's own text says where to allow Burkan, and allowing it there
+      ticks the step.
+- [x] Connect returns from `echo ok` through Shizuku, and Permission grants `WRITE_SECURE_SETTINGS` through it.
+- [x] A light and a full apply run end to end through Shizuku, and leave Shizuku's own app running: it is not in
+      the list of stopped apps. `dumpsys activity processes` (about 1 MB) comes back whole, through the pipes.
+- [x] `ps -A` shows `io.github.barqallayl.burkan:shell` as `shell` while a run is on and for about ten seconds
+      after it, and not once it is over.
+- [ ] A command that outlives its timeout is killed in Shizuku's process and the run reports it timed out.
+- [ ] After a restart, with Shizuku starting itself: the run waits for it (up to two minutes), applies Vulkan, and
+      needs no Wi-Fi of its own. Record how long Shizuku took to be there after the first unlock.
+- [x] After a restart with Shizuku not starting: the run fails with "Shizuku is not running" after two minutes,
+      and the notification opens the app.
+- [x] Shizuku survives System UI's restart and the lock that follows (adbd restarts on every keyguard change,
+      device notes, section 11); the run at the lock finishes through Shizuku, or reconnects within 30 seconds.
+- [x] Switching back to wireless debugging brings Setup back with the pairing still counted, and the next run goes
+      through wireless debugging as before.
+- [x] A release build: R8 keeps `ShellService` and its stub, and the shell starts.
+- [x] With wireless debugging chosen, which is the default, nothing about Shizuku shows anywhere but the Settings
+      row, and an app with Shizuku not installed behaves as before.
+
 ## Applying and status
 
 - [x] Light apply: SystemUI, launcher and keyboard all report `Skia (Vulkan)` afterwards.

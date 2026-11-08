@@ -12,6 +12,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
@@ -34,6 +35,9 @@ interface SettingsStorage {
     /** Apply Vulkan by itself after every restart. */
     val applyOnBoot: Flow<Boolean>
 
+    /** Where the app gets its shell: the phone's wireless debugging, or Shizuku. */
+    val shellBackend: Flow<ShellBackend>
+
     /** Switch wireless debugging off again after a run, when the app was the one that switched it on. */
     val turnOffWirelessDebugging: Flow<Boolean>
 
@@ -45,6 +49,7 @@ interface SettingsStorage {
     suspend fun setSeedColor(color: SeedColors)
     suspend fun setPaletteStyle(style: PaletteStyles)
     suspend fun setApplyOnBoot(enabled: Boolean)
+    suspend fun setShellBackend(backend: ShellBackend)
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
 
     /**
@@ -64,6 +69,7 @@ interface SettingsStorage {
         val seedColor: SeedColors = SeedColors.defaultFor(appStyle)
         val paletteStyle: PaletteStyles = PaletteStyles.TonalSpot
         const val APPLY_ON_BOOT: Boolean = true
+        val shellBackend: ShellBackend = ShellBackend.WirelessDebugging
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
     }
 }
@@ -96,6 +102,9 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override val applyOnBoot: Flow<Boolean> =
         read { it[Keys.applyOnBoot] ?: SettingsStorage.Defaults.APPLY_ON_BOOT }
 
+    override val shellBackend: Flow<ShellBackend> =
+        read { it.enumValue(Keys.shellBackend) ?: SettingsStorage.Defaults.shellBackend }
+
     override val turnOffWirelessDebugging: Flow<Boolean> =
         read {
             it[Keys.turnOffWirelessDebugging]
@@ -116,6 +125,8 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         write(Keys.paletteStyle, style.name)
 
     override suspend fun setApplyOnBoot(enabled: Boolean) = write(Keys.applyOnBoot, enabled)
+
+    override suspend fun setShellBackend(backend: ShellBackend) = write(Keys.shellBackend, backend.name)
 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) =
         write(Keys.turnOffWirelessDebugging, enabled)
@@ -145,6 +156,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         val seedColor = stringPreferencesKey("seed_color")
         val paletteStyle = stringPreferencesKey("palette_style")
         val applyOnBoot = booleanPreferencesKey("apply_on_boot")
+        val shellBackend = stringPreferencesKey("shell_backend")
         val turnOffWirelessDebugging = booleanPreferencesKey("turn_off_wireless_debugging")
         val userExclusions = stringSetPreferencesKey("user_exclusions")
     }

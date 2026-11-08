@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.AppStyle
@@ -35,6 +36,7 @@ class DataStoreSettingsStorageTest {
     private val themeModeKey = stringPreferencesKey("theme_mode")
     private val seedColorKey = stringPreferencesKey("seed_color")
     private val paletteStyleKey = stringPreferencesKey("palette_style")
+    private val shellBackendKey = stringPreferencesKey("shell_backend")
 
     @Test
     fun `a fresh install reads the defaults`() = runTest {
@@ -96,6 +98,20 @@ class DataStoreSettingsStorageTest {
         assertTrue(storage.applyOnBoot.first())
         assertTrue(storage.turnOffWirelessDebugging.first())
         assertEquals(emptySet(), storage.userExclusions.first())
+    }
+
+    @Test
+    fun `the shell comes from wireless debugging until the user chooses Shizuku`() = runTest {
+        val dataStore = dataStore()
+        val storage = DataStoreSettingsStorage(dataStore)
+        assertEquals(ShellBackend.WirelessDebugging, storage.shellBackend.first())
+
+        storage.setShellBackend(ShellBackend.Shizuku)
+        assertEquals(ShellBackend.Shizuku, storage.shellBackend.first())
+        assertEquals("Shizuku", dataStore.data.first()[shellBackendKey])
+
+        dataStore.edit { it[shellBackendKey] = "Adb" }
+        assertEquals(ShellBackend.WirelessDebugging, storage.shellBackend.first())
     }
 
     @Test

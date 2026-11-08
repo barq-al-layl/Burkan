@@ -18,6 +18,9 @@ enum class AppErrorType(@StringRes val resource: Int) {
     DaemonNotFound(R.string.error_daemon_not_found),
     NotAuthorised(R.string.error_not_authorised),
     ConnectFailed(R.string.error_connect_failed),
+    ShizukuNotRunning(R.string.error_shizuku_not_running),
+    ShizukuNotAllowed(R.string.error_shizuku_not_allowed),
+    ShizukuShellFailed(R.string.error_shizuku_shell_failed),
     ConnectionLost(R.string.error_connection_lost),
     CommandTimedOut(R.string.error_command_timed_out),
     InvalidCode(R.string.error_invalid_code),
@@ -47,6 +50,9 @@ fun AppError.type(): AppErrorType = when (this) {
     ConnectionError.DaemonNotFound -> AppErrorType.DaemonNotFound
     ConnectionError.NotAuthorised -> AppErrorType.NotAuthorised
     ConnectionError.ConnectFailed -> AppErrorType.ConnectFailed
+    ConnectionError.ShizukuNotRunning -> AppErrorType.ShizukuNotRunning
+    ConnectionError.ShizukuNotAllowed -> AppErrorType.ShizukuNotAllowed
+    ConnectionError.ShizukuShellFailed -> AppErrorType.ShizukuShellFailed
     ShellError.NotConnected, ShellError.ConnectionLost -> AppErrorType.ConnectionLost
     ShellError.TimedOut -> AppErrorType.CommandTimedOut
     PairingError.InvalidCode -> AppErrorType.InvalidCode

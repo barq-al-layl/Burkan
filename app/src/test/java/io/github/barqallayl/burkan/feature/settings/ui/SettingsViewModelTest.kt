@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.settings.ui
 
 import io.github.barqallayl.burkan.awaitStateMatching
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
@@ -19,6 +20,8 @@ import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.settings.model.About
+import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
+import io.github.barqallayl.burkan.feature.setup.model.SHARED_STEPS
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -50,6 +53,7 @@ class SettingsViewModelTest {
         SettingsStore(settings, deviceState, backgroundScope),
         deviceState,
         autoApply,
+        ShellBackendSwitcher(settings, deviceState),
         version = "1.0",
     )
 
@@ -130,6 +134,64 @@ class SettingsViewModelTest {
         assertFalse(deviceState.isPaired.value)
         assertFalse(deviceState.isSetupComplete.value)
         assertEquals(0, deviceState.setupStepsDone.value)
+    }
+
+    @Test
+    fun `switching to Shizuku asks first, then keeps only the setup steps both ways share`() = runTest {
+        viewModel().testWithInternalState(this) {
+            containerHost.show(SettingsDialog.SwitchShellBackend).join()
+            assertEquals(ShellBackend.WirelessDebugging, settings.shellBackend.value, "nothing changes before the answer")
+            assertTrue(deviceState.isSetupComplete.value)
+
+            containerHost.confirmSwitchShellBackend().join()
+            cancelAndIgnoreRemainingItems()
+        }
+
+        assertEquals(ShellBackend.Shizuku, settings.shellBackend.value)
+        assertEquals(SHARED_STEPS, deviceState.setupStepsDone.value)
+        assertFalse(deviceState.isSetupComplete.value, "so that App shows Setup, for the steps Shizuku has")
+        assertTrue(deviceState.isPaired.value, "the pairing is kept, for the way back")
+    }
+
+    @Test
+    fun `switching back to wireless debugging goes the same way`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = 5
+
+        viewModel().testWithInternalState(this) {
+            containerHost.confirmSwitchShellBackend().join()
+            cancelAndIgnoreRemainingItems()
+        }
+
+        assertEquals(ShellBackend.WirelessDebugging, settings.shellBackend.value)
+        assertEquals(SHARED_STEPS, deviceState.setupStepsDone.value)
+        assertFalse(deviceState.isSetupComplete.value)
+    }
+
+    @Test
+    fun `switching stops any wait for the way it leaves`() = runTest {
+        autoApplyStorage.state.value = AutoApplyState(WaitReason.Wifi)
+        wifiWatch.watching = true
+
+        viewModel().testWithInternalState(this) {
+            containerHost.confirmSwitchShellBackend().join()
+            cancelAndIgnoreRemainingItems()
+        }
+
+        assertEquals(AutoApplyState(), autoApplyStorage.state.value)
+        assertFalse(wifiWatch.watching)
+    }
+
+    @Test
+    fun `a step done before the shared ones is not kept`() = runTest {
+        deviceState.setupStepsDone.value = 0
+
+        viewModel().testWithInternalState(this) {
+            containerHost.confirmSwitchShellBackend().join()
+            cancelAndIgnoreRemainingItems()
+        }
+
+        assertEquals(0, deviceState.setupStepsDone.value, "switching never counts a step as done")
     }
 
     @Test

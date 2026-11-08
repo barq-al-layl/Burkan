@@ -1035,7 +1035,7 @@ private val CHECKLIST_ROW_HEIGHT = 56.dp
 
 private val RunPhase.icon: ImageVector
     get() = when (this) {
-        RunPhase.Connecting -> Tabler.Outline.PlugConnected
+        RunPhase.Connecting, RunPhase.ConnectingToShizuku -> Tabler.Outline.PlugConnected
         RunPhase.Reading -> Tabler.Outline.ListSearch
         RunPhase.Checking -> Tabler.Outline.Checks
         is RunPhase.Step -> when (kind) {

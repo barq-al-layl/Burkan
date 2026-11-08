@@ -29,9 +29,15 @@ Burkan does it on the phone, by itself, after every restart.
 6. **Runs without being opened**: an apply, or the full flow that also restarts every app, started from a
    shortcut on the app's icon or by another app such as Tasker.
 
+Steps 1 and 2 describe the default: the shell comes from the phone's own wireless debugging. Settings has **Use
+Shizuku**, off until chosen, for a user who keeps Shizuku running already, by a fork that starts it after a
+restart for one. Burkan then asks Shizuku for its shell, needs neither Wi-Fi nor pairing, and starts nothing
+itself. Everything else, the flows included, is the same. See Connection.
+
 ### Not in scope
 
-- Root, Shizuku or a companion desktop tool.
+- Root or a companion desktop tool. Shizuku is not needed, and Burkan never starts it: using it is a choice in
+  Settings (see Connection).
 - Running arbitrary commands. The command set is fixed (see `CONTRIBUTING.md`).
 - A per-app opt-out from Vulkan. The scripts' `game_driver_blacklist` feature does nothing on current Android
   (see `docs/device-notes.md`, section 10).
@@ -215,7 +221,7 @@ The code structure and conventions are in `CONTRIBUTING.md`. These are the parts
 | Feature | Holds |
 |---|---|
 | `setup` | The checklist screen and its step checks |
-| `connection` | Key pair, the pairing notification service, pairing, connecting, enabling wireless debugging; the ADB client |
+| `connection` | Key pair, the pairing notification service, pairing, connecting, enabling wireless debugging; the ADB client; the Shizuku client and its shell service; choosing between the two |
 | `apply` | The light and full flows, the output parsers, state capture and restore, the boot receiver and service |
 | `status` | Reading renderer state; the Home screen |
 | `settings` | The Settings screen and its storage |
@@ -301,6 +307,42 @@ A flow is a function that returns the list of steps, and a runner that executes 
   raises the system's "Wireless debugging connected" notification. A run releases it as soon as it ends, and so
   does Home when it is left.
 
+### Shizuku
+
+`SettingsStorage.shellBackend` is `WirelessDebugging`, the default, or `Shizuku`. `BackendShellAccess` is the one
+`ShellAccess` the rest of the app sees: it reads the choice each time a block starts and hands the block to
+`AdbShellAccess` or `ShizukuShellAccess`. A run keeps the one it began with; `release()` lets go of both.
+
+- **A shell is a user service.** `Shizuku#newProcess` is private and going away, so `ShizukuClient` binds
+  `ShellService`, a class of this app that Shizuku starts in a process of its own, as the user Shizuku runs as. It
+  is not an app's process: no application, no graph, nothing of the rest of the app (`IShellService.aidl` is the
+  whole interface). It runs `sh -c <line>`, kills a command that outlives its timeout, and copies stdout and stderr
+  into two pipes the app passes in, since a `dumpsys` can print more than a Binder transaction carries. It
+  answers with the exit code only. `ShizukuClient` is a `ShellExecutor`, so everything above it is the code that
+  already ran over ADB, `ReconnectingShellExecutor` included.
+- **Nothing to switch on or off.** `ShizukuShellAccess` checks that Shizuku is running and has allowed Burkan,
+  binds the shell, and keeps it for 10 seconds after a block as `AdbShellAccess` keeps its connection; Shizuku
+  then ends the shell's process. There is no Wi-Fi, no discovery, no `adb_wifi_enabled` and no notification.
+- **Shizuku is waited for after a restart, and only then.** A run takes a `patience`: the run after a restart is
+  given two minutes for Shizuku to start itself, polling for its binder; every other run, the Setup steps and
+  Home included, finds out at once that it is not running. Without Shizuku the run fails with its own error, not
+  with the wait for Wi-Fi: `AutoApply` does not wait for Wi-Fi when Shizuku is the way to a shell.
+- **A lost shell is started again.** Shizuku restarting, or ending the shell, makes the next command fail; the
+  reconnection waits up to 30 seconds for Shizuku, and binds the shell afresh.
+- **Shizuku's own app is never force-stopped** by a run while Shizuku is the way to a shell: a stopped app gets
+  no `BOOT_COMPLETED`, and its start on boot would not run. It is kept like an app the user excluded.
+- **Setup has its own steps.** Notifications, Allow Shizuku (running, and Burkan allowed), Connect, Permission,
+  Battery: no Developer options, wireless debugging or pairing. Permission is still done, so that a value a full
+  apply changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
+  steps the two lists start with (the notifications) and marks setup incomplete, so that Setup comes back for the
+  rest. The pairing is kept for the way back. Setup's own screen has a button under the checklist, "Use Shizuku
+  instead" or, on Shizuku's steps, "Use wireless debugging instead", which does the same without asking: setup
+  does not reach Settings, so a choice made there by mistake could not be undone. `ShellBackendSwitcher` is the
+  one place the change is made.
+- **The binder comes through a provider.** `ShizukuProvider` is in the manifest, always enabled: Shizuku hands the
+  binder to an app through it when the app's process starts, and when Shizuku starts. With wireless debugging
+  chosen it does nothing.
+
 ### After boot
 
 1. `BootReceiver` (`BOOT_COMPLETED`) starts `ApplyService` if "apply automatically" is on and setup is complete.
@@ -317,7 +359,8 @@ A flow is a function that returns the list of steps, and a runner that executes 
    such a callback of one network, the one already up when there is one, and then lets go of it. So while the app
    waits, an alarm registers the callback again about every quarter of an hour; it does not wake the phone, and
    waits for it to be awake. A different network is noticed at once when the phone was off Wi-Fi in between, and
-   when the callback is next registered otherwise.
+   when the callback is next registered otherwise. With Shizuku as the shell this step is skipped: the service
+   starts at once, and the run waits for Shizuku itself.
 5. Enable wireless debugging, connect, run the light apply without System UI, verify, disable wireless debugging
    if the app enabled it, write the log entry. The user has just unlocked the phone, and restarting System UI would
    lock it again, so if System UI is not on Vulkan the service stays in the foreground, with a notification saying
@@ -347,7 +390,8 @@ force-stop cancelled the network callback. An unknown count is taken as a restar
 `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` (System UI's restart once the screen is off), `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`,
 `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `QUERY_ALL_PACKAGES` (the exclusions picker),
 `WRITE_SECURE_SETTINGS` (declared; granted over ADB) and `PACKAGE_USAGE_STATS` (declared; allowed over ADB when a
-run is limited to recent apps).
+run is limited to recent apps). `moe.shizuku.manager.permission.API_V23` comes from Shizuku's provider library, and
+the provider itself is declared, exported, behind `INTERACT_ACROSS_USERS_FULL`, which only Shizuku's server holds.
 
 A `FileProvider` hands the exported log, written to the cache, to the app it is shared with; nothing else is
 reachable through it.
@@ -389,6 +433,10 @@ reachable through it.
 
 ## Decisions
 
+- **Shizuku is a choice, not the default.** On an unrooted phone Shizuku is itself started over wireless debugging
+  after every restart, so it moves the dependency instead of removing it, and adds an app. It earns its place for
+  a user who already keeps it running, or runs a fork that starts it by itself. The default, and everything that
+  was measured, is wireless debugging.
 - **`minSdk` 33.** The S23 shipped with Android 13, and it removes every pre-13 branch.
 - **English only.** Two styles over the same shared components, Material 3 Expressive and One UI, both in the
   phone's own font. The style, the theme and the colour are chosen in Settings; the text size is the phone's.

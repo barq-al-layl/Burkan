@@ -63,6 +63,16 @@
                 android:resource="@xml/shared_files" />
         </provider>
 
+        <!-- Where Shizuku hands the app its binder, once the user has chosen Shizuku as the way to a shell. Idle
+             otherwise. The permission keeps other apps out; Shizuku holds it. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
         <!-- One copy of the screen, whoever starts it: a full apply brings the app back to the front from the
              shell, and a second copy on top of the first would have lost the run it was showing. -->
         <activity

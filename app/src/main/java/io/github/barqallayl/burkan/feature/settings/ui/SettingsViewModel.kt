@@ -14,12 +14,14 @@ import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.store.UserSettings
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.settings.model.About
+import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
 import kotlinx.coroutines.flow.filterNotNull
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
@@ -27,6 +29,7 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 @Immutable
 data class SettingsValues(
     val applyOnBoot: Boolean,
+    val shellBackend: ShellBackend,
     val turnOffWirelessDebugging: Boolean,
     val exclusionCount: Int,
     val appearance: Appearance,
@@ -39,6 +42,7 @@ enum class SettingsDialog {
     SeedColor,
     PaletteStyle,
     RedoSetup,
+    SwitchShellBackend,
 }
 
 /** [values] is null until the settings have been read, which the store has usually done before the screen opens. */
@@ -64,6 +68,7 @@ class SettingsViewModel(
     private val store: SettingsStore,
     private val deviceState: DeviceStateStorage,
     private val autoApply: AutoApply,
+    private val shellBackendSwitcher: ShellBackendSwitcher,
     @Named(AppBindings.APP_VERSION) version: String,
 ) : OrbitContainerHost<SettingsState, SettingsState, SettingsSideEffect>, ViewModel() {
 
@@ -75,7 +80,7 @@ class SettingsViewModel(
     }
 
     private fun UserSettings.toValues() =
-        SettingsValues(applyOnBoot, turnOffWirelessDebugging, exclusions.size, appearance)
+        SettingsValues(applyOnBoot, shellBackend, turnOffWirelessDebugging, exclusions.size, appearance)
 
     fun setApplyOnBoot(enabled: Boolean) = intent {
         settings.setApplyOnBoot(enabled)
@@ -109,6 +114,13 @@ class SettingsViewModel(
         deviceState.setPaired(false)
         deviceState.setSetupStepsDone(0)
         deviceState.setSetupComplete(false)
+    }
+
+    /** Changes the way to a shell, and starts setup again after the steps the two have in common; `App.kt` then shows Setup. */
+    fun confirmSwitchShellBackend() = intent {
+        reduce { state.copy(dialog = null) }
+        autoApply.stopWaiting()
+        shellBackendSwitcher.switch()
     }
 
     fun openSource() = intent { postSideEffect(SettingsSideEffect.OpenUrl(About.SOURCE_URL)) }

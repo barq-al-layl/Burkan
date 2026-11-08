@@ -5,6 +5,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
@@ -45,6 +46,9 @@ interface RunAlerts {
 /**
  * The automatic apply after a restart. It starts the run when the phone can connect, and otherwise waits for a Wi-Fi
  * network through [WifiWatch] for the rest of the boot. Never retries in a loop: each network gets one attempt.
+ *
+ * With Shizuku as the shell the phone has no need of Wi-Fi to begin with: Shizuku is waited for by the run itself, and
+ * is not the app's to start.
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -77,7 +81,7 @@ class AutoApply(
         deviceState.setSwitchedOnWirelessDebugging(false)
         stopWaiting()
         if (!isEnabled()) return
-        if (!wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
+        if (needsWifi() && !wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
             waitFor(WaitReason.Wifi, triedNetwork = null)
             return
         }
@@ -200,6 +204,8 @@ class AutoApply(
     private fun start() {
         if (!launcher.startAutomatic()) alerts.showReadyToApply()
     }
+
+    private suspend fun needsWifi(): Boolean = settings.shellBackend.first() == ShellBackend.WirelessDebugging
 
     private suspend fun isEnabled(): Boolean = settings.applyOnBoot.first() && deviceState.isSetupComplete.first()
 }

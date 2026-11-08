@@ -46,6 +46,9 @@ One UI cannot be tested without the device.
   What was read is kept on the phone until it is back, so it also goes back when the connection is lost for good
   or the app's process dies under the run.
 - **Wireless debugging is switched off again after a run** when the app was the one that switched it on.
+- **Shizuku is a choice, and the default stays wireless debugging.** A change that touches how the shell is got
+  keeps the default's behaviour and its tests as they were. With Shizuku the app switches nothing on and starts
+  nothing, and a run never force-stops Shizuku's own app.
 - **The ADB private key never leaves encrypted storage**: not in logs, not in exports, not in backups.
 - **Nothing private goes into the repository**: no serial numbers, and no list of apps taken from a real phone.
 
@@ -74,6 +77,7 @@ One UI cannot be tested without the device.
 | Icons | Tabler outline (`com.composables:icons-tabler-outline-cmp`) |
 | Blur | Haze (`dev.chrisbanes.haze:haze`, `haze-blur`), for the Material style's frosted bars |
 | ADB client | `libadb-android` with Conscrypt |
+| Shizuku client | `dev.rikka.shizuku:api` and `provider`, through a user service declared in AIDL |
 | Serialization | kotlinx-serialization (routes, stored models) |
 | Screenshots | Roborazzi through the Compose preview scanner, on Robolectric |
 | Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-core`, shown in the app's own list |

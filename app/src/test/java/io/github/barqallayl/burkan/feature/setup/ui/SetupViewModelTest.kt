@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.setup.ui
 
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
@@ -10,13 +11,16 @@ import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbDiscovery
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.data.PairingRepository
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.setup.data.SetupChecks
+import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
+import io.github.barqallayl.burkan.feature.setup.model.stepsFor
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -36,6 +40,8 @@ class SetupViewModelTest {
     private val checks = FakeSetupChecks()
     private val wirelessDebugging = FakeWirelessDebugging(permitted = false)
     private val deviceState = FakeDeviceStateStorage()
+    private val settings = FakeSettingsStorage()
+    private val shizuku = FakeShizukuClient()
     private val discovery = FakeAdbDiscovery()
     private val pairing = PairingRepository(FakeAdbClient(), discovery, deviceState)
     private val launcher = FakePairingLauncher()
@@ -48,11 +54,13 @@ class SetupViewModelTest {
         checks,
         wirelessDebugging,
         deviceState,
-        SettingsStore(FakeSettingsStorage(), deviceState, backgroundScope),
+        SettingsStore(settings, deviceState, backgroundScope),
         pairing,
         launcher,
         shellAccess,
         discovery,
+        shizuku,
+        ShellBackendSwitcher(settings, deviceState),
         ownPackage,
     )
 
@@ -357,6 +365,128 @@ class SetupViewModelTest {
             this@runTest.backgroundScope.launch { pairing.runSession() }
 
             awaitState { it.pairing == PairingStatus.WaitingForCode }
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `with Shizuku the checklist has no Developer options, wireless debugging or pairing`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = 1
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            val state = awaitState { it.current == SetupStep.Shizuku }
+            assertEquals(stepsFor(ShellBackend.Shizuku), state.steps)
+            assertEquals(setOf(SetupStep.Notifications), state.done)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the Shizuku step is met once Shizuku allows Burkan, and not before`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = 1
+        shizuku.allowed = false
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            val waiting = awaitState { it.current == SetupStep.Shizuku && it.isShizukuRunning }
+            assertFalse(waiting.isCurrentMet)
+
+            shizuku.allowed = true
+            containerHost.refresh()
+            awaitState { it.current == SetupStep.Shizuku && it.isCurrentMet }
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the Shizuku step opens Shizuku until it runs, and then asks it to allow Burkan`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = 1
+        shizuku.running = false
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            val state = awaitState { it.current == SetupStep.Shizuku }
+            assertFalse(state.isShizukuRunning)
+
+            containerHost.onAction(SetupStep.Shizuku)
+            assertEquals(SetupSideEffect.OpenShizuku, awaitSideEffect())
+            assertEquals(0, shizuku.permissionRequests)
+
+            shizuku.running = true
+            containerHost.onAction(SetupStep.Shizuku).join()
+            assertEquals(1, shizuku.permissionRequests)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `with Shizuku the steps are counted in its own list, and setup completes without a pairing`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = stepsFor(ShellBackend.Shizuku).indexOf(SetupStep.Battery)
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Battery }
+
+            containerHost.skipBattery()
+
+            awaitState { it.done != null && it.current == null }
+            assertEquals(stepsFor(ShellBackend.Shizuku).size, deviceState.setupStepsDone.value)
+            assertTrue(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `Use Shizuku instead swaps the checklist for Shizuku's, from the steps they share`() = runTest {
+        deviceState.setupStepsDone.value = 3
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Pair }
+
+            containerHost.switchShellBackend()
+
+            val state = awaitState { it.backend == ShellBackend.Shizuku && it.current == SetupStep.Shizuku }
+            assertEquals(stepsFor(ShellBackend.Shizuku), state.steps)
+            assertEquals(ShellBackend.Shizuku, settings.shellBackend.value)
+            assertEquals(1, deviceState.setupStepsDone.value)
+            assertFalse(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `from Shizuku's steps, wireless debugging can be chosen again`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        deviceState.setupStepsDone.value = 1
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.current == SetupStep.Shizuku }
+
+            containerHost.switchShellBackend()
+
+            awaitState { it.backend == ShellBackend.WirelessDebugging && it.current == SetupStep.DeveloperOptions }
+            assertEquals(ShellBackend.WirelessDebugging, settings.shellBackend.value)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()

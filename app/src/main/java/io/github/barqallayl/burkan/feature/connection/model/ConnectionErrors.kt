@@ -24,6 +24,15 @@ sealed interface ConnectionError : AppError {
 
     /** The daemon could not be reached on either address. */
     data object ConnectFailed : ConnectionError
+
+    /** Shizuku is not running, or did not come up in the time given to it. */
+    data object ShizukuNotRunning : ConnectionError
+
+    /** Shizuku is running and the user has not allowed Burkan to use it. */
+    data object ShizukuNotAllowed : ConnectionError
+
+    /** Shizuku is running and allows Burkan, but its shell did not start. */
+    data object ShizukuShellFailed : ConnectionError
 }
 
 /** Why pairing did not succeed. Each has its own message. */

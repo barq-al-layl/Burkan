@@ -60,10 +60,12 @@ import com.composables.icons.tabler.outline.Power
 import com.composables.icons.tabler.outline.Refresh
 import com.composables.icons.tabler.outline.Scale
 import com.composables.icons.tabler.outline.SunMoon
+import com.composables.icons.tabler.outline.Terminal
 import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.Appearance
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.navigation.ExclusionsRoute
 import io.github.barqallayl.burkan.core.navigation.LicencesRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
@@ -128,6 +130,7 @@ fun SettingsScreen() {
             onSeedColor = viewModel::setSeedColor,
             onPaletteStyle = viewModel::setPaletteStyle,
             onConfirmRedoSetup = viewModel::confirmRedoSetup,
+            onConfirmSwitchShellBackend = viewModel::confirmSwitchShellBackend,
             onOpenSource = viewModel::openSource,
             onReportProblem = viewModel::reportProblem,
             onOpenLicence = viewModel::openLicence,
@@ -148,6 +151,7 @@ private class SettingsActions(
     val onSeedColor: (SeedColors) -> Unit = {},
     val onPaletteStyle: (PaletteStyles) -> Unit = {},
     val onConfirmRedoSetup: () -> Unit = {},
+    val onConfirmSwitchShellBackend: () -> Unit = {},
     val onOpenSource: () -> Unit = {},
     val onReportProblem: () -> Unit = {},
     val onOpenLicence: () -> Unit = {},
@@ -233,27 +237,42 @@ private fun Section(title: Int, content: @Composable () -> Unit) {
 
 @Composable
 private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
+    val shizuku = values.shellBackend == ShellBackend.Shizuku
+    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on.
+    val count = if (shizuku) RESTART_ITEMS - 1 else RESTART_ITEMS
     SwitchItem(
         index = 0,
-        count = RESTART_ITEMS,
+        count = count,
         icon = Tabler.Outline.Power,
         title = R.string.settings_apply_on_boot,
-        text = R.string.settings_apply_on_boot_text,
+        text = if (shizuku) R.string.settings_apply_on_boot_shizuku_text else R.string.settings_apply_on_boot_text,
         checked = values.applyOnBoot,
         onCheckedChange = actions.onApplyOnBoot,
     )
+    // Not a switch that turns at a tap: it asks first, as changing it starts setup again.
     SwitchItem(
         index = 1,
-        count = RESTART_ITEMS,
-        icon = Tabler.Outline.WifiOff,
-        title = R.string.settings_turn_off_wireless_debugging,
-        text = R.string.settings_turn_off_wireless_debugging_text,
-        checked = values.turnOffWirelessDebugging,
-        onCheckedChange = actions.onTurnOffWirelessDebugging,
+        count = count,
+        icon = Tabler.Outline.Terminal,
+        title = R.string.settings_shizuku,
+        text = R.string.settings_shizuku_text,
+        checked = shizuku,
+        onCheckedChange = { actions.onShow(SettingsDialog.SwitchShellBackend) },
     )
+    if (!shizuku) {
+        SwitchItem(
+            index = 2,
+            count = count,
+            icon = Tabler.Outline.WifiOff,
+            title = R.string.settings_turn_off_wireless_debugging,
+            text = R.string.settings_turn_off_wireless_debugging_text,
+            checked = values.turnOffWirelessDebugging,
+            onCheckedChange = actions.onTurnOffWirelessDebugging,
+        )
+    }
     BurkanSegmentItem(
-        index = 2,
-        count = RESTART_ITEMS,
+        index = count - 1,
+        count = count,
         headline = stringResource(R.string.settings_exclusions),
         // One UI leaves a row that opens a screen to that screen to explain itself, and writes the row's value,
         // here the count, under its name.
@@ -385,8 +404,8 @@ private fun SettingsDialogs(
     actions: SettingsActions,
 ) {
     val appearance = values.appearance
-    if (dialog == SettingsDialog.RedoSetup) {
-        BurkanConfirm(
+    when (dialog) {
+        SettingsDialog.RedoSetup -> BurkanConfirm(
             title = stringResource(R.string.settings_redo_setup_confirm_title),
             text = stringResource(R.string.settings_redo_setup_confirm_text),
             confirm = stringResource(R.string.settings_redo_setup_confirm_action),
@@ -394,8 +413,26 @@ private fun SettingsDialogs(
             onConfirm = actions.onConfirmRedoSetup,
             onDismiss = actions.onDismissDialog,
         )
-    } else {
-        BurkanBottomSheet(onDismiss = actions.onDismissDialog) { AppearanceChoices(dialog, appearance, actions) }
+
+        SettingsDialog.SwitchShellBackend -> {
+            val toShizuku = values.shellBackend == ShellBackend.WirelessDebugging
+            BurkanConfirm(
+                title = stringResource(
+                    if (toShizuku) R.string.settings_use_shizuku_confirm_title else R.string.settings_use_wireless_debugging_confirm_title,
+                ),
+                text = stringResource(
+                    if (toShizuku) R.string.settings_use_shizuku_confirm_text else R.string.settings_use_wireless_debugging_confirm_text,
+                ),
+                confirm = stringResource(
+                    if (toShizuku) R.string.settings_use_shizuku_confirm_action else R.string.settings_use_wireless_debugging_confirm_action,
+                ),
+                dismiss = stringResource(R.string.dialog_cancel),
+                onConfirm = actions.onConfirmSwitchShellBackend,
+                onDismiss = actions.onDismissDialog,
+            )
+        }
+
+        else -> BurkanBottomSheet(onDismiss = actions.onDismissDialog) { AppearanceChoices(dialog, appearance, actions) }
     }
 }
 
@@ -459,7 +496,7 @@ private fun AppearanceChoices(
             leading = { PaletteSwatch(it, appearance.seedColor.resolved(), appearance.themeMode.isDark()) },
         )
 
-        SettingsDialog.RedoSetup -> Unit
+        SettingsDialog.RedoSetup, SettingsDialog.SwitchShellBackend -> Unit
     }
 }
 
@@ -618,7 +655,7 @@ private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 
-private const val RESTART_ITEMS = 3
+private const val RESTART_ITEMS = 4
 private const val ABOUT_ITEMS = 5
 
 private fun sample(
@@ -628,6 +665,7 @@ private fun sample(
 ) = SettingsState(
     values = SettingsValues(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
+        shellBackend = SettingsStorage.Defaults.shellBackend,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
         exclusionCount = exclusions,
         appearance = sampleAppearance(appStyle),

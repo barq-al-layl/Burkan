@@ -32,6 +32,7 @@ fun StepKind.label(): StepLabel = when (this) {
 
 fun RunPhase.label(): StepLabel = when (this) {
     RunPhase.Connecting -> StepLabel(R.string.phase_connecting)
+    RunPhase.ConnectingToShizuku -> StepLabel(R.string.phase_connecting_shizuku)
     RunPhase.Reading -> StepLabel(R.string.phase_reading)
     // Said while it happens, so the lock screen it brings up is no surprise.
     RunPhase.Step(StepKind.RestartSystemUi) -> StepLabel(R.string.phase_restart_system_ui)

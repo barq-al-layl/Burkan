@@ -13,26 +13,33 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.AdbDiscovery
 import io.github.barqallayl.burkan.feature.connection.data.PairingRepository
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.ShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.WirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.setup.data.SetupChecks
+import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
 import io.github.barqallayl.burkan.feature.setup.model.currentStep
 import io.github.barqallayl.burkan.feature.setup.model.doneSteps
 import io.github.barqallayl.burkan.feature.setup.model.isTestedModel
+import io.github.barqallayl.burkan.feature.setup.model.stepsFor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 import java.util.concurrent.atomic.AtomicBoolean
@@ -41,12 +48,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  * [done] is null until the stored progress is read, which is before the screen opens once the store has the phone's
  * state. [isCurrentMet] is whether the current step's own check passes: only that step is checked, and it is done
  * when the user says so, not before. [failure] belongs to the automatic steps, Connect and Permission; pairing
- * failures arrive in [pairing].
+ * failures arrive in [pairing]. The checklist is the one for [backend].
  */
 @Immutable
 data class SetupState(
     val done: Set<SetupStep>? = null,
+    val backend: ShellBackend = SettingsStorage.Defaults.shellBackend,
     val isCurrentMet: Boolean = false,
+    /** The current step is Shizuku's, and Shizuku is running, so what is left for it is to allow Burkan. */
+    val isShizukuRunning: Boolean = false,
     /** The current step needs wireless debugging switched on, and the phone is not on Wi-Fi, where it cannot be. */
     val isWifiMissing: Boolean = false,
     val pairing: PairingStatus = PairingStatus.Idle,
@@ -54,7 +64,8 @@ data class SetupState(
     val failure: AppError? = null,
     val isUntestedModel: Boolean = false,
 ) {
-    val current: SetupStep? get() = done?.currentStep()
+    val steps: List<SetupStep> get() = stepsFor(backend)
+    val current: SetupStep? get() = done?.currentStep(steps)
 }
 
 sealed interface SetupSideEffect {
@@ -62,6 +73,7 @@ sealed interface SetupSideEffect {
     data object RequestLocalNetworkPermission : SetupSideEffect
     data object OpenAboutPhone : SetupSideEffect
     data object OpenDeveloperOptions : SetupSideEffect
+    data object OpenShizuku : SetupSideEffect
     data object RequestBatteryExemption : SetupSideEffect
 }
 
@@ -77,6 +89,8 @@ class SetupViewModel(
     private val pairingLauncher: PairingLauncher,
     private val shellAccess: ShellAccess,
     private val discovery: AdbDiscovery,
+    private val shizuku: ShizukuClient,
+    private val shellBackendSwitcher: ShellBackendSwitcher,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
 ) : OrbitContainerHost<SetupState, SetupState, SetupSideEffect>, ViewModel() {
 
@@ -87,16 +101,24 @@ class SetupViewModel(
 
     override val container = orbitContainer<SetupState, SetupSideEffect>(
         store.device.value.let { device ->
-            val done = device?.let { doneSteps(it.setupStepsDone, it.isPaired) }
+            val backend = store.settings.value?.shellBackend ?: SettingsStorage.Defaults.shellBackend
+            val steps = stepsFor(backend)
+            val done = device?.let { doneSteps(steps, it.setupStepsDone, it.isPaired) }
             SetupState(
                 done = done,
-                isCurrentMet = done?.currentStep()?.let { isMet(it, device.isPaired) } ?: false,
+                backend = backend,
+                isCurrentMet = done?.currentStep(steps)?.let { isMet(it, device.isPaired) } ?: false,
                 isUntestedModel = !isTestedModel(checks.deviceModel),
             )
         },
     ) {
         // Pairing finishes in the notification, often while the app is in the background.
-        combine(pairing.status, deviceState.isPaired, deviceState.setupStepsDone) { status, _, _ -> status }
+        combine(
+            pairing.status,
+            deviceState.isPaired,
+            deviceState.setupStepsDone,
+            store.settings.filterNotNull().map { it.shellBackend },
+        ) { status, _, _, _ -> status }
             .collect { status ->
                 reduce { state.copy(pairing = status) }
                 refresh()
@@ -108,17 +130,21 @@ class SetupViewModel(
      * does most steps in Settings. An automatic step starts by itself when the user lands on it.
      */
     fun refresh(): Job = intent {
+        val backend = store.settings.filterNotNull().first().shellBackend
+        val steps = stepsFor(backend)
         val paired = deviceState.isPaired.first()
         val stepsDone = deviceState.setupStepsDone.first()
-        // A pairing the phone dropped takes the later steps with it: they are gone through again after it.
-        if (!paired && stepsDone > SetupStep.Pair.ordinal) {
-            deviceState.setSetupStepsDone(SetupStep.Pair.ordinal)
+        // A pairing the phone dropped takes the later steps with it: they are gone through again after it. Shizuku
+        // pairs with nothing.
+        val pairAt = steps.indexOf(SetupStep.Pair)
+        if (pairAt >= 0 && !paired && stepsDone > pairAt) {
+            deviceState.setSetupStepsDone(pairAt)
             return@intent
         }
-        val done = doneSteps(stepsDone, paired)
-        val current = done.currentStep()
+        val done = doneSteps(steps, stepsDone, paired)
+        val current = done.currentStep(steps)
         if (current == null) {
-            reduce { state.copy(done = done, isCurrentMet = false, failure = null) }
+            reduce { state.copy(backend = backend, done = done, isCurrentMet = false, failure = null) }
             deviceState.setSetupComplete(true)
             return@intent
         }
@@ -126,7 +152,17 @@ class SetupViewModel(
         // A failure belongs to the step it happened on; once setup has moved elsewhere it no longer applies.
         val failure = state.failure.takeIf { current.isAutomatic && current == state.current }
         val wifiMissing = !met && current.needsWifi && !wirelessDebugging.isWifiConnected()
-        reduce { state.copy(done = done, isCurrentMet = met, isWifiMissing = wifiMissing, failure = failure) }
+        val shizukuRunning = current == SetupStep.Shizuku && shizuku.isRunning()
+        reduce {
+            state.copy(
+                backend = backend,
+                done = done,
+                isCurrentMet = met,
+                isWifiMissing = wifiMissing,
+                isShizukuRunning = shizukuRunning,
+                failure = failure,
+            )
+        }
         // After a failure, the user retries; nothing retries in a loop by itself.
         if (current.isAutomatic && !met && failure == null) runStep(current)
     }
@@ -140,6 +176,7 @@ class SetupViewModel(
         SetupStep.Connect -> connected
         SetupStep.Permission -> wirelessDebugging.canSwitch()
         SetupStep.Battery -> checks.batteryExempt()
+        SetupStep.Shizuku -> shizuku.isAllowed()
     }
 
     /** Connect and Permission are done by the app, not the user. */
@@ -162,6 +199,12 @@ class SetupViewModel(
             } else {
                 postSideEffect(SetupSideEffect.RequestLocalNetworkPermission)
             }
+            // Shizuku has to be running before it can be asked for anything: starting it is its own app's work.
+            SetupStep.Shizuku -> if (shizuku.isRunning()) {
+                shizuku.requestPermission()
+            } else {
+                postSideEffect(SetupSideEffect.OpenShizuku)
+            }
             SetupStep.Connect, SetupStep.Permission -> runStep(step)
             SetupStep.Battery -> postSideEffect(SetupSideEffect.RequestBatteryExemption)
         }
@@ -171,7 +214,7 @@ class SetupViewModel(
     fun finishStep() = intent {
         val current = state.current ?: return@intent
         if (isMet(current, deviceState.isPaired.first())) {
-            deviceState.setSetupStepsDone(current.ordinal + 1)
+            deviceState.setSetupStepsDone(state.steps.indexOf(current) + 1)
         } else {
             refresh()
         }
@@ -182,8 +225,17 @@ class SetupViewModel(
         if (granted && state.current == SetupStep.Pair) onAction(SetupStep.Pair)
     }
 
+    /**
+     * "Use Shizuku instead", or, from Shizuku's steps, "use wireless debugging instead": the other checklist takes over,
+     * from the steps the two share. Without it, a choice made by mistake could be undone only from Settings, which
+     * setup does not reach.
+     */
+    fun switchShellBackend() = intent {
+        shellBackendSwitcher.switch()
+    }
+
     fun skipBattery() = intent {
-        if (state.current == SetupStep.Battery) deviceState.setSetupStepsDone(SetupStep.Battery.ordinal + 1)
+        if (state.current == SetupStep.Battery) deviceState.setSetupStepsDone(state.steps.indexOf(SetupStep.Battery) + 1)
     }
 
     /**

@@ -1,0 +1,3 @@
+# Shizuku starts the app's shell service in a process of its own, by the class name it was given, and calls it through
+# the generated AIDL stub. Nothing in the app refers to that class, so R8 would take it for unused.
+-keep class io.github.barqallayl.burkan.feature.connection.shizuku.** { *; }

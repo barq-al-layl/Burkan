@@ -8,6 +8,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.Appearance
 import io.github.barqallayl.burkan.appearance
 import io.github.barqallayl.burkan.core.di.AppBindings
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.stateIn
 @Immutable
 data class UserSettings(
     val applyOnBoot: Boolean,
+    val shellBackend: ShellBackend,
     val turnOffWirelessDebugging: Boolean,
     val exclusions: Set<PackageName>,
     val appearance: Appearance,
@@ -45,6 +47,7 @@ class SettingsStore(
 ) {
     val settings: StateFlow<UserSettings?> = combine(
         settings.applyOnBoot,
+        settings.shellBackend,
         settings.turnOffWirelessDebugging,
         settings.userExclusions,
         settings.appearance(),

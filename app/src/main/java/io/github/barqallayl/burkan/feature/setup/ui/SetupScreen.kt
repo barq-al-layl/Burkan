@@ -73,6 +73,7 @@ import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.ui.buildNumberIntent
 import io.github.barqallayl.burkan.core.ui.openSettings
@@ -110,6 +111,7 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
+import io.github.barqallayl.burkan.feature.connection.data.SHIZUKU_PACKAGE
 import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
@@ -142,6 +144,7 @@ fun SetupScreen() {
 
             SetupSideEffect.OpenAboutPhone -> context.openSettings(buildNumberIntent())
             SetupSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())
+            SetupSideEffect.OpenShizuku -> openShizuku(context)
             // A dialog over this screen rather than a screen of Settings, so it stays in the app's own window.
             SetupSideEffect.RequestBatteryExemption -> try {
                 context.startActivity(batteryExemptionIntent(context))
@@ -155,8 +158,22 @@ fun SetupScreen() {
         onAction = viewModel::onAction,
         onDone = viewModel::finishStep,
         onSkipBattery = viewModel::skipBattery,
+        onSwitchBackend = viewModel::switchShellBackend,
     )
 }
+
+/** Shizuku's own app, or where to get it when the phone has none. */
+private fun openShizuku(context: Context) {
+    val intent = context.packageManager.getLaunchIntentForPackage(SHIZUKU_PACKAGE.value)
+        ?: Intent(Intent.ACTION_VIEW, SHIZUKU_DOWNLOAD_URL.toUri())
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        // A phone with nothing to open the page with: the step stays as it is.
+    }
+}
+
+private const val SHIZUKU_DOWNLOAD_URL = "https://shizuku.rikka.app/download/"
 
 /** The exemption request is the point of the step: the run after boot must not be held back. */
 @SuppressLint("BatteryLife")
@@ -172,6 +189,7 @@ private fun SetupContent(
     onAction: (SetupStep) -> Unit,
     onDone: () -> Unit,
     onSkipBattery: () -> Unit,
+    onSwitchBackend: () -> Unit,
 ) {
     val motion = burkanMotion
     val appBar = rememberBurkanAppBar()
@@ -197,8 +215,8 @@ private fun SetupContent(
                             BurkanPill(
                                 stringResource(
                                     R.string.setup_progress,
-                                    current.ordinal + 1,
-                                    SetupStep.entries.size,
+                                    state.steps.indexOf(current) + 1,
+                                    state.steps.size,
                                 ),
                                 modifier = Modifier.padding(end = ScreenMargin),
                                 tone = Tone.Good,
@@ -240,14 +258,15 @@ private fun SetupContent(
             } else {
                 // The steps are one group, the checklist the user works down. What is done shrinks to one quiet row,
                 // so the step to do now is at the top with the ones still to come under it.
-                val finished = SetupStep.entries.filter { it in done }
+                val steps = state.steps
+                val finished = steps.filter { it in done }
                 val firstStepRow = if (finished.isEmpty()) 0 else 1
-                val rows = SetupStep.entries.size - finished.size + firstStepRow
+                val rows = steps.size - finished.size + firstStepRow
                 // The row of finished steps keeps its last words while it closes.
                 var shownFinished by remember { mutableStateOf(finished) }
                 if (finished.isNotEmpty()) shownFinished = finished
                 Column(verticalArrangement = Arrangement.spacedBy(GroupGap)) {
-                    ProgressBar(done)
+                    ProgressBar(steps, done)
                     // Every step has its place here, shown or not, so one that is finished closes where it stood
                     // while the row of finished steps opens above it and the next step opens under it. The group
                     // is cut to its own outline, so its corners stay round whichever row is at its edge mid-change.
@@ -257,10 +276,10 @@ private fun SetupContent(
                             .clip(segmentedShape(0, 1)),
                     ) {
                         SlidingRow(visible = finished.isNotEmpty(), gap = 0.dp) { DoneItem(shownFinished, rows) }
-                        SetupStep.entries.forEach { step ->
+                        steps.forEach { step ->
                             key(step) {
                                 val visible = step !in done
-                                val index = firstStepRow + SetupStep.entries.count { it !in done && it < step }
+                                val index = firstStepRow + steps.count { it !in done && steps.indexOf(it) < steps.indexOf(step) }
                                 // A step that has just been finished closes as it last was, with its tick and its
                                 // button, not as an emptied row. Its buttons no longer do anything: a second tap
                                 // on Done must not land on the step that follows.
@@ -281,6 +300,22 @@ private fun SetupContent(
                             }
                         }
                     }
+                }
+                // The way to a shell is a choice, and setup does not reach Settings, so it can be made, and made
+                // again, here.
+                BurkanTextButton(
+                    onClick = onSwitchBackend,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) {
+                    Text(
+                        stringResource(
+                            if (state.backend == ShellBackend.Shizuku) {
+                                R.string.setup_use_wireless_debugging_instead
+                            } else {
+                                R.string.setup_use_shizuku_instead
+                            },
+                        ),
+                    )
                 }
             }
         }
@@ -309,7 +344,7 @@ private fun ColumnScope.SlidingRow(visible: Boolean, gap: Dp, content: @Composab
  * A bar fills as its step is finished.
  */
 @Composable
-private fun ProgressBar(done: Set<SetupStep>) {
+private fun ProgressBar(steps: List<SetupStep>, done: Set<SetupStep>) {
     val motion = burkanMotion
     Row(
         modifier = Modifier
@@ -317,7 +352,7 @@ private fun ProgressBar(done: Set<SetupStep>) {
             .clearAndSetSemantics { },
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        SetupStep.entries.forEach { step ->
+        steps.forEach { step ->
             val color by animateColorAsState(
                 if (step in done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                 animationSpec = motion.move(),
@@ -402,7 +437,7 @@ private fun StepItem(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StepNumber(step.ordinal + 1, isCurrent)
+            StepNumber(state.steps.indexOf(step) + 1, isCurrent)
             Column(modifier = Modifier.weight(1f)) {
                 // The name is level with the number, whether or not anything is open under it.
                 Box(modifier = Modifier.heightIn(min = STEP_NUMBER_SIZE), contentAlignment = Alignment.CenterStart) {
@@ -483,7 +518,7 @@ private fun CurrentStepDetail(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
-            Text(stringResource(step.text))
+            Text(stringResource(step.text(state.backend)))
             // Said before the user goes to Settings and finds the switch greyed out.
             AnimatedVisibility(
                 visible = state.isWifiMissing,
@@ -537,7 +572,7 @@ private fun CurrentStepDetail(
                             }
                         }
                     } else {
-                        BurkanButton(onClick = onAction) { Text(stringResource(step.action)) }
+                        BurkanButton(onClick = onAction) { Text(stringResource(step.action(state))) }
                     }
                 }
             }
@@ -628,18 +663,22 @@ private val SetupStep.title: Int
         SetupStep.Connect -> R.string.setup_connect_title
         SetupStep.Permission -> R.string.setup_permission_title
         SetupStep.Battery -> R.string.setup_battery_title
+        SetupStep.Shizuku -> R.string.setup_shizuku_title
     }
 
-private val SetupStep.text: Int
-    get() = when (this) {
-        SetupStep.Notifications -> R.string.setup_notifications_text
-        SetupStep.DeveloperOptions -> R.string.setup_developer_options_text
-        SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_text
-        SetupStep.Pair -> R.string.setup_pair_text
-        SetupStep.Connect -> R.string.setup_connect_text
-        SetupStep.Permission -> R.string.setup_permission_text
-        SetupStep.Battery -> R.string.setup_battery_text
-    }
+/** What a step asks, which for Connect and Permission is told differently when Shizuku is the way to a shell. */
+private fun SetupStep.text(backend: ShellBackend): Int = when (this) {
+    SetupStep.Notifications -> R.string.setup_notifications_text
+    SetupStep.DeveloperOptions -> R.string.setup_developer_options_text
+    SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_text
+    SetupStep.Pair -> R.string.setup_pair_text
+    SetupStep.Connect ->
+        if (backend == ShellBackend.Shizuku) R.string.setup_connect_shizuku_text else R.string.setup_connect_text
+    SetupStep.Permission ->
+        if (backend == ShellBackend.Shizuku) R.string.setup_permission_shizuku_text else R.string.setup_permission_text
+    SetupStep.Battery -> R.string.setup_battery_text
+    SetupStep.Shizuku -> R.string.setup_shizuku_text
+}
 
 /** What a step's check found when it passes. */
 private val SetupStep.met: Int
@@ -651,15 +690,18 @@ private val SetupStep.met: Int
         SetupStep.Connect -> R.string.setup_connect_met
         SetupStep.Permission -> R.string.setup_permission_met
         SetupStep.Battery -> R.string.setup_battery_met
+        SetupStep.Shizuku -> R.string.setup_shizuku_met
     }
 
 /** The single action of a step that has one button; Pair, Connect, Permission and Battery build their own. */
-private val SetupStep.action: Int
-    get() = when (this) {
-        SetupStep.Notifications -> R.string.setup_notifications_action
-        SetupStep.DeveloperOptions -> R.string.setup_developer_options_action
-        else -> R.string.setup_wireless_debugging_action
-    }
+private fun SetupStep.action(state: SetupState): Int = when (this) {
+    SetupStep.Notifications -> R.string.setup_notifications_action
+    SetupStep.DeveloperOptions -> R.string.setup_developer_options_action
+    // Shizuku is started in its own app; once it runs, what is left is to allow Burkan.
+    SetupStep.Shizuku ->
+        if (state.isShizukuRunning) R.string.setup_shizuku_allow_action else R.string.setup_shizuku_open_action
+    else -> R.string.setup_wireless_debugging_action
+}
 
 private fun sample(
     current: SetupStep,
@@ -681,7 +723,7 @@ private fun sample(
 
 @Composable
 private fun SetupPreviewContent(state: SetupState) {
-    SetupContent(state = state, onAction = {}, onDone = {}, onSkipBattery = {})
+    SetupContent(state = state, onAction = {}, onDone = {}, onSkipBattery = {}, onSwitchBackend = {})
 }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)

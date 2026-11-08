@@ -560,3 +560,22 @@ and its connections counted from adbd's log, where each new one is a line `New T
 | Home, then Settings for 40 seconds, then back: no connection, and wireless debugging is not switched on | Measured |
 | Home, then Log for 35 seconds, then back: no connection | Measured |
 | Leaving the app for 35 seconds and opening it again: one connection | Measured |
+
+## 16. Shizuku as the way to a shell
+
+The code was written from the source of
+Shizuku's API (13.1.5) and the README of thedjchi's fork.
+Has been tested on a Galaxy S23 (SM-S911B) with thedjchi's Shizuku.
+
+| Fact | Status |
+|---|---|
+| `Shizuku#newProcess` is private in API 13.1.x and planned to go, so a shell is a user service: a class of the app that Shizuku starts in a process of its own, as the user Shizuku runs as, and that the app calls through an AIDL interface | Measured: read from `Shizuku.java` |
+| Shizuku sends its binder to an app process when the process starts, and to every running app when it starts itself, through the app's `ShizukuProvider`. The provider has to be in the manifest for either to happen, and is created at every start of the app's process | Measured: read from `ShizukuProvider.java` and its documentation |
+| thedjchi's fork keeps the package name `moe.shizuku.privileged.api` and the API, so the same client works with it. Its start on boot waits for Wi-Fi, starts Shizuku over wireless debugging and has a watchdog | Measured: read from the fork's `manager/build.gradle` and README |
+| `bindUserService` with `daemon(false)` ends the service with the app's process, and `unbindUserService(…, remove = true)` has Shizuku call its `destroy` (transaction 16777115, written as 16777114 in AIDL) | Measured: read from `Shizuku.java` |
+| A Binder transaction carries about 1 MB, which a `dumpsys` can exceed, so the shell service copies a command's output into two pipes whose write ends the app hands it, and returns only the exit code | Measured |
+| `sh -c <line>` in the service's process runs the same command lines as adbd's `shell,v2` does, with the environment Shizuku's server had when it was started over adb (`BOOTCLASSPATH` and the like, which `am` and `pm` need) | Measured: not verified for any command the app sends |
+| Shizuku's server survives adbd restarting when the keyguard changes (section 11) | Measured: started over adb it is a daemon of its own. If not, the run at the lock reconnects within 30 seconds, as long as Shizuku is back by then |
+| `am force-stop` of Shizuku's own app leaves its server running, but leaves the app in the stopped state, which receives no `BOOT_COMPLETED` until opened. Shizuku's start on boot would not run | Measured. A full run never stops that package while Shizuku is the way to a shell |
+| Shizuku's permission dialog is shown by Shizuku's app over Burkan; after "deny and don't ask again" it is not shown again, and the permission is given in Shizuku's list of apps | Measured |
+| A shell from Shizuku raises no "Wireless debugging connected" notification, and needs no Wi-Fi, mDNS or `ACCESS_LOCAL_NETWORK` of Burkan's | Measured |

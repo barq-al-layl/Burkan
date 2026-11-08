@@ -5,7 +5,11 @@ import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.shell.BytesStream
+import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.ShellCommand
+import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
+import io.github.barqallayl.burkan.core.shell.ShellResult
 import io.github.barqallayl.burkan.core.shell.ShellStream
 import io.github.barqallayl.burkan.core.shell.exit
 import io.github.barqallayl.burkan.core.shell.packet
@@ -87,16 +91,59 @@ class FakeWirelessDebugging(
     override fun forgetsPairings(): Boolean = forgetsPairings
 }
 
+/**
+ * Shizuku as a test sets it up: running or not, allowing the app or not. The shell it hands over answers from
+ * [shell] while it is [connected].
+ */
+class FakeShizukuClient(
+    var running: Boolean = true,
+    var allowed: Boolean = true,
+    private val shell: ShellExecutor = FakeShellExecutor(),
+) : ShizukuClient {
+    val calls = mutableListOf<String>()
+    var connectResult: Either<ConnectionError, Unit> = Unit.right()
+    var permissionRequests = 0
+    var connected = false
+
+    override fun isRunning(): Boolean = running
+
+    override fun isAllowed(): Boolean = running && allowed
+
+    override fun requestPermission() {
+        permissionRequests++
+    }
+
+    override suspend fun connect(): Either<ConnectionError, Unit> {
+        calls += "connect"
+        connected = connectResult.isRight()
+        return connectResult
+    }
+
+    override suspend fun disconnect() {
+        calls += "disconnect"
+        connected = false
+    }
+
+    override suspend fun run(command: ShellCommand): Either<ShellError, ShellResult> =
+        if (connected) shell.run(command) else ShellError.NotConnected.left()
+}
+
 /** Runs each block on [shell] once its settle time has passed, or fails before connecting with [failure]. */
 class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
     var failure: AppError? = null
     var runs = 0
     var releases = 0
     val settles = mutableListOf<Duration>()
+    val patiences = mutableListOf<Duration>()
 
-    override suspend fun <T> withShell(settle: Duration, block: suspend (ShellExecutor) -> T): Either<AppError, T> {
+    override suspend fun <T> withShell(
+        settle: Duration,
+        patience: Duration,
+        block: suspend (ShellExecutor) -> T,
+    ): Either<AppError, T> {
         runs++
         settles += settle
+        patiences += patience
         delay(settle)
         return failure?.left() ?: block(shell).right()
     }

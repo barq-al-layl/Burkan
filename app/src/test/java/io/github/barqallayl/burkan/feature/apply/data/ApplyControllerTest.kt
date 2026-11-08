@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.STOP_ALL_PREFIX
@@ -44,6 +45,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -119,6 +121,44 @@ class ApplyControllerTest {
         assertTrue(outcome?.systemUiDeferred == true)
         assertTrue("am crash \"\$(pidof -s com.android.systemui || echo com.android.systemui)\"" !in shell.lines)
         assertTrue(shell.lines.any { it.startsWith("am force-stop com.sec.android.app.launcher;") })
+    }
+
+    @Test
+    fun `only the run after a restart waits for a shell that is not up yet`() = runTest {
+        controller.run(ApplyKind.Light, RunTrigger.Boot)
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        assertEquals(listOf(ApplyController.SHELL_PATIENCE_AFTER_BOOT, Duration.ZERO), access.patiences)
+    }
+
+    @Test
+    fun `with Shizuku its own app is left running by a full run, so that it can start itself after a restart`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertFalse("moe.shizuku.privileged.api" in stopAll)
+        assertTrue("com.example.notes;" in stopAll)
+    }
+
+    @Test
+    fun `with wireless debugging a Shizuku app, if the phone has one, is restarted like any other`() = runTest {
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertTrue("moe.shizuku.privileged.api;" in stopAll)
     }
 
     @Test
@@ -413,6 +453,20 @@ class ApplyControllerTest {
             shell.lines.take(3),
         )
         assertEquals(listOf(StepKind.RestartSystemUi), log.runs.value.single().steps.map { it.kind })
+    }
+
+    @Test
+    fun `with Shizuku the run says it connects to Shizuku, not to wireless debugging`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        val states = mutableListOf<ApplyRunState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.state.collect { states += it } }
+
+        controller.run(ApplyKind.Light, RunTrigger.Manual)
+        runCurrent()
+
+        val phases = states.filterIsInstance<ApplyRunState.Running>().map { it.phase }
+        assertEquals(RunPhase.ConnectingToShizuku, phases.first())
+        assertFalse(RunPhase.Connecting in phases)
     }
 
     @Test

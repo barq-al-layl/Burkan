@@ -13,6 +13,7 @@ import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.RendererReader
@@ -25,6 +26,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
+import io.github.barqallayl.burkan.feature.connection.data.SHIZUKU_PACKAGE
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
 import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
@@ -43,6 +45,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.time.TimeSource
@@ -50,6 +53,9 @@ import kotlin.time.TimeSource
 /** What a run is doing now, in terms a person can be shown. */
 sealed interface RunPhase {
     data object Connecting : RunPhase
+
+    /** [Connecting] when Shizuku is the way to a shell: there is no wireless debugging to name. */
+    data object ConnectingToShizuku : RunPhase
     data object Reading : RunPhase
     data class Step(val kind: StepKind) : RunPhase
     data object Checking : RunPhase
@@ -161,15 +167,24 @@ class ApplyController(
             // What a full apply left changed when the app's process died under it goes back first, before this run
             // reads the phone and takes that for how it was.
             puttingBack.withLock { captured.putBackKept() }
-            show(RunPhase.Connecting)
+            val shizuku = settings.shellBackend.first() == ShellBackend.Shizuku
+            show(if (shizuku) RunPhase.ConnectingToShizuku else RunPhase.Connecting)
             // Locking restarted adbd, which takes about a second to accept connections again.
-            val outcome = shellAccess.withShell(settle = if (atLock) ADBD_SETTLE else Duration.ZERO) { shell ->
+            val outcome = shellAccess.withShell(
+                settle = if (atLock) ADBD_SETTLE else Duration.ZERO,
+                // Shizuku starts itself after a restart, which takes a while longer than this app does.
+                patience = if (trigger == RunTrigger.Boot) SHELL_PATIENCE_AFTER_BOOT else Duration.ZERO,
+            ) { shell ->
                 either {
                     show(RunPhase.Reading)
                     val reader = RendererReader(shell)
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
                     beforeStatus = before.status
-                    val userExclusions = settings.userExclusions.first()
+                    // Shizuku starts itself after the next restart only if it was not force-stopped: an app that was is
+                    // left alone by the system until it is opened.
+                    val userExclusions = settings.userExclusions.first().let { chosen ->
+                        if (shizuku) chosen + SHIZUKU_PACKAGE else chosen
+                    }
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
                         ApplyKind.Revert -> LightApplyPlan.create(before, target = Renderer.OpenGL)
@@ -318,5 +333,8 @@ class ApplyController(
     companion object {
         /** How long adbd is given after the phone locks. It was measured accepting connections again after a second. */
         val ADBD_SETTLE = 3.seconds
+
+        /** How long the run after a restart waits for a shell that is not up yet: Shizuku, starting itself. */
+        val SHELL_PATIENCE_AFTER_BOOT = 2.minutes
     }
 }
