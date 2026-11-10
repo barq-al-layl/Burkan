@@ -2,6 +2,7 @@ package io.github.barqallayl.burkan.feature.connection.data
 
 import arrow.core.left
 import arrow.core.right
+import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellResult
@@ -26,7 +27,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class ShizukuShellAccessTest {
 
-    private val client = FakeShizukuClient()
+    private val shell = FakeShellExecutor()
+    private val client = FakeShizukuClient(shell = shell)
 
     private fun TestScope.access() = ShizukuShellAccess(client, backgroundScope)
 
@@ -197,5 +199,15 @@ class ShizukuShellAccessTest {
         }
 
         assertEquals(ShellError.NotConnected.left() to 500L, result.getOrNull())
+    }
+
+    @Test
+    fun `a command Shizuku could not run fails at once, with no wait for a new shell`() = runTest {
+        shell.fail(ShellCommands.echoOk(), ShellError.Failed)
+
+        val result = access().withShell { shell -> shell.run(ShellCommands.echoOk()) to currentTime }
+
+        assertEquals(ShellError.Failed.left() to 0L, result.getOrNull())
+        assertEquals(listOf("connect"), client.calls)
     }
 }

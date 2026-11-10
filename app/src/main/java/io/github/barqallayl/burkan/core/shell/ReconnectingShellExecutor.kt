@@ -35,7 +35,7 @@ class ReconnectingShellExecutor(
                     lost = true
                     return result
                 }
-                ShellError.TimedOut, null -> return result
+                ShellError.TimedOut, ShellError.Failed, null -> return result
             }
             if (!reconnect()) return result
             result = delegate.run(command)

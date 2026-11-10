@@ -174,7 +174,8 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
                 }
                 when (exitCode) {
                     ShellService.TIMED_OUT -> ShellError.TimedOut.left()
-                    ShellService.START_FAILED, ShellService.FAILED -> ShellError.ConnectionLost.left()
+                    // The shell is still there: losing it is a RemoteException. Reconnecting would not help.
+                    ShellService.START_FAILED, ShellService.FAILED -> ShellError.Failed.left()
                     else -> ShellResult(exitCode, output.await(), errors.await()).right()
                 }
             }

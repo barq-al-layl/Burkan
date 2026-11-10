@@ -178,6 +178,7 @@
     <string name="error_shizuku_shell_failed">Shizuku is running, but Burkan\'s shell did not start in it. Try again.</string>
     <string name="error_connection_lost">The connection to wireless debugging was lost. Try again.</string>
     <string name="error_command_timed_out">The phone took too long to answer. Try again.</string>
+    <string name="error_shell_failed">Shizuku could not run a command for Burkan. Try again, and if it keeps happening, restart Shizuku.</string>
     <string name="error_invalid_code">The pairing code is six digits.</string>
     <string name="error_pairing_dialog_closed">The pairing dialog is closed. Tap “Pair device with pairing code” again, then reply with the new code.</string>
     <string name="error_wrong_code">That code did not match. Check the code in the pairing dialog and reply again.</string>

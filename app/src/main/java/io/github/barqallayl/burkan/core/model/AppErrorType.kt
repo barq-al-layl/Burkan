@@ -23,6 +23,7 @@ enum class AppErrorType(@StringRes val resource: Int) {
     ShizukuShellFailed(R.string.error_shizuku_shell_failed),
     ConnectionLost(R.string.error_connection_lost),
     CommandTimedOut(R.string.error_command_timed_out),
+    ShellFailed(R.string.error_shell_failed),
     InvalidCode(R.string.error_invalid_code),
     PairingDialogClosed(R.string.error_pairing_dialog_closed),
     WrongCode(R.string.error_wrong_code),
@@ -55,6 +56,7 @@ fun AppError.type(): AppErrorType = when (this) {
     ConnectionError.ShizukuShellFailed -> AppErrorType.ShizukuShellFailed
     ShellError.NotConnected, ShellError.ConnectionLost -> AppErrorType.ConnectionLost
     ShellError.TimedOut -> AppErrorType.CommandTimedOut
+    ShellError.Failed -> AppErrorType.ShellFailed
     PairingError.InvalidCode -> AppErrorType.InvalidCode
     PairingError.DialogClosed -> AppErrorType.PairingDialogClosed
     PairingError.WrongCode -> AppErrorType.WrongCode

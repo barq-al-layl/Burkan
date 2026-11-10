@@ -19,4 +19,7 @@ sealed interface ShellError : AppError {
     data object NotConnected : ShellError
     data object ConnectionLost : ShellError
     data object TimedOut : ShellError
+
+    /** The shell is there but could not run the command. Sending it again, or over a new connection, does not help. */
+    data object Failed : ShellError
 }
