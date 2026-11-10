@@ -23,6 +23,7 @@ import io.github.barqallayl.burkan.core.shell.ShellResult
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.shizuku.IShellService
 import io.github.barqallayl.burkan.feature.connection.shizuku.ShellService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -173,7 +174,7 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
                 }
                 when (exitCode) {
                     ShellService.TIMED_OUT -> ShellError.TimedOut.left()
-                    ShellService.START_FAILED -> ShellError.ConnectionLost.left()
+                    ShellService.START_FAILED, ShellService.FAILED -> ShellError.ConnectionLost.left()
                     else -> ShellResult(exitCode, output.await(), errors.await()).right()
                 }
             }
@@ -184,6 +185,15 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         } catch (e: IOException) {
             // A pipe that failed under a read or a close: the output is not whole, so the command is not trusted.
             Logger.w(e) { "Reading a command's output from Burkan's shell in Shizuku failed" }
+            ShellError.ConnectionLost.left()
+        } catch (e: CancellationException) {
+            // An IllegalStateException too, so it would be caught below.
+            throw e
+        } catch (e: RuntimeException) {
+            // Binder hands some of the shell's own exceptions back as they are, a SecurityException for one, rather
+            // than as a RemoteException. The command may have run, and the shell is not trusted with the next one.
+            Logger.w(e) { "Burkan's shell in Shizuku failed a command" }
+            service = null
             ShellError.ConnectionLost.left()
         }
     }
