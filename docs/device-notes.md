@@ -563,9 +563,15 @@ and its connections counted from adbd's log, where each new one is a line `New T
 
 ## 16. Shizuku as the way to a shell
 
-The code was written from the source of
-Shizuku's API (13.1.5) and the README of thedjchi's fork.
-Has been tested on a Galaxy S23 (SM-S911B) with thedjchi's Shizuku.
+The code was written from the source of Shizuku's API (13.1.5) and the README of thedjchi's fork.
+
+The build from pull request #6 was tried on these phones by the people who reported them there. Neither was
+checked by the maintainer, and which of the facts below each covered was not recorded.
+
+| Phone | System | Shizuku | Reported |
+|---|---|---|---|
+| Galaxy S23 (SM-S911B) | One UI 9 | thedjchi's fork, 13.6.0.r1318-thedjchi | Works |
+| Honor Magic 6 Pro | MagicOS 11 (Android 17) | Not recorded | Works. Outside the S23 family the app supports |
 
 | Fact | Status |
 |---|---|
