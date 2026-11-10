@@ -2,9 +2,10 @@
 
 Unit tests and screenshot tests run on any machine (see `CONTRIBUTING.md`). What follows cannot: it needs a real
 Galaxy S23, and an emulator does not stand in for it. A ticked item was observed on an S23 (SM-S911B, Android 16);
-the results are recorded in [`device-notes.md`](device-notes.md). An open item has not been checked yet. The last
-full pass was on One UI 8.5, with a debug build and the USB cable plugged in. The 1.0.0 release build was then
-tried on an S23 (SM-S911) and an S23 Ultra (SM-S918).
+the results are recorded in [`device-notes.md`](device-notes.md). A tick marked "(reported in #…)" was reported by
+a contributor in that pull request instead, and has not been observed by the maintainer. An open item has not been
+checked yet. The last full pass was on One UI 8.5, with a debug build and the USB cable plugged in. The 1.0.0
+release build was then tried on an S23 (SM-S911) and an S23 Ultra (SM-S918).
 
 When you check one, tick it here and record what you saw in the device notes.
 
@@ -63,33 +64,46 @@ When you check one, tick it here and record what you saw in the device notes.
 
 ## Shizuku as the way to a shell
 
-The code was written against Shizuku's API and its source, and is covered
-by tests with a fake only. Device notes, section 16, has what is expected. Use a Shizuku that starts itself after a
-restart (a fork such as thedjchi's, or Sui) for the restart checks.
+The code is covered by unit tests with fakes, and none of the items below has been checked on the maintainer's S23
+yet. A tick marked "(reported in #6)" was reported working by the contributor of pull request #6 on a Galaxy S23
+(SM-S911B, One UI 9) with Shizuku 13.6.0.r1318-thedjchi; device notes, section 16, records it with what is
+expected. Use a Shizuku that starts itself after a restart (a fork such as thedjchi's, or Sui) for the restart
+checks.
 
 - [x] Settings › Use Shizuku asks first; confirming goes to Setup, with notifications still done and the steps
       Allow Shizuku, Connect, Permission and Battery after it. Wireless debugging's own steps are not listed.
+      (reported in #6)
 - [x] With Shizuku stopped, the Allow Shizuku step offers Open Shizuku, which opens its app. With it running, the
       step offers Allow, which raises Shizuku's dialog; allowing it ticks the step when Burkan is next in front.
+      (reported in #6)
 - [ ] After a "deny and don't ask again", the step's own text says where to allow Burkan, and allowing it there
       ticks the step.
 - [x] Connect returns from `echo ok` through Shizuku, and Permission grants `WRITE_SECURE_SETTINGS` through it.
+      (reported in #6)
 - [x] A light and a full apply run end to end through Shizuku, and leave Shizuku's own app running: it is not in
       the list of stopped apps. `dumpsys activity processes` (about 1 MB) comes back whole, through the pipes.
+      (reported in #6)
 - [x] `ps -A` shows `io.github.barqallayl.burkan:shell` as `shell` while a run is on and for about ten seconds
-      after it, and not once it is over.
+      after it, and not once it is over. (reported in #6)
 - [ ] A command that outlives its timeout is killed in Shizuku's process and the run reports it timed out.
+- [ ] A command Shizuku cannot run fails at once with "Shizuku could not run a command", with no 30-second wait
+      for a new shell.
 - [ ] After a restart, with Shizuku starting itself: the run waits for it (up to two minutes), applies Vulkan, and
       needs no Wi-Fi of its own. Record how long Shizuku took to be there after the first unlock.
 - [x] After a restart with Shizuku not starting: the run fails with "Shizuku is not running" after two minutes,
-      and the notification opens the app.
+      and the notification opens the app. (reported in #6)
 - [x] Shizuku survives System UI's restart and the lock that follows (adbd restarts on every keyguard change,
       device notes, section 11); the run at the lock finishes through Shizuku, or reconnects within 30 seconds.
+      (reported in #6)
 - [x] Switching back to wireless debugging brings Setup back with the pairing still counted, and the next run goes
-      through wireless debugging as before.
-- [x] A release build: R8 keeps `ShellService` and its stub, and the shell starts.
+      through wireless debugging as before. (reported in #6)
+- [x] A release build: R8 keeps `ShellService` and its stub, and the shell starts. (reported in #6)
 - [x] With wireless debugging chosen, which is the default, nothing about Shizuku shows anywhere but the Settings
-      row, and an app with Shizuku not installed behaves as before.
+      row, and an app with Shizuku not installed behaves as before. (reported in #6)
+- [ ] A full apply with a Shizuku fork under another package name, or with Sui, keeps the right app running:
+      `dumpsys package <app> | grep stopped` shows `stopped=false` afterwards, and with Sui nothing extra is kept.
+- [ ] `adb logcat` shows "Burkan's shell in Shizuku is up, as uid …" when the shell starts: 2000 when Shizuku
+      was started over adb, 0 with root.
 
 ## Applying and status
 
