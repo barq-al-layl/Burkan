@@ -10,7 +10,8 @@ import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 /**
- * The shell Shizuku runs for the app, as the user Shizuku runs as: `shell`, when Shizuku was started over adb.
+ * The shell Shizuku runs for the app, as the user Shizuku runs as: `shell` when Shizuku was started over adb, root
+ * when it was started with root or is Sui.
  *
  * It lives in a process of its own, started by Shizuku through `app_process`. That is not an app's process: there is no
  * application, no dependency graph and no usable `Context`, so this class takes nothing from the rest of the app, and

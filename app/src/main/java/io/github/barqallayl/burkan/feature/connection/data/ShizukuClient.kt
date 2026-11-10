@@ -64,7 +64,7 @@ private fun isInstalled(packageManager: PackageManager, name: PackageName): Bool
 
 /**
  * What Burkan needs of Shizuku: whether it is there, may be used, and the shell it hands over, which runs commands as
- * the user Shizuku runs as (`shell`, when Shizuku was started over adb).
+ * the user Shizuku runs as: `shell` when Shizuku was started over adb, root when it was started with root or is Sui.
  *
  * Running a command without a connected shell is [ShellError.NotConnected].
  */
@@ -155,7 +155,15 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         disconnect()
         if (!Shizuku.pingBinder()) return ConnectionError.ShizukuNotRunning.left()
         val bound = withTimeoutOrNull(BIND_TIMEOUT) { bind() }
-        return if (bound == null) ConnectionError.ShizukuShellFailed.left() else Unit.right()
+        if (bound == null) return ConnectionError.ShizukuShellFailed.left()
+        // 2000 is `shell`, 0 is root. Root runs the same fixed commands, but only `shell` has been tried on a phone.
+        val uid = try {
+            Shizuku.getUid().toString()
+        } catch (_: RuntimeException) {
+            "unknown"
+        }
+        Logger.i { "Burkan's shell in Shizuku is up, as uid $uid" }
+        return Unit.right()
     }
 
     private suspend fun bind(): IShellService? = suspendCancellableCoroutine { continuation ->

@@ -320,6 +320,9 @@ A flow is a function that returns the list of steps, and a runner that executes 
   into two pipes the app passes in, since a `dumpsys` can print more than a Binder transaction carries. It
   answers with the exit code only. `ShizukuClient` is a `ShellExecutor`, so everything above it is the code that
   already ran over ADB, `ReconnectingShellExecutor` included.
+- **Root is allowed.** Shizuku started with root, or Sui, runs the shell as root rather than `shell`. The commands
+  are the same fixed set either way, so Burkan uses it as it is and logs the uid when the shell starts. Only a
+  Shizuku running as `shell` has been tried on a phone.
 - **Nothing to switch on or off.** `ShizukuShellAccess` checks that Shizuku is running and has allowed Burkan,
   binds the shell, and keeps it for 10 seconds after a block as `AdbShellAccess` keeps its connection; Shizuku
   then ends the shell's process. There is no Wi-Fi, no discovery, no `adb_wifi_enabled` and no notification.
@@ -330,7 +333,9 @@ A flow is a function that returns the list of steps, and a runner that executes 
 - **A lost shell is started again.** Shizuku restarting, or ending the shell, makes the next command fail; the
   reconnection waits up to 30 seconds for Shizuku, and binds the shell afresh.
 - **Shizuku's own app is never force-stopped** by a run while Shizuku is the way to a shell: a stopped app gets
-  no `BOOT_COMPLETED`, and its start on boot would not run. It is kept like an app the user excluded.
+  no `BOOT_COMPLETED`, and its start on boot would not run. It is kept like an app the user excluded. The app is
+  the package that defines `moe.shizuku.manager.permission.API_V23`, so a fork under another name is found too;
+  Sui has no app, and nothing extra is kept.
 - **Setup has its own steps.** Notifications, Allow Shizuku (running, and Burkan allowed), Connect, Permission,
   Battery: no Developer options, wireless debugging or pairing. Permission is still done, so that a value a full
   apply changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
