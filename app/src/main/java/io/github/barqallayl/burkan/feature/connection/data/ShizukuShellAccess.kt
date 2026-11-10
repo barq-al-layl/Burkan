@@ -10,6 +10,7 @@ import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.ReconnectingShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
@@ -53,6 +54,7 @@ class ShizukuShellAccess(
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()

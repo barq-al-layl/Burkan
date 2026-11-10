@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.BytesStream
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellCommand
@@ -135,15 +136,18 @@ class FakeShellAccess(private val shell: ShellExecutor) : ShellAccess {
     var releases = 0
     val settles = mutableListOf<Duration>()
     val patiences = mutableListOf<Duration>()
+    val backends = mutableListOf<ShellBackend?>()
 
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> {
         runs++
         settles += settle
         patiences += patience
+        backends += backend
         delay(settle)
         return failure?.left() ?: block(shell).right()
     }

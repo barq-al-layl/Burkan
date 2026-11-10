@@ -132,20 +132,21 @@ class ApplyControllerTest {
     }
 
     @Test
-    fun `with Shizuku its own app is left running by a full run, so that it can start itself after a restart`() = runTest {
-        settings.shellBackend.value = ShellBackend.Shizuku
-        shell.reply(
-            ShellCommands.listPackages(),
-            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
-            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
-        )
+    fun `with Shizuku its own app is left running by a full run, so that it can start itself after a restart`() =
+        runTest {
+            settings.shellBackend.value = ShellBackend.Shizuku
+            shell.reply(
+                ShellCommands.listPackages(),
+                stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+                stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+            )
 
-        controller.run(ApplyKind.Full, RunTrigger.Manual)
+            controller.run(ApplyKind.Full, RunTrigger.Manual)
 
-        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
-        assertFalse("moe.shizuku.privileged.api" in stopAll)
-        assertTrue("com.example.notes;" in stopAll)
-    }
+            val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+            assertFalse("moe.shizuku.privileged.api" in stopAll)
+            assertTrue("com.example.notes;" in stopAll)
+        }
 
     @Test
     fun `with wireless debugging a Shizuku app, if the phone has one, is restarted like any other`() = runTest {
@@ -159,6 +160,23 @@ class ApplyControllerTest {
 
         val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
         assertTrue("moe.shizuku.privileged.api;" in stopAll)
+    }
+
+    @Test
+    fun `a run keeps the way to a shell it began with, though Settings changes part way through`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+        shell.beforeEach = { settings.shellBackend.value = ShellBackend.WirelessDebugging }
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        assertEquals(listOf<ShellBackend?>(ShellBackend.Shizuku), access.backends)
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertFalse("moe.shizuku.privileged.api" in stopAll)
     }
 
     @Test
@@ -652,7 +670,11 @@ class ApplyControllerTest {
 
     @Test
     fun `a command that fails leaves its own words in the log`() = runTest {
-        shell.reply(ShellCommands.setVulkanRenderer(), stderr = "\nsetprop: failed to set property\nmore\n", exitCode = 1)
+        shell.reply(
+            ShellCommands.setVulkanRenderer(),
+            stderr = "\nsetprop: failed to set property\nmore\n",
+            exitCode = 1,
+        )
 
         controller.run(ApplyKind.Light, RunTrigger.Manual)
 

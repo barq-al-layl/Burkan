@@ -167,13 +167,17 @@ class ApplyController(
             // What a full apply left changed when the app's process died under it goes back first, before this run
             // reads the phone and takes that for how it was.
             puttingBack.withLock { captured.putBackKept() }
-            val shizuku = settings.shellBackend.first() == ShellBackend.Shizuku
+            // Read once: a choice changed in Settings part way through must not give this run one way's label and
+            // exclusions and the other way's shell.
+            val backend = settings.shellBackend.first()
+            val shizuku = backend == ShellBackend.Shizuku
             show(if (shizuku) RunPhase.ConnectingToShizuku else RunPhase.Connecting)
             // Locking restarted adbd, which takes about a second to accept connections again.
             val outcome = shellAccess.withShell(
                 settle = if (atLock) ADBD_SETTLE else Duration.ZERO,
                 // Shizuku starts itself after a restart, which takes a while longer than this app does.
                 patience = if (trigger == RunTrigger.Boot) SHELL_PATIENCE_AFTER_BOOT else Duration.ZERO,
+                backend = backend,
             ) { shell ->
                 either {
                     show(RunPhase.Reading)
@@ -223,7 +227,8 @@ class ApplyController(
                         // At the lock only System UI was read; Home reads the rest itself.
                         status = before.status.takeUnless { atLock }
                         // Nothing was restarted, so the open apps are as they were: Home still has to be told.
-                        if (!atLock) behind = OpenAppsReader(shell).behind(before, userExclusions, ownPackage).getOrNull()
+                        if (!atLock) behind =
+                            OpenAppsReader(shell).behind(before, userExclusions, ownPackage).getOrNull()
                         return@either
                     }
                     // A run nobody confirmed on the screen restarts System UI only under a locked phone. Left

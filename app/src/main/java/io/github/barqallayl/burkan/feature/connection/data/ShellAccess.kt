@@ -5,12 +5,12 @@ import arrow.core.raise.Raise
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
-
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.AdbShellExecutor
 import io.github.barqallayl.burkan.core.shell.ReconnectingShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
@@ -45,10 +45,15 @@ interface ShellAccess {
      *
      * [patience] is how long a shell that is still coming up may be waited for, as Shizuku is after a restart, when
      * it has to start itself first. Wireless debugging has its waits of its own and takes none of this.
+     *
+     * [backend] is the way to the shell, for a caller that has already read the choice and must not see it change
+     * part way through its run; null is the one chosen in Settings now. Only [BackendShellAccess] reads it: each of
+     * the two ways to a shell is the way it is.
      */
     suspend fun <T> withShell(
         settle: Duration = Duration.ZERO,
         patience: Duration = Duration.ZERO,
+        backend: ShellBackend? = null,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T>
 
@@ -86,6 +91,7 @@ class AdbShellAccess(
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()
