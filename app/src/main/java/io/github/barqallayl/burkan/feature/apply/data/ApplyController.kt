@@ -26,8 +26,8 @@ import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
-import io.github.barqallayl.burkan.feature.connection.data.SHIZUKU_PACKAGE
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.ShizukuClient
 import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
@@ -108,6 +108,7 @@ class ApplyController(
     private val clock: Clock,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
     private val announcer: RunAnnouncer,
+    private val shizukuClient: ShizukuClient,
 ) {
 
     private val running = AtomicBoolean(false)
@@ -185,9 +186,10 @@ class ApplyController(
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
                     beforeStatus = before.status
                     // Shizuku starts itself after the next restart only if it was not force-stopped: an app that was is
-                    // left alone by the system until it is opened.
+                    // left alone by the system until it is opened. A fork may name its app differently; Sui has none.
+                    val shizukuApp = if (shizuku) shizukuClient.appPackage() else null
                     val userExclusions = settings.userExclusions.first().let { chosen ->
-                        if (shizuku) chosen + SHIZUKU_PACKAGE else chosen
+                        if (shizukuApp == null) chosen else chosen + shizukuApp
                     }
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)

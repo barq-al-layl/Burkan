@@ -25,6 +25,7 @@ import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
@@ -425,6 +426,7 @@ class AutoApplyTest {
             FixedClock,
             FixtureDevice.Self,
             FakeRunAnnouncer(),
+            FakeShizukuClient(),
         )
         storage.state.value = AutoApplyState(systemUiAtNextLock = true)
 

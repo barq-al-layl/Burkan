@@ -35,6 +35,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
@@ -84,6 +85,7 @@ class HomeViewModelTest {
         clock,
         FixtureDevice.Self,
         announcer,
+        FakeShizukuClient(),
     )
     private val launcher = FakeApplyLauncher()
     private val installedApps = FakeInstalledApps(mapOf("net.example.reader" to "Reader"))

@@ -111,7 +111,7 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
-import io.github.barqallayl.burkan.feature.connection.data.SHIZUKU_PACKAGE
+import io.github.barqallayl.burkan.feature.connection.data.shizukuAppPackage
 import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
@@ -164,7 +164,8 @@ fun SetupScreen() {
 
 /** Shizuku's own app, or where to get it when the phone has none. */
 private fun openShizuku(context: Context) {
-    val intent = context.packageManager.getLaunchIntentForPackage(SHIZUKU_PACKAGE.value)
+    val intent = shizukuAppPackage(context.packageManager)
+        ?.let { context.packageManager.getLaunchIntentForPackage(it.value) }
         ?: Intent(Intent.ACTION_VIEW, SHIZUKU_DOWNLOAD_URL.toUri())
     try {
         context.startActivity(intent)
@@ -279,7 +280,8 @@ private fun SetupContent(
                         steps.forEach { step ->
                             key(step) {
                                 val visible = step !in done
-                                val index = firstStepRow + steps.count { it !in done && steps.indexOf(it) < steps.indexOf(step) }
+                                val index =
+                                    firstStepRow + steps.count { it !in done && steps.indexOf(it) < steps.indexOf(step) }
                                 // A step that has just been finished closes as it last was, with its tick and its
                                 // button, not as an emptied row. Its buttons no longer do anything: a second tap
                                 // on Done must not land on the step that follows.
@@ -457,7 +459,11 @@ private fun StepItem(
             }
             // Said on the step itself while it waits; once it is the current one, its own button offers the skip.
             if (step == SetupStep.Battery) {
-                AnimatedVisibility(visible = !isCurrent, enter = fadeIn(motion.appear()), exit = fadeOut(motion.vanish())) {
+                AnimatedVisibility(
+                    visible = !isCurrent,
+                    enter = fadeIn(motion.appear()),
+                    exit = fadeOut(motion.vanish()),
+                ) {
                     Box(modifier = Modifier.heightIn(min = STEP_NUMBER_SIZE), contentAlignment = Alignment.Center) {
                         BurkanPill(stringResource(R.string.setup_optional))
                     }

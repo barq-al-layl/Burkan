@@ -36,8 +36,31 @@ import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.seconds
 
-/** The package of Shizuku's own app, which Shizuku's forks keep. A run never force-stops it. */
-val SHIZUKU_PACKAGE: PackageName = PackageName.known("moe.shizuku.privileged.api")
+/** The package of Shizuku's own app, which most forks keep. */
+private val SHIZUKU_PACKAGE: PackageName = PackageName.known("moe.shizuku.privileged.api")
+
+/** The permission Shizuku's app defines and every app using Shizuku asks for, under whatever name a fork gives it. */
+private const val SHIZUKU_API_PERMISSION = "moe.shizuku.manager.permission.API_V23"
+
+/**
+ * Shizuku's own app, whatever package a fork gives it: the one that defines [SHIZUKU_API_PERMISSION], or else
+ * [SHIZUKU_PACKAGE] when that is installed. Null when there is no app, as with Sui. Asks the package manager.
+ */
+fun shizukuAppPackage(packageManager: PackageManager): PackageName? =
+    definerOf(packageManager, SHIZUKU_API_PERMISSION) ?: SHIZUKU_PACKAGE.takeIf { isInstalled(packageManager, it) }
+
+private fun definerOf(packageManager: PackageManager, permission: String): PackageName? = try {
+    PackageName.parse(packageManager.getPermissionInfo(permission, 0).packageName)
+} catch (_: PackageManager.NameNotFoundException) {
+    null
+}
+
+private fun isInstalled(packageManager: PackageManager, name: PackageName): Boolean = try {
+    packageManager.getPackageInfo(name.value, PackageManager.PackageInfoFlags.of(0))
+    true
+} catch (_: PackageManager.NameNotFoundException) {
+    false
+}
 
 /**
  * What Burkan needs of Shizuku: whether it is there, may be used, and the shell it hands over, which runs commands as
@@ -54,6 +77,12 @@ interface ShizukuClient : ShellExecutor {
 
     /** Asks Shizuku to let Burkan use it, which it does with a dialog of its own. [isAllowed] has the answer. */
     fun requestPermission()
+
+    /**
+     * Shizuku's own app, which a run never force-stops: a stopped app gets no `BOOT_COMPLETED`, so Shizuku would not
+     * start itself after the next restart. Null when there is none, as with Sui.
+     */
+    suspend fun appPackage(): PackageName?
 
     /** Has Shizuku start Burkan's shell, and waits for it. Any shell from before is dropped first. */
     suspend fun connect(): Either<ConnectionError, Unit>
@@ -118,6 +147,9 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
             Logger.w(e) { "Asking Shizuku for its permission failed" }
         }
     }
+
+    override suspend fun appPackage(): PackageName? =
+        withContext(Dispatchers.IO) { shizukuAppPackage(application.packageManager) }
 
     override suspend fun connect(): Either<ConnectionError, Unit> {
         disconnect()

@@ -7,6 +7,7 @@ import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.BytesStream
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.ShellCommand
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
@@ -105,6 +106,7 @@ class FakeShizukuClient(
     var connectResult: Either<ConnectionError, Unit> = Unit.right()
     var permissionRequests = 0
     var connected = false
+    var app: PackageName? = PackageName.known("moe.shizuku.privileged.api")
 
     override fun isRunning(): Boolean = running
 
@@ -113,6 +115,8 @@ class FakeShizukuClient(
     override fun requestPermission() {
         permissionRequests++
     }
+
+    override suspend fun appPackage(): PackageName? = app
 
     override suspend fun connect(): Either<ConnectionError, Unit> {
         calls += "connect"
