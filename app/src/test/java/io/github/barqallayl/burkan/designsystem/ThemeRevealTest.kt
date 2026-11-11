@@ -7,8 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import io.github.barqallayl.burkan.RoborazziTestApplication
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,8 +26,11 @@ import kotlin.test.assertTrue
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ThemeRevealTest {
 
+    // The rule queues an effect's coroutines by default, to be run when the test says. These tests count frames:
+    // a reveal that waited in that queue for its picture would be measured a few frames late. Unconfined, an effect
+    // goes on as soon as what it waited for is there, as it does on a phone.
     @get:Rule
-    val rule = createComposeRule()
+    val rule = createComposeRule(effectContext = UnconfinedTestDispatcher())
 
     private var target by mutableStateOf("first")
     private val shown = mutableListOf<String>()
