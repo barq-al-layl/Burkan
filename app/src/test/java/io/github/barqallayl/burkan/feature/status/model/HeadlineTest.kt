@@ -37,6 +37,30 @@ class HeadlineTest {
     }
 
     @Test
+    fun `System UI left for the next lock, and nothing else behind, is waiting for the lock`() {
+        assertEquals(
+            Headline.WaitingForLock,
+            status(Vulkan, OpenGL, Vulkan, Vulkan).headline(systemUiAtNextLock = true),
+        )
+        // The keyboard before it is first shown neither confirms nor spoils it.
+        assertEquals(
+            Headline.WaitingForLock,
+            status(Vulkan, OpenGL, Vulkan, NotDrawn).headline(systemUiAtNextLock = true),
+        )
+    }
+
+    @Test
+    fun `waiting for the lock with something else still on OpenGL is partly applied`() {
+        assertEquals(Headline.PartlyApplied, status(Vulkan, OpenGL, OpenGL, Vulkan).headline(systemUiAtNextLock = true))
+        assertEquals(Headline.PartlyApplied, status(OpenGL, OpenGL, Vulkan, Vulkan).headline(systemUiAtNextLock = true))
+    }
+
+    @Test
+    fun `once System UI has switched at the lock, Vulkan is active`() {
+        assertEquals(Headline.VulkanActive, status(Vulkan, Vulkan, Vulkan, Vulkan).headline(systemUiAtNextLock = true))
+    }
+
+    @Test
     fun `a surface on Vulkan without the property is partly applied`() {
         assertEquals(Headline.PartlyApplied, status(OpenGL, Vulkan, OpenGL, OpenGL).headline())
     }

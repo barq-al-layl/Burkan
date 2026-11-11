@@ -34,10 +34,28 @@ fun RunPhase.label(): StepLabel = when (this) {
     RunPhase.Connecting -> StepLabel(R.string.phase_connecting)
     RunPhase.ConnectingToShizuku -> StepLabel(R.string.phase_connecting_shizuku)
     RunPhase.Reading -> StepLabel(R.string.phase_reading)
-    // Said while it happens, so the lock screen it brings up is no surprise.
-    RunPhase.Step(StepKind.RestartSystemUi) -> StepLabel(R.string.phase_restart_system_ui)
-    is RunPhase.Step -> kind.label()
+    is RunPhase.Step -> kind.progressLabel()
     RunPhase.Checking -> StepLabel(R.string.phase_checking)
+}
+
+/** A step as it is under way: what is happening, where [label] names the step as a line of a list. */
+private fun StepKind.progressLabel(): StepLabel = when (this) {
+    StepKind.SetRenderer -> StepLabel(R.string.phase_set_renderer)
+    StepKind.ClearRenderer -> StepLabel(R.string.phase_clear_renderer)
+    is StepKind.StopApps -> StepLabel(R.plurals.phase_close_apps, count)
+    // Said while it happens, so the lock screen it brings up is no surprise.
+    StepKind.RestartSystemUi -> StepLabel(R.string.phase_restart_system_ui)
+    StepKind.RestartLauncher -> StepLabel(R.string.phase_restart_launcher)
+    is StepKind.RelaunchApps -> StepLabel(R.plurals.phase_reopen_apps, count)
+    StepKind.RestartKeyboard -> StepLabel(R.string.phase_restart_keyboard)
+    is StepKind.RestoreSetting -> StepLabel(
+        when (setting) {
+            RestoredSetting.AutoRotation -> R.string.phase_restore_auto_rotation
+            RestoredSetting.AccessibilityServices -> R.string.phase_restore_accessibility
+            RestoredSetting.EdgeEnabled -> R.string.phase_restore_edge_enabled
+            RestoredSetting.EdgePanels -> R.string.phase_restore_edge_panels
+        },
+    )
 }
 
 /**

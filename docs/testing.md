@@ -192,6 +192,17 @@ checks.
       the surfaces back.
 - [ ] A run that fails marks the step that failed. (Seen only on an emulator.)
 
+- [ ] With Vulkan active and apps left behind, the docked button (and One UI's first button) reads "Restart N
+      apps" and opens the sheet of those apps; with nothing left behind, Apply now is tonal (grey in One UI).
+- [ ] With wireless debugging off, or no Wi-Fi, the status card says why and has Try again; the rows say Unknown,
+      Apply now and Restart all apps are unavailable, and no other card repeats the reason.
+- [ ] After a restart that left System UI for the next lock, the headline reads "Waiting for the lock" with a lock
+      symbol, the notice about the next lock is not shown, and locking then unlocking turns it into "Vulkan is
+      active".
+- [ ] During Restart all apps, the status card says "Closing N apps" and "Opening N apps again", the notification
+      says the same, and the Material rows say "Changing".
+- [ ] TalkBack reads a change of status once, headline and note together.
+
 ## After a restart
 
 - [x] Reboot on a trusted Wi-Fi network: Vulkan is applied with no interaction, and wireless debugging is off

@@ -63,7 +63,7 @@ class LogExportTest {
 
             [2026-10-01 09:30:00 +00:00] | Restart all apps | Manual | Failed | 1 min 13 s
                 [ ok ] Set new apps to Vulkan
-                [ ok ] Stop 612 apps
+                [ ok ] Close 612 apps
                 [FAIL] Reopen 110 apps
                        The phone took too long to answer. Try again.
 

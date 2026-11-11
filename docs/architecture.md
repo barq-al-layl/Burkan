@@ -137,19 +137,26 @@ step carries its instructions and its action, and the ones still to come wait un
 
 The status, and the two actions. The two styles lay it out differently; what it says is the same.
 
-- **Headline**: one of *Vulkan is active*, *Vulkan is not applied*, *Partly applied*, or, when the status cannot
-  be read, the cause by name where it is one the user can put right (*Not connected to Wi-Fi*, *Wireless
-  debugging is off*) and *Unknown — cannot connect* otherwise. In words, never colour alone. A pairing the phone
-  has dropped reads *Burkan is no longer paired* only for as long as Home takes to give way to Setup.
+- **Headline**: one of *Vulkan is active*, *Vulkan is not applied*, *Partly applied*, *Waiting for the lock*, or,
+  when the status cannot be read, the cause by name where it is one the user can put right (*Not connected to
+  Wi-Fi*, *Wireless debugging is off*) and *Unknown — cannot connect* otherwise. In words, never colour alone. A
+  pairing the phone has dropped reads *Burkan is no longer paired* only for as long as Home takes to give way to
+  Setup. *Waiting for the lock* is shown, calm rather than amber, when the run after a restart left System UI for
+  the next lock and System UI is the one thing still on OpenGL; with anything else on OpenGL too, it is *Partly
+  applied*. The headline and its note are read out by TalkBack once, together, when either changes.
+- **When the status cannot be read**, the status card says why under the headline, with Try again (or Allow, where
+  a permission is missing) beneath it; nothing else on the screen repeats the reason. The rows say "Unknown", and
+  Apply now and Restart all apps are unavailable until the phone can be asked.
 - **Detail rows**: New apps (from the property), System UI, Launcher, Keyboard — each "Vulkan", "OpenGL",
   "Not drawn yet" (running, with nothing drawn, as the keyboard is from its restart until it is shown) or "Unknown",
   from `dumpsys gfxinfo`, each with its own icon as well as the word. While the status is read the rows
-  stay in place with placeholders; while a run is in progress the card says its values are being changed.
+  stay in place and say "Checking"; while a run is in progress they say "Changing", rather than show the values
+  the run is changing.
 - **Last run**: when, what triggered it (boot or manual), and its result.
 - **Open apps**: a fifth row, under the surfaces. A process keeps the renderer it started with, so after an apply
   on a phone that has been in use, what was open is still on OpenGL. The row says how many apps that is, or that
   all of them are on what new apps get. With some behind it opens a sheet that names them and offers to restart
-  only those: the full apply's machinery, limited to them, with the property and the surfaces left as they are.
+  only those: the machinery of Restart all apps, limited to them, with the property and the surfaces left as they are.
   Each app's row restarts that app alone, or puts it among the apps never restarted, which takes it off the list.
   After going back to OpenGL the same row counts the apps still on Vulkan. An app no run would restart (a
   keyboard, the wallpaper, one the user set aside, the fixed exclusions) is not counted, nor is the system's own
@@ -159,9 +166,12 @@ The status, and the two actions. The two styles lay it out differently; what it 
   the property and restarts the surfaces that are on Vulkan, System UI last and checked on OpenGL. It does not
   switch "Apply after restart" off: the confirmation says Vulkan is applied again after the next restart if that
   is on.
-- **Apply now** — the light apply. When System UI is to be restarted, a confirmation says first that the screen
-  will lock for a moment.
-- **Restart all apps** — the full apply. Behind a confirmation that says what it does: closes every app and opens
+- **The main action follows what there is to do**: Apply now, filled, while anything is not on Vulkan; Restart N
+  apps, filled, when Vulkan is active and open apps are left behind, which opens the sheet of those apps; Apply now,
+  quiet, when nothing is left to do or what is left happens at the next lock; Cancel during a run.
+- **Apply now**: sets new apps to Vulkan and restarts System UI, the launcher and the keyboard. When System UI is
+  to be restarted, a confirmation says first that the screen will lock for a moment.
+- **Restart all apps**: Apply now, and every app closed and reopened too. Behind a confirmation that says what it does: closes every app and opens
   again those that were open or show a widget, takes
   about a minute, the screen will flash, and, when System UI is to be restarted, it locks for a moment at the end.
   The confirmation also asks how far to go: every app, which it starts from each time, or only the 30 or 70 used
@@ -169,22 +179,25 @@ The status, and the two actions. The two styles lay it out differently; what it 
   says which apps are recent only to an app with usage access, which the app allows itself over its own connection
   the first time a limited run needs it, and the confirmation says so. If Android still names none, the run fails
   rather than restart everything.
-  At its end the full apply brings Burkan back to the front.
+  At its end Restart all apps brings Burkan back to the front.
   An app is closed with `am stop-app`, which keeps its alarms and scheduled jobs: `am force-stop` cancels them, and
   a force-stopped Clock app loses the alarm it was to ring. A phone whose `am` has no `stop-app` gets
   `force-stop` for each app instead.
 - **In the Material style** the screen reads from the top as the answer, then lists: the status card, the four
-  surfaces as a list with each renderer at the end of its row, then the last run, After a restart, and Restart
-  all apps as a row that opens its confirmation. Apply now is the one button, docked at the bottom. While a run
-  is in progress the card shows a progress indicator and the current step in words, that button becomes Cancel,
-  and the Restart all apps row is dimmed and does not react.
-- **In the One UI style** nothing is docked: a summary card at the top carries the state in large words and the
-  two actions side by side. During a run the card's one button is Cancel, and the surfaces give way to the run's
+  surfaces as a list with each renderer at the end of its row, then the last run, Apply after restart, and
+  Restart all apps as a row that opens its confirmation. The main action is the one button, docked at the bottom.
+  While a run is in progress the card shows a progress indicator and what the run is doing in words, that button
+  becomes Cancel, and the Restart all apps row is dimmed and does not react.
+- **In the One UI style** nothing is docked: a summary card at the top carries the state in large words, the main
+  action and Restart all apps side by side, the main action in the accent when there is something to do and grey
+  when not. When the status cannot be read, the card's one button is Try again. During a run the card's one button is Cancel, and the surfaces give way to the run's
   steps as a checklist, each ticked as it ends; a step that failed is marked. When the run has ended the button
   is Done, which puts the surfaces back.
 - The run's notification carries Cancel too.
-- If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for.
-  When the run after a restart left System UI for the next lock, a card says so.
+- If automatic apply is waiting on something (no Wi-Fi, network not trusted), a card says what it is waiting for,
+  unless the status card already says the same. When the run after a restart left System UI for the next lock and
+  something else is still on OpenGL, a card says why System UI waits; when System UI is all that is left, the
+  headline says it instead.
   Restarting the open apps changes neither: it applies nothing, so whatever the run after a restart waits for, it
   still waits for.
 - While Android would forget a paired device that has not connected for a while (`adb_allowed_connection_time`,
@@ -201,7 +214,7 @@ The status, and the two actions. The two styles lay it out differently; what it 
 
 - Apply after restart (on by default).
 - Turn off wireless debugging after applying (on by default).
-- Never restart these apps: the user's own exclusions for the full apply, chosen from the installed apps on their
+- Never restart these apps: the user's own exclusions for Restart all apps, chosen from the installed apps on their
   own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
   apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
   where it is installed. Listing the apps has its own loading, empty and failed states.
@@ -302,8 +315,8 @@ A flow is a function that returns the list of steps, and a runner that executes 
 - A plan has a target, the renderer it leaves the phone on. Towards OpenGL the light plan is the way back. Given
   the set of open apps that are behind (`OpenAppsReader`), the full plan restarts those alone.
 - `ApplyRunner` executes steps through `ShellExecutor`, records each result in the log, and guarantees the
-  restore step runs when a full apply fails or is cancelled.
-- What a full apply has to put back is kept in the phone's state file from before its first step until it is back
+  restore step runs when Restart all apps fails or is cancelled.
+- What Restart all apps has to put back is kept in the phone's state file from before its first step until it is back
   (`CapturedSettings`). Where the shell no longer answers, the app writes a value back itself, which
   `WRITE_SECURE_SETTINGS` lets it do. A run whose process died under it is undone the same way, the next time a run
   starts or Home opens, if that is within an hour of when the values were kept. Later than that, what the phone
@@ -386,7 +399,7 @@ A flow is a function that returns the list of steps, and a runner that executes 
   Sui has no app, and nothing extra is kept.
 - **Setup has its own steps.** Notifications, Allow Shizuku (running, and Burkan allowed), Finishing setup,
   Battery: no Developer options, wireless debugging or pairing. The permission is still granted, so that a value a
-  full apply changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
+  Restart all apps changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
   steps the two lists start with (the notifications) and marks setup incomplete, so that Setup comes back for the
   rest. The pairing is kept for the way back. Setup's own screen has a button under the checklist, "Use Shizuku
   instead" or, on Shizuku's steps, "Use wireless debugging instead", which does the same without asking: setup
@@ -400,7 +413,7 @@ A flow is a function that returns the list of steps, and a runner that executes 
 
 1. `BootReceiver` (`BOOT_COMPLETED`) starts `ApplyService` if "apply automatically" is on and setup is complete.
 2. `ApplyService` is a foreground service (`specialUse`) with a low-importance notification: "Applying Vulkan".
-   Manual runs use it too: a full apply relaunches other apps over Burkan, and a cached process can be frozen
+   Manual runs use it too: Restart all apps relaunches other apps over Burkan, and a cached process can be frozen
    before its restore steps run.
 3. If the property is already `skiavk` and SystemUI reports Vulkan, stop: nothing to do.
 4. Without Wi-Fi, do not start the service: leave the Home card saying it is waiting, and register a network
@@ -414,7 +427,7 @@ A flow is a function that returns the list of steps, and a runner that executes 
    waits for it to be awake. A different network is noticed at once when the phone was off Wi-Fi in between, and
    when the callback is next registered otherwise. With Shizuku as the shell this step is skipped: the service
    starts at once, and the run waits for Shizuku itself.
-5. Enable wireless debugging, connect, run the light apply without System UI, verify, disable wireless debugging
+5. Enable wireless debugging, connect, run Apply now without System UI, verify, disable wireless debugging
    if the app enabled it, write the log entry. The user has just unlocked the phone, and restarting System UI would
    lock it again, so if System UI is not on Vulkan the service stays in the foreground, with a notification saying
    so, until the phone next locks. Then it runs again, logged as "System UI at lock", with a wake lock held while
@@ -461,7 +474,7 @@ reachable through it.
   broadcast for a run that was started from outside and ended less than a minute ago is passed over, so no app
   can keep the phone's apps restarting. The wait is for the same run only: an apply followed by a restart of the
   open apps is not held up.
-- The settings a full apply puts back afterwards (auto-rotation, the accessibility services, the two Edge
+- The settings Restart all apps puts back afterwards (auto-rotation, the accessibility services, the two Edge
   settings) are read by the app itself through the settings provider, not over the shell. adb's TLS does not say
   who answered on the port, so what the shell says of them is not trusted with a write the app makes under its
   own `WRITE_SECURE_SETTINGS`. The shell is asked only when the app's read gives nothing, never for the
@@ -488,7 +501,7 @@ reachable through it.
   showing anything: its window is translucent and empty, and it finishes once it has read from the phone's state
   file, off the main thread, whether setup is complete. There is no schedule in the app: a routine that runs one of
   these at night does that. That activity is not exported: a launcher starts a shortcut in the app's own name.
-- The main activity is `singleTask`: started again from the shell at the end of a full apply, it comes to the
+- The main activity is `singleTask`: started again from the shell at the end of Restart all apps, it comes to the
   front as it is, where a second copy would have lost the run it was showing.
 - `minSdk` 33: the S23 shipped with Android 13, and it removes every pre-13 branch. `targetSdk` and `compileSdk`
   37.

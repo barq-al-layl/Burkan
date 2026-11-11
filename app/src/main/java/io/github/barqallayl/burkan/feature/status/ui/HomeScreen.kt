@@ -69,7 +69,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
@@ -94,7 +93,6 @@ import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.Checks
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CircleCheck
-import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.ExclamationMark
 import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
@@ -297,7 +295,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     BurkanIconButton(
-                        icon = if (oneUi) Tabler.Outline.History else Tabler.Outline.Clock,
+                        icon = Tabler.Outline.History,
                         label = stringResource(R.string.home_open_log),
                         onClick = actions.onOpenLog,
                     )
@@ -309,11 +307,11 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 },
             )
         },
-        // Material keeps the everyday action at the bottom, in reach of the thumb, where it never moves whatever
-        // the state above is. It is the screen's one filled button; the heavier, rarer action is a row of the
-        // content. One UI docks nothing: its actions are in the summary card, as Samsung's own apps have them.
+        // Material keeps the main action at the bottom, in reach of the thumb, where it never moves whatever the
+        // state above is. What it is follows what there is to do (see MainAction); the heavier, rarer action is a row
+        // of the content. One UI docks nothing: its actions are in the summary card, as Samsung's own apps have them.
         bottomBar = {
-            val idle = state.run == ApplyRunState.Idle
+            val main = state.mainAction
             // Material's medium button: its height, the label that goes with it, and its shape when pressed.
             val actionStyle = ButtonDefaults.textStyleFor(ActionHeight)
             // Frosted glass behind the button, coming in gradually above it: what scrolls under the bar blurs
@@ -327,35 +325,57 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                     .padding(top = GlassRise, bottom = GroupGap)
                     .readableWidth(),
             ) {
-                // While a run is under way the button is the way to stop it, quieter and in the same place and
-                // size, so the bar does not change shape.
+                // Each action keeps the same place and size, so the bar does not change shape. Filled where there is
+                // something to do; tonal where there is not, or to stop a run.
                 AnimatedContent(
-                    targetState = idle,
+                    targetState = main,
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "home action",
-                ) { shownIdle ->
+                ) { shown ->
                     // A button on its way out no longer does anything: a second tap meant for "Apply now" must
                     // not land on the "Cancel" replacing it.
-                    val live = shownIdle == idle
+                    val live = shown == main
                     val size = Modifier
                         .fillMaxWidth()
                         .heightIn(min = ActionHeight)
-                    if (shownIdle) {
-                        Button(
+                    when (shown) {
+                        MainAction.Apply, MainAction.Unavailable -> Button(
                             onClick = { if (live) actions.onApplyNow() },
+                            // Nothing can be applied while the phone cannot be asked: Try again is in the card.
+                            enabled = shown != MainAction.Unavailable,
                             shapes = burkanButtonShapes(ActionHeight),
                             modifier = size,
                         ) {
                             Text(stringResource(R.string.home_apply_now), style = actionStyle)
                         }
-                    } else {
-                        FilledTonalButton(
-                            onClick = { if (live) actions.onCancelRun() },
+
+                        is MainAction.RestartBehind -> Button(
+                            onClick = { if (live) actions.onShowBehind() },
+                            shapes = burkanButtonShapes(ActionHeight),
+                            modifier = size,
+                        ) {
+                            Text(
+                                pluralStringResource(R.plurals.home_restart_behind, shown.count, shown.count),
+                                style = actionStyle,
+                            )
+                        }
+
+                        MainAction.ApplyQuietly, MainAction.Cancel -> FilledTonalButton(
+                            onClick = {
+                                if (live) {
+                                    if (shown == MainAction.Cancel) actions.onCancelRun() else actions.onApplyNow()
+                                }
+                            },
                             shapes = burkanButtonShapes(ActionHeight),
                             modifier = size,
                             colors = burkanTonalButtonColors(),
                         ) {
-                            Text(stringResource(R.string.home_cancel_run), style = actionStyle)
+                            Text(
+                                stringResource(
+                                    if (shown == MainAction.Cancel) R.string.home_cancel_run else R.string.home_apply_now,
+                                ),
+                                style = actionStyle,
+                            )
                         }
                     }
                 }
@@ -388,16 +408,16 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 // run is under way, and until the user has seen how it went, its steps take the surfaces' place.
                 OneUiSummary(state, actions)
                 Notices(state, actions.onOpenDeveloperOptions)
-                OneUiProgress(state, actions.onRetry, actions.onShowBehind)
+                OneUiProgress(state, actions.onShowBehind)
                 SectionLabel(R.string.home_section_runs)
                 Details(state, zone, actions, showError)
             } else {
                 // Material's arrangement: the answer, then lists. The surfaces are a list like any other, read
                 // down one edge, and what can be done about them closes the screen.
-                StatusGroup(state)
+                StatusGroup(state, actions.onRetry)
                 Notices(state, actions.onOpenDeveloperOptions)
                 Spacer(Modifier.height(GroupGap))
-                Surfaces(state, actions.onRetry, actions.onShowBehind)
+                Surfaces(state, actions.onShowBehind)
                 Spacer(Modifier.height(GroupGap))
                 Details(state, zone, actions, showError)
             }
@@ -622,15 +642,16 @@ private fun RestartScope.label(): String {
 /**
  * The status as one card that keeps its shape in every state: a badge, a headline and two lines of explanation.
  * While it is read the badge turns. During a run the badge turns, the headline is the run and the explanation its
- * current step. What each surface runs on, and the way to try again when the phone cannot be asked, are in the
- * list under it.
+ * current step. When the phone cannot be asked, the card says why and carries the way to try again, and grows to
+ * take it: the one state in which the owner has something to do here. What each surface runs on is in the list under
+ * it.
  */
 @Composable
-private fun StatusGroup(state: HomeState) {
+private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
     val status = state.status
     val failed = status as? StatusState.Failed
     val run = state.run as? ApplyRunState.Running
-    val headline = (status as? StatusState.Loaded)?.status?.headline()
+    val headline = state.headline
     val busy = run != null || (headline == null && failed == null)
     BurkanSegment(index = 0, count = 1) {
         Column(
@@ -672,42 +693,87 @@ private fun StatusGroup(state: HomeState) {
                     size = BADGE_SIZE,
                 )
             }
-            Text(
-                when {
-                    // What is happening, not the name of the button that started it.
-                    run != null -> stringResource(run.kind.runningLabel)
-                    failed != null -> stringResource(failed.error.failureTitle())
-                    headline == null -> stringResource(R.string.home_checking)
-                    else -> stringResource(headline.title)
-                },
-                style = MaterialTheme.typography.headlineSmallEmphasized,
-                textAlign = TextAlign.Center,
-                // The answer changes by itself, as the phone is read and as a run goes on: it is read out when
-                // it does, without taking over from whatever is being read.
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            val note = when {
-                run != null -> run.phase.label().text()
-                failed != null -> stringResource(failed.error.failureText())
-                headline == null -> ""
-                headline == Headline.VulkanActive && state.lastRun.isManualLightApply() && state.mayHaveAppsBehind ->
-                    stringResource(R.string.home_open_apps_note)
-                else -> stringResource(headline.text)
+            // The answer changes by itself, as the phone is read and as a run goes on. The headline and its note are
+            // one thing to TalkBack, read out once when either changes, without taking over from what is being read.
+            Column(
+                modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    statusTitle(state),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                // Always two lines' room, used or not, so a longer or shorter sentence does not move what is under it.
+                Text(
+                    statusNote(state),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    minLines = 2,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
             }
-            // Always two lines' room, used or not, so a longer or shorter sentence does not move what is under it.
-            Text(
-                note,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                minLines = 2,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-            )
+            // Tonal: the screen's one filled button is the action docked at its foot.
+            if (failed != null) RetryButton(failed, state.isRefreshing, onRetry, filled = false)
         }
+    }
+}
+
+/** The status card's headline: what is happening, why the phone cannot be asked, or the answer. */
+@Composable
+private fun statusTitle(state: HomeState): String {
+    val run = state.run as? ApplyRunState.Running
+    val failed = state.status as? StatusState.Failed
+    val headline = state.headline
+    return when {
+        // What is happening, not the name of the button that started it.
+        run != null -> stringResource(run.kind.runningLabel)
+        failed != null -> stringResource(failed.error.failureTitle())
+        headline == null -> stringResource(R.string.home_checking)
+        else -> stringResource(headline.title)
+    }
+}
+
+/**
+ * The status card's note: the run's current step, the reason the phone cannot be asked, said here and nowhere else
+ * on the screen, or what the answer means.
+ */
+@Composable
+private fun statusNote(state: HomeState): String {
+    val run = state.run as? ApplyRunState.Running
+    val failed = state.status as? StatusState.Failed
+    val headline = state.headline
+    return when {
+        run != null -> run.phase.label().text()
+        failed != null -> stringResource(failed.error.messageRes())
+        headline == null -> ""
+        headline == Headline.VulkanActive && state.lastRun.isManualLightApply() && state.mayHaveAppsBehind ->
+            stringResource(R.string.home_open_apps_note)
+        else -> stringResource(headline.text)
+    }
+}
+
+/**
+ * Try again, or Allow where the user must allow something first. It says it is at it while it is: reading the phone
+ * takes a few seconds, sometimes many.
+ */
+@Composable
+private fun RetryButton(failed: StatusState.Failed, refreshing: Boolean, onRetry: () -> Unit, filled: Boolean) {
+    val content: @Composable () -> Unit = {
+        if (refreshing) {
+            LoadingIndicator(modifier = Modifier.size(24.dp))
+        } else {
+            Text(stringResource(failed.error.retryLabel()))
+        }
+    }
+    val modifier = Modifier.padding(top = 8.dp)
+    if (filled) {
+        Button(onClick = onRetry, enabled = !refreshing, modifier = modifier) { content() }
+    } else {
+        FilledTonalButton(onClick = onRetry, enabled = !refreshing, modifier = modifier) { content() }
     }
 }
 
@@ -734,8 +800,7 @@ private fun SectionLabel(text: Int) {
  */
 @Composable
 private fun OneUiSummary(state: HomeState, actions: HomeActions) {
-    val failed = state.status as? StatusState.Failed
-    val headline = (state.status as? StatusState.Loaded)?.status?.headline()
+    val headline = state.headline
     val run = state.run as? ApplyRunState.Running
     val tone = if (run != null) Tone.Neutral else headline?.tone ?: Tone.Neutral
     val accent = MaterialTheme.colorScheme.primary
@@ -783,54 +848,46 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     .padding(top = 28.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // One line always: a longer answer is set smaller, so the card never grows a line.
-                Text(
-                    when {
-                        run != null -> stringResource(run.kind.runningLabel)
-                        failed != null -> stringResource(failed.error.failureTitle())
-                        headline == null -> stringResource(R.string.home_checking)
-                        else -> stringResource(headline.title)
-                    },
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
-                    // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
-                    color = when {
-                        run != null -> accent
-                        tone == Tone.Good -> statusGreenText
-                        tone == Tone.HeldUp -> noticeAccentColor
-                        tone == Tone.Bad -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurface
-                    },
-                )
-                // Always two lines' room, used or not, so a longer or shorter sentence does not move what follows.
-                Text(
-                    when {
-                        run != null -> run.phase.label().text()
-                        failed != null -> stringResource(failed.error.failureText())
-                        headline == null -> ""
-                        headline == Headline.VulkanActive && state.lastRun.isManualLightApply() &&
-                            state.mayHaveAppsBehind ->
-                            stringResource(R.string.home_open_apps_note)
-                        else -> stringResource(headline.text)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    minLines = 2,
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
+                // The headline and its note are one thing to TalkBack, read out once when either changes.
+                Column(
+                    modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // One line always: a longer answer is set smaller, so the card never grows a line.
+                    Text(
+                        statusTitle(state),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 28.sp),
+                        // The answer in its tone's colour, as One UI writes the title of a card that reports a state.
+                        color = when {
+                            run != null -> accent
+                            tone == Tone.Good -> statusGreenText
+                            tone == Tone.HeldUp -> noticeAccentColor
+                            tone == Tone.Bad -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    // Always two lines' room, used or not, so a longer or shorter sentence does not move what follows.
+                    Text(
+                        statusNote(state),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        minLines = 2,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
                 SummaryAction(
                     action = when {
                         run != null -> SummaryActions.Cancel
                         state.runSteps.isNotEmpty() -> SummaryActions.Done
+                        state.status is StatusState.Failed -> SummaryActions.Retry
                         else -> SummaryActions.Apply
                     },
+                    state = state,
                     actions = actions,
                     modifier = Modifier.padding(top = 16.dp),
                 )
@@ -846,16 +903,26 @@ private const val GLOW_ALPHA = 0.3f
 private const val GLOW_REACH = 0.5f
 private const val GLOW_FLATNESS = 0.3f
 
-/** What the summary card's one button does: it starts a run, stops it, or puts away a run that has ended. */
-private enum class SummaryActions { Apply, Cancel, Done }
+/**
+ * What the summary card's buttons do: start a run, stop it, put away a run that has ended, or try the phone again when
+ * it could not be asked.
+ */
+private enum class SummaryActions { Apply, Cancel, Done, Retry }
 
 /**
- * The summary card's buttons. At rest they are the two things the app is for, side by side and equally wide, in
- * grey as One UI has a card's own actions. During a run there is one, which stops it; after it one, "Done", in the
- * accent: the one thing left to do. A lone button is only as wide as its word needs.
+ * The summary card's buttons. At rest they are the main action (see MainAction), in the accent when there is
+ * something to do and grey when there is not, and Restart all apps in grey beside it. During a run there is one, which
+ * stops it; after it one, "Done", in the accent: the one thing left to do. When the phone cannot be asked there is
+ * one, Try again: nothing can be applied until it can, so the card offers nothing else. A lone button is only as wide
+ * as its word needs.
  */
 @Composable
-private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier: Modifier = Modifier) {
+private fun SummaryAction(
+    action: SummaryActions,
+    state: HomeState,
+    actions: HomeActions,
+    modifier: Modifier = Modifier,
+) {
     val shape = Modifier
         .height(SUMMARY_ACTION_HEIGHT)
         .widthIn(min = SUMMARY_ACTION_MIN_WIDTH)
@@ -878,6 +945,21 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
                 Text(stringResource(R.string.home_done), style = style)
             }
 
+            SummaryActions.Retry -> {
+                val failed = state.status as? StatusState.Failed
+                Button(
+                    onClick = { if (live) actions.onRetry() },
+                    enabled = !state.isRefreshing,
+                    modifier = shape,
+                ) {
+                    if (state.isRefreshing) {
+                        LoadingIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(stringResource(failed?.error?.retryLabel() ?: R.string.home_retry), style = style)
+                    }
+                }
+            }
+
             SummaryActions.Cancel -> FilledTonalButton(
                 onClick = { if (live) actions.onCancelRun() },
                 modifier = shape,
@@ -887,22 +969,32 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
             }
 
             SummaryActions.Apply -> {
+                val main = state.mainAction
+                val behind = main as? MainAction.RestartBehind
                 val buttons = listOf(
-                    R.string.home_apply_now to actions.onApplyNow,
-                    R.string.home_restart_all to actions.onRestartAll,
+                    Triple(
+                        if (behind != null) {
+                            pluralStringResource(R.plurals.home_restart_behind, behind.count, behind.count)
+                        } else {
+                            stringResource(R.string.home_apply_now)
+                        },
+                        if (behind != null) actions.onShowBehind else actions.onApplyNow,
+                        // In the accent when there is something to do; grey, like the button beside it, when not.
+                        main != MainAction.ApplyQuietly,
+                    ),
+                    Triple(stringResource(R.string.home_restart_all), actions.onRestartAll, false),
                 )
-                val button: @Composable (Int, () -> Unit, Modifier) -> Unit = { label, onClick, size ->
-                    // The everyday action is the accent's; the one that closes every app stays grey beside it.
-                    val everyday = label == R.string.home_apply_now
+                val button: @Composable (Triple<String, () -> Unit, Boolean>, Modifier) -> Unit = { spec, size ->
+                    val (label, onClick, accent) = spec
                     Button(
                         onClick = { if (live) onClick() },
                         modifier = size.heightIn(min = SUMMARY_ACTION_HEIGHT),
-                        colors = if (everyday) ButtonDefaults.buttonColors() else grey,
+                        colors = if (accent) ButtonDefaults.buttonColors() else grey,
                         contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
                         // One line: the label is set a little smaller before it is ever cut.
                         Text(
-                            stringResource(label),
+                            label,
                             style = style,
                             maxLines = 1,
                             autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize),
@@ -913,11 +1005,11 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
                 // only fit by being set smaller, which is the opposite of what was asked for: each gets a row.
                 if (LocalDensity.current.fontScale > STACK_ABOVE_FONT_SCALE) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        buttons.forEach { (label, onClick) -> button(label, onClick, Modifier.fillMaxWidth()) }
+                        buttons.forEach { button(it, Modifier.fillMaxWidth()) }
                     }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        buttons.forEach { (label, onClick) -> button(label, onClick, Modifier.weight(1f)) }
+                        buttons.forEach { button(it, Modifier.weight(1f)) }
                     }
                 }
             }
@@ -934,7 +1026,7 @@ private const val STACK_ABOVE_FONT_SCALE = 1.15f
  * One gives way to the other, with its label, and what is below follows the change in height.
  */
 @Composable
-private fun OneUiProgress(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> Unit) {
+private fun OneUiProgress(state: HomeState, onShowBehind: () -> Unit) {
     AnimatedContent(
         targetState = state.runSteps.isNotEmpty(),
         transitionSpec = {
@@ -945,7 +1037,7 @@ private fun OneUiProgress(state: HomeState, onRetry: () -> Unit, onShowBehind: (
     ) { steps ->
         Column {
             SectionLabel(if (steps) R.string.home_section_steps else R.string.home_section_surfaces)
-            if (steps) RunChecklist(state) else Surfaces(state, onRetry, onShowBehind)
+            if (steps) RunChecklist(state) else Surfaces(state, onShowBehind)
         }
     }
 }
@@ -1086,11 +1178,6 @@ private fun AppError.failureTitle(): Int = when (type()) {
 private fun AppError.retryLabel(): Int =
     if (type() == AppErrorType.LocalNetworkDenied) R.string.home_allow else R.string.home_retry
 
-private fun AppError.failureText(): Int = when (type()) {
-    AppErrorType.NoWifi -> R.string.home_no_wifi_text
-    else -> R.string.home_unknown_text
-}
-
 private fun AppError?.failureIcon(): ImageVector =
     if (this?.type() == AppErrorType.NoWifi) Tabler.Outline.WifiOff else Tabler.Outline.QuestionMark
 
@@ -1136,77 +1223,61 @@ private const val MARK_GLYPH_SHARE = 0.6f
 private val MarkGlyph = Color(0xFF10131A)
 
 /**
- * The four surfaces and the open apps as a list, each with its renderer under its name and a mark at the end. The rows keep their
- * room in every state: placeholders while the status is read, dimmed during a run, and when the phone cannot be
- * asked, the reason and the way to try again in their place.
+ * The four surfaces and the open apps as a list, each with its renderer and a mark. The rows keep their room in every
+ * state: "Checking" while the status is read, "Changing" during a run, which is changing them, and "Unknown" when the
+ * phone cannot be asked, whose reason, and the way to try again, are in the status card.
  */
 @Composable
-private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> Unit) {
-    val failed = state.status as? StatusState.Failed
+private fun Surfaces(state: HomeState, onShowBehind: () -> Unit) {
+    val failed = state.status is StatusState.Failed
     val renderers = (state.status as? StatusState.Loaded)?.status
     val running = state.run is ApplyRunState.Running
-    Box(contentAlignment = Alignment.Center) {
-        // When the phone cannot be asked the rows are laid out for their size alone, and one plain card of that
-        // size carries the reason instead.
-        SegmentedColumn(
-            modifier = Modifier
-                .alpha(if (failed != null) 0f else if (running) STALE_ALPHA else 1f)
-                .then(if (failed != null) Modifier.clearAndSetSemantics { } else Modifier),
-        ) {
-            SurfaceRow(0, Tabler.Outline.Apps, R.string.home_row_new_apps, renderers?.newApps)
-            SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi)
-            SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher)
-            SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard)
-            OpenAppsRow(
-                4,
-                renderers?.newApps,
-                state.behind,
-                state.isCheckingBehind,
-                onShowBehind.takeUnless { running },
-            )
-        }
-        if (failed != null) {
-            BurkanSegment(index = 0, count = 1, modifier = Modifier.matchParentSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        stringResource(failed.error.messageRes()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                    )
-                    // Tonal: the screen's one filled button is the action docked at its foot.
-                    FilledTonalButton(onClick = onRetry, enabled = !state.isRefreshing) {
-                        // Trying again takes a few seconds, sometimes many: the button says it is at it.
-                        if (state.isRefreshing) {
-                            LoadingIndicator(modifier = Modifier.size(24.dp))
-                        } else {
-                            Text(stringResource(failed.error.retryLabel()))
-                        }
-                    }
-                }
-            }
-        }
+    // What every row shows in place of a renderer it has not got: being read, being changed, or not to be known.
+    val pending = when {
+        running -> Pending.Changing
+        failed -> Pending.Unknown
+        else -> Pending.Checking
     }
+    SegmentedColumn(modifier = Modifier.alpha(if (running) STALE_ALPHA else 1f)) {
+        SurfaceRow(0, Tabler.Outline.Apps, R.string.home_row_new_apps, renderers?.newApps, pending)
+        SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi, pending)
+        SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher, pending)
+        SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard, pending)
+        OpenAppsRow(
+            4,
+            renderers?.newApps.takeUnless { running },
+            state.behind.takeUnless { running },
+            state.isCheckingBehind,
+            pending,
+            onShowBehind.takeUnless { running },
+        )
+    }
+}
+
+/**
+ * What a row says while it has no renderer to show. During a run the last one read is not shown: the run is changing
+ * it, and the old value would read as the current one.
+ */
+private enum class Pending(val value: Int, val mark: SurfaceMark) {
+    Checking(R.string.home_value_checking, SurfaceMark.Checking),
+    Changing(R.string.home_value_changing, SurfaceMark.Checking),
+    Unknown(R.string.renderer_unknown, SurfaceMark.Unknown),
 }
 
 /**
  * A surface and what it runs on. One UI writes the renderer under the surface's name, with its solid mark at the
  * end. Material keeps the row to one line: the renderer is the row's trailing text, then a mark so that the three
- * states differ at a glance. [renderer] null is a placeholder while the status is read.
+ * states differ at a glance. With no [renderer] to show, the row says what [pending] says.
  */
 @Composable
-private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Renderer?) {
-    val value = stringResource(renderer?.nameRes ?: R.string.home_value_checking)
-    val mark = when (renderer) {
+private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Renderer?, pending: Pending) {
+    val shown = renderer.takeUnless { pending == Pending.Changing }
+    val value = stringResource(shown?.nameRes ?: pending.value)
+    val mark = when (shown) {
         Renderer.Vulkan -> SurfaceMark.Good
         Renderer.OpenGL -> SurfaceMark.Behind
         Renderer.NotDrawn, Renderer.Unknown -> SurfaceMark.Unknown
-        null -> SurfaceMark.Checking
+        null -> pending.mark
     }
     SurfaceLine(index, icon, stringResource(label), value, mark)
 }
@@ -1215,7 +1286,7 @@ private fun SurfaceRow(index: Int, icon: ImageVector, label: Int, renderer: Rend
  * The open apps, as one more row of the list: how many still draw with the renderer new apps no longer get, or
  * that all of them have caught up. With some behind, the row opens their names and the offer to restart them.
  * [behind] null while [checking] is a placeholder: they are read after the status, and take a second or two
- * longer. Null afterwards, they could not be read.
+ * longer. Null afterwards, they could not be read. With [newApps] null, the row says what [pending] says.
  */
 @Composable
 private fun OpenAppsRow(
@@ -1223,13 +1294,22 @@ private fun OpenAppsRow(
     newApps: Renderer?,
     behind: List<BehindApp>?,
     checking: Boolean,
+    pending: Pending,
     onShow: (() -> Unit)?,
 ) {
     val label = stringResource(R.string.home_row_open_apps)
     when {
-        newApps == null || newApps == Renderer.Unknown || behind == null -> {
-            // Still being read only while the status is, or while the apps themselves are asked about.
-            val unknown = newApps == Renderer.Unknown || (newApps != null && !checking)
+        newApps == null -> SurfaceLine(
+            index,
+            Tabler.Outline.AppWindow,
+            label,
+            stringResource(pending.value),
+            pending.mark,
+        )
+
+        newApps == Renderer.Unknown || behind == null -> {
+            // Still being read only while the apps themselves are asked about.
+            val unknown = newApps == Renderer.Unknown || !checking
             SurfaceLine(
                 index,
                 Tabler.Outline.AppWindow,
@@ -1347,13 +1427,17 @@ private const val SURFACE_COUNT = 5
  */
 @Composable
 private fun ColumnScope.Notices(state: HomeState, onOpenDeveloperOptions: () -> Unit) {
+    // Each is said once: not where the status card already says the same.
+    val noWifiShown = (state.status as? StatusState.Failed)?.error?.type() == AppErrorType.NoWifi
+    val waitingFor = state.waitingFor.takeUnless { it == WaitReason.Wifi && noWifiShown }
     // The last reason is kept while its notice closes, so it does not empty before it has gone.
-    var lastWait by remember { mutableStateOf(state.waitingFor) }
-    if (state.waitingFor != null) lastWait = state.waitingFor
-    SlidingNotice(visible = state.waitingFor != null) {
+    var lastWait by remember { mutableStateOf(waitingFor) }
+    if (waitingFor != null) lastWait = waitingFor
+    SlidingNotice(visible = waitingFor != null) {
         lastWait?.let { WaitingNotice(it, onOpenDeveloperOptions) }
     }
-    SlidingNotice(visible = state.systemUiAtNextLock) { NextLockNotice() }
+    // When System UI is all that is left, the headline says it; with more left, the notice says why System UI waits.
+    SlidingNotice(visible = state.systemUiAtNextLock && state.headline != Headline.WaitingForLock) { NextLockNotice() }
     SlidingNotice(visible = state.pairingCanLapse) { PairingLapseNotice(onOpenDeveloperOptions) }
 }
 
@@ -1382,6 +1466,7 @@ private val Headline.icon: ImageVector
         Headline.VulkanActive -> Tabler.Outline.Check
         Headline.NotApplied -> Tabler.Outline.X
         Headline.PartlyApplied -> Tabler.Outline.AlertTriangle
+        Headline.WaitingForLock -> Tabler.Outline.Lock
         Headline.Unknown -> Tabler.Outline.QuestionMark
     }
 
@@ -1389,7 +1474,8 @@ private val Headline.tone: Tone
     get() = when (this) {
         Headline.VulkanActive -> Tone.Good
         Headline.PartlyApplied -> Tone.HeldUp
-        Headline.NotApplied, Headline.Unknown -> Tone.Neutral
+        // Nothing is wrong and nothing is asked: calm, not the amber of something to see to.
+        Headline.NotApplied, Headline.WaitingForLock, Headline.Unknown -> Tone.Neutral
     }
 
 private val Headline.title: Int
@@ -1397,6 +1483,7 @@ private val Headline.title: Int
         Headline.VulkanActive -> R.string.home_headline_active
         Headline.NotApplied -> R.string.home_headline_not_applied
         Headline.PartlyApplied -> R.string.home_headline_partly
+        Headline.WaitingForLock -> R.string.home_headline_waiting_lock
         Headline.Unknown -> R.string.home_headline_unknown
     }
 
@@ -1405,6 +1492,7 @@ private val Headline.text: Int
         Headline.VulkanActive -> R.string.home_active_text
         Headline.NotApplied -> R.string.home_not_applied_text
         Headline.PartlyApplied -> R.string.home_partly_text
+        Headline.WaitingForLock -> R.string.home_waiting_lock_text
         Headline.Unknown -> R.string.home_unknown_text
     }
 
@@ -1532,10 +1620,12 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
     // In Material the heavier of the app's two actions is the last row here; One UI has it in its summary card.
     val restartRow = !oneUi
-    val idle = state.run == ApplyRunState.Idle
+    // Nothing to start while a run is under way, nor while the phone cannot be asked.
+    val idle = state.run == ApplyRunState.Idle && state.status !is StatusState.Failed
     // The way back is offered once there is something to go back from: anything at all on Vulkan.
-    val applied = (state.status as? StatusState.Loaded)?.status?.headline()
-    val revertRow = applied == Headline.VulkanActive || applied == Headline.PartlyApplied
+    val applied = state.headline
+    val revertRow = applied == Headline.VulkanActive || applied == Headline.PartlyApplied ||
+        applied == Headline.WaitingForLock
     val count = 1 + (if (applyOnBoot == null) 0 else 1) + (if (restartRow) 1 else 0) + (if (revertRow) 1 else 0)
     // A failed run's reason adds a line to its row: the group grows to take it instead of jumping.
     SegmentedColumn(modifier = Modifier.animateContentSize(motion.settle())) {
@@ -1555,7 +1645,7 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
             BurkanSegmentItem(
                 index = 1,
                 count = count,
-                headline = stringResource(R.string.home_after_restart),
+                headline = stringResource(R.string.settings_apply_on_boot),
                 supporting = stringResource(
                     if (applyOnBoot) R.string.home_after_restart_on_text else R.string.home_after_restart_off_text,
                 ),
@@ -1939,6 +2029,21 @@ private fun HomeSystemUiAtNextLockPreview() = HomePreviewContent(
         lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot),
     ).copy(systemUiAtNextLock = true),
 )
+
+@BurkanPreview
+@Composable
+private fun HomeWaitingForLockOneUiPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi) {
+        HomePreviewContent(
+            sample(
+                status = StatusState.Loaded(
+                    RendererStatus(Renderer.Vulkan, Renderer.OpenGL, Renderer.Vulkan, Renderer.Vulkan),
+                ),
+                lastRun = sampleLightRun.copy(trigger = RunTrigger.Boot),
+            ).copy(systemUiAtNextLock = true),
+        )
+    }
+}
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
