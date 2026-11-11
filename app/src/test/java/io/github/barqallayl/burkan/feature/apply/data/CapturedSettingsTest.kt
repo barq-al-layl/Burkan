@@ -79,6 +79,20 @@ class CapturedSettingsTest {
     }
 
     @Test
+    fun `a kept value the setting could not hold is never written by the app`() = runTest {
+        storage.kept = mapOf(
+            RestoredSetting.AutoRotation to "yes",
+            RestoredSetting.AccessibilityServices to "com.example.spy/.Reader; reboot",
+            RestoredSetting.EdgeEnabled to "1",
+        )
+
+        captured.putBackKept()
+
+        assertEquals(listOf(SettingKey.EdgeEnabled to "1"), settings.written)
+        assertEquals(emptyMap(), storage.kept)
+    }
+
+    @Test
     fun `what an earlier version kept, with no time, is written back as it would have been`() = runTest {
         storage.kept = values
 

@@ -28,6 +28,11 @@ import kotlin.time.Instant
  * or the app's process died under the run. The app holds `WRITE_SECURE_SETTINGS`, so it can write them back itself,
  * through [DeviceSettings].
  *
+ * The app also reads them itself, through [read]. What answers on the connection is not known to be the phone's own
+ * adb daemon: adb's TLS does not say who the other side is. A value taken from it and then written with the app's own
+ * permission would let whoever answered choose the phone's accessibility services. So what the app writes is what the
+ * app read, and it writes nothing that does not look like the setting it is for ([accepts]).
+ *
  * What was kept goes back only for [KEPT_FOR] after it was kept. The app may not be opened again for days, and by
  * then what the phone holds is more likely the user's own doing than the run's.
  */
@@ -46,8 +51,20 @@ class CapturedSettings(
     /** Every value is back where it was, so none is kept any longer. */
     suspend fun letGo() = storage.set(emptyMap())
 
-    /** Writes one value back without the shell. False when Android would not take it. */
-    fun putBack(setting: RestoredSetting, value: String): Boolean = settings.put(setting.key, value)
+    /** What the phone holds for [setting] now, read by the app itself. */
+    fun read(setting: RestoredSetting): SettingRead = settings.get(setting.key)
+
+    /**
+     * Writes one value back without the shell. False when Android would not take it, or when [value] is not one
+     * the setting could hold, which is never written.
+     */
+    fun putBack(setting: RestoredSetting, value: String): Boolean {
+        if (!setting.accepts(value)) {
+            Logger.w { "Not writing $setting: what was kept for it is not a value it can hold" }
+            return false
+        }
+        return settings.put(setting.key, value)
+    }
 
     /**
      * Puts back whatever is still kept: what a run left behind when its process died under it, or when neither the

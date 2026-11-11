@@ -354,7 +354,7 @@ class ApplyRunnerTest {
     }
 
     private suspend fun fullPlan(): ApplyPlan {
-        val inputs = ApplyInputsReader(shell).readFull().getOrElse { fail("read failed: $it") }
+        val inputs = ApplyInputsReader(shell, captured).readFull().getOrElse { fail("read failed: $it") }
         shell.commands.clear()
         return FullApplyPlan.create(
             inputs = inputs,

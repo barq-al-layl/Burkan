@@ -199,7 +199,7 @@ class ApplyController(
                             // apply, OpenGL after going back.
                             val target = before.status.newApps
                             FullApplyPlan.create(
-                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                inputs = ApplyInputsReader(shell, captured).readFull().bind(),
                                 userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
@@ -212,7 +212,7 @@ class ApplyController(
                         ApplyKind.Full -> {
                             val limit = scope.limit
                             FullApplyPlan.create(
-                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                inputs = ApplyInputsReader(shell, captured).readFull().bind(),
                                 userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
