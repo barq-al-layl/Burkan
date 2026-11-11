@@ -26,6 +26,10 @@ When you check one, tick it here and record what you saw in the device notes.
       opens on Welcome; Continue on the choice leaves Welcome for good.
 - [ ] Setup's back arrow goes back to the choice of connection or to Welcome while getting started, and is not
       there after "Redo setup".
+- [ ] Once the last step is done, the First apply has no back arrow, and Back from it does not reach the choice of
+      connection or Welcome.
+- [ ] After "Redo setup", Finishing setup connects again rather than passing at once, and the step from home to
+      Setup and back to Home animates as a change of screen.
 - [ ] With the pairing dialog closed while waiting for the code, Open Wireless debugging under the first action
       opens it again.
 - [ ] First apply with System UI on OpenGL: the screen locks once, and Home shows System UI on Vulkan after the

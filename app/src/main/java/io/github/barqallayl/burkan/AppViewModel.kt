@@ -34,12 +34,15 @@ data class Opening(
     val isGettingStarted: Boolean,
     /** A fresh install that has not yet left Welcome. */
     val showsWelcome: Boolean,
+    /** Every setup step is done; while still getting started, the First apply is on offer. */
+    val isSetupComplete: Boolean = false,
 )
 
 /** Where a phone in [this] state opens. Welcome is for a fresh install alone: not an update, not "Redo setup". */
 fun DeviceState.opening(): Opening = Opening(
     isGettingStarted = !isSetupComplete || isFirstApplyPending,
     showsWelcome = !isWelcomeSeen && !isSetupComplete && setupStepsDone == 0,
+    isSetupComplete = isSetupComplete,
 )
 
 @Immutable

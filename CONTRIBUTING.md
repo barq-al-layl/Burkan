@@ -81,7 +81,7 @@ One UI cannot be tested without the device.
 | Serialization | kotlinx-serialization (routes, stored models) |
 | Screenshots | Roborazzi through the Compose preview scanner, on Robolectric |
 | Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-core`, shown in the app's own list |
-| Tests | JUnit 4, `kotlin-test`, `kotlinx-coroutines-test`, `orbit-test` |
+| Tests | JUnit 4, `kotlin-test` with the power-assert plugin, `kotlinx-coroutines-test`, `orbit-test` |
 
 Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpdate` refreshes them.
 
@@ -198,6 +198,11 @@ Navigation 3, used directly:
 - Routes are `@Serializable` objects and classes implementing `NavKey`, all declared in `core/navigation/`.
 - `Navigator` wraps the back stack and exposes `push`, `pop`, `replaceAll`. It is created in `App.kt` and provided
   through `LocalNavigator`.
+- **The start route is read once; moving elsewhere altogether is `replaceAll`.** Never give `NavDisplay` a new back
+  stack in place of the old one, by a changing start route or a key: a stack dropped whole takes nothing off it, so
+  its screens' ViewModels are not cleared, and the next time one of those screens opens it gets the old ViewModel
+  back with what it held. `replaceAll` takes the old screens off, which clears them; `ReplaceAllViewModelTest`
+  pins both halves.
 - One `entryProvider` maps every route to its screen.
 - **Every route round-trips through serialization in a test**, so a route that cannot be saved fails a test
   instead of crashing on the first rotation.
@@ -467,6 +472,9 @@ Metro, one graph:
   an interface.
 - A fake that reimplements a production rule shares that rule's code, so an assertion against the fake means
   something.
+- **Assertions are `kotlin.test`'s,** which Kotlin's power-assert plugin rewrites in test code so that a failure
+  prints the values in its expression. A `kotlin.test` function not yet in the `powerAssert` list in
+  `app/build.gradle.kts` gets no diagram until it is added there.
 
 ---
 

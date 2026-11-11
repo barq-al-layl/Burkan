@@ -38,13 +38,13 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No Navigator provided") }
 
 /**
- * A [Navigator] whose back stack survives configuration changes and process death. A different [key] replaces the
- * whole back stack with one holding [start]; a different [start] under the same key changes nothing, so that leaving
- * Welcome, which makes Setup the place to start, does not take Welcome out from under the Back gesture.
+ * A [Navigator] whose back stack survives configuration changes and process death. [start] is read once, when there
+ * is no stack to restore. To move somewhere else altogether, use [Navigator.replaceAll]: never a new stack in place of
+ * this one, which would drop its screens without taking them off it, and so without clearing their ViewModels.
  */
 @Composable
-fun rememberNavigator(start: Route, key: Any = start): Navigator {
-    val backStack = rememberSerializable(key, serializer = NavBackStackSerializer(Route.serializer())) {
+fun rememberNavigator(start: Route): Navigator {
+    val backStack = rememberSerializable(serializer = NavBackStackSerializer(Route.serializer())) {
         NavBackStack(start)
     }
     return remember(backStack) { Navigator(backStack) }

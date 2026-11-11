@@ -16,10 +16,7 @@ import androidx.navigation3.ui.NavDisplay
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import io.github.barqallayl.burkan.core.navigation.HomeRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
-import io.github.barqallayl.burkan.core.navigation.SetupRoute
-import io.github.barqallayl.burkan.core.navigation.WelcomeRoute
 import io.github.barqallayl.burkan.core.navigation.appEntryProvider
 import io.github.barqallayl.burkan.core.navigation.rememberNavigator
 import io.github.barqallayl.burkan.core.navigation.oneUiTransition
@@ -68,9 +65,11 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
                 // A sheet or a dialog frosts the screens behind it for as long as it is open.
                 val backdrop = remember { GlassBackdrop() }
                 CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-                    Surface(modifier = Modifier
-                        .recordsRevealOrigin()
-                        .glassBackdrop(backdrop)) {
+                    Surface(
+                        modifier = Modifier
+                            .recordsRevealOrigin()
+                            .glassBackdrop(backdrop),
+                    ) {
                         AppNavigation(opening)
                     }
                 }
@@ -89,7 +88,8 @@ private data class ThemeColours(
 
 /**
  * The one place that decides between getting started and Home. No screen navigates on finishing or losing setup. While
- * getting started, the back stack is the screens gone through: Welcome, the choice of connection, Setup.
+ * getting started, the back stack is the screens gone through: Welcome, the choice of connection, Setup, until setup
+ * is complete. Each change of [opening] replaces the stack as [routeToReplace] says.
  */
 @Composable
 private fun AppNavigation(opening: Opening) {
@@ -97,12 +97,11 @@ private fun AppNavigation(opening: Opening) {
     val style = LocalAppStyle.current
     val motion = burkanMotion
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val start = when {
-        !opening.isGettingStarted -> HomeRoute
-        opening.showsWelcome -> WelcomeRoute
-        else -> SetupRoute
+    // Read once: after that the stack is kept, across process death too, and changed only by replacing it below.
+    val navigator = rememberNavigator(start = opening.startRoute())
+    LaunchedEffect(navigator, opening) {
+        opening.routeToReplace(navigator.entries)?.let(navigator::replaceAll)
     }
-    val navigator = rememberNavigator(start = start, key = opening.isGettingStarted)
     CompositionLocalProvider(LocalNavigator provides navigator) {
         NavDisplay(
             backStack = navigator.entries,

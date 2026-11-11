@@ -62,10 +62,17 @@ All from `docs/device-notes.md`; read it for the detail and for which of these a
 
 ## Screens
 
-Eight destinations. `App.kt` chooses the start: while getting started, `WelcomeRoute` on a fresh install and
-`SetupRoute` otherwise; `HomeRoute` once setup is complete and its First apply has been taken or put off. The back
-stack is kept for as long as getting started lasts, so Back goes from Setup to the choice of connection and to
-Welcome.
+Eight destinations. `App.kt` chooses the start once: while getting started, `WelcomeRoute` on a fresh install and
+`SetupRoute` otherwise; `HomeRoute` once setup is complete and its First apply has been taken or put off. Getting
+started is a one-way door, closed by replacing the back stack (`OpeningNavigation.kt`):
+
+- While the steps are being done, the stack is the screens gone through, so Back goes from Setup to the choice of
+  connection and to Welcome.
+- Once setup is complete, Setup is left alone on the stack, so Back from the First apply cannot reach the choice
+  and undo the setup just finished.
+- When getting started ends, Home replaces it; when it begins again (Redo setup, another connection, a pairing the
+  phone dropped), Setup replaces Home and what is above it. The screens taken off have their ViewModels cleared, so
+  Setup run again starts afresh rather than with what the last run left in it.
 
 ### Welcome (`WelcomeRoute`)
 

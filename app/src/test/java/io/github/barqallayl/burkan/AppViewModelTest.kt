@@ -43,7 +43,7 @@ class AppViewModelTest {
             expectInternalState(
                 AppState(
                     appearance = defaultAppearance,
-                    opening = Opening(isGettingStarted = false, showsWelcome = false),
+                    opening = Opening(isGettingStarted = false, showsWelcome = false, isSetupComplete = true),
                 ),
             )
             reading.cancel()
