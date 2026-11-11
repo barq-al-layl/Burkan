@@ -355,6 +355,14 @@ checks.
       clear of the navigation bar, and it still joins the circle a change of theme spreads in. (Seen only in
       previews, which draw a sheet without its window.)
 
+- [ ] Settings shows four groups (Applying, Connection, Appearance, About); at the largest text size, Connection's
+      value and the Appearance values sit under their names, uncut.
+- [ ] With Shizuku, Redo setup reads "Starts setup again", and its confirmation says nothing about a pairing.
+- [ ] A library's sheet under Open-source licences shows its licence text with no connection, scrolls to its end,
+      and offers Website only.
+- [ ] TalkBack on Never restart these apps reads "Chat, checked", not its package name; an app with no name is
+      read by its package name.
+
 ## The lock screen, the launcher and the screens
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has

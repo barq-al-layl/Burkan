@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -287,6 +288,9 @@ fun SegmentedColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  * [supportingOneLine] is for a second line that is an identifier, a package name above all: it is kept to one
  * line and shortened in its middle, where a sentence would wrap.
  *
+ * [supportingSpoken] false keeps the second line on screen but out of what TalkBack reads: for a line that is there
+ * to tell rows apart at a glance, such as an app's package name under its name, and would only be noise read aloud.
+ *
  * [pressMorph] is whether the row changes shape while it is pressed, as Material's does. A row whose tap is
  * answered by the whole screen changing does not: see `BurkanChoiceList`.
  *
@@ -303,6 +307,7 @@ fun BurkanSegmentItem(
     supporting: String? = null,
     supportingColor: Color? = null,
     supportingOneLine: Boolean = false,
+    supportingSpoken: Boolean = true,
     containerColor: Color = segmentContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     headlineStyle: TextStyle = MaterialTheme.typography.titleMedium,
@@ -362,6 +367,7 @@ fun BurkanSegmentItem(
                     color = supportingColor ?: Color.Unspecified,
                     maxLines = if (supportingOneLine) 1 else Int.MAX_VALUE,
                     overflow = if (supportingOneLine) TextOverflow.MiddleEllipsis else TextOverflow.Clip,
+                    modifier = if (supportingSpoken) Modifier else Modifier.clearAndSetSemantics { },
                 )
                 // What goes under the text is the row's own content, not a quieter line of it.
                 if (content != null) CompositionLocalProvider(LocalContentColor provides contentColor) { content() }

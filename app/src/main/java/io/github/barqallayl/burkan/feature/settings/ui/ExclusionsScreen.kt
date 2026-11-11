@@ -351,6 +351,8 @@ private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoad
                 headline = app.label ?: app.packageName.value,
                 supporting = if (app.label != null) app.packageName.value else notInstalled(),
                 supportingOneLine = true,
+                // An app with a name is read by its name; one without is read by its package name, the headline.
+                supportingSpoken = app.label == null,
                 leading = { AppIcon(app.packageName, icon) },
                 trailing = { LockMark() },
             )
@@ -440,6 +442,7 @@ private fun AppItem(
         headline = app.label ?: app.packageName.value,
         supporting = if (app.label != null) app.packageName.value else notInstalled(),
         supportingOneLine = true,
+        supportingSpoken = app.label == null,
         checked = excluded,
         onCheckedChange = { onToggle() },
         leading = { AppIcon(app.packageName, icon) },

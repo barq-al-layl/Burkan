@@ -101,6 +101,7 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
+import androidx.compose.ui.platform.LocalDensity
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 
@@ -207,25 +208,14 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            // Each group is named for what its rows are about: what happens after a restart, how the app reaches
-            // the phone's shell, and what "Restart all apps" leaves alone.
-            Section(R.string.settings_section_restart) { RestartItems(values, actions) }
+            // Four groups, each named for what its rows are about: how Vulkan is applied, how Burkan reaches the
+            // phone, which Redo setup sets up again, how the app looks, and the app itself.
+            Section(R.string.settings_section_applying) { ApplyingItems(values, actions) }
             Section(R.string.settings_section_connection) { ConnectionItems(values, actions) }
-            Section(R.string.settings_section_restart_all) { ExclusionsItem(values, actions) }
             Section(R.string.settings_section_appearance) {
                 AppearanceItems(
                     values.appearance,
                     actions,
-                )
-            }
-            Section(R.string.settings_section_setup) {
-                BurkanSegmentItem(
-                    index = 0,
-                    count = 1,
-                    headline = stringResource(R.string.settings_redo_setup),
-                    supporting = stringResource(R.string.settings_redo_setup_text),
-                    onClick = { actions.onShow(SettingsDialog.RedoSetup) },
-                    leading = { Icon(Tabler.Outline.Refresh, contentDescription = null) },
                 )
             }
             Section(R.string.settings_section_about) { AboutItems(state.version, actions) }
@@ -244,23 +234,25 @@ private fun Section(title: Int, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
+private fun ApplyingItems(values: SettingsValues, actions: SettingsActions) {
     val shizuku = values.shellBackend == ShellBackend.Shizuku
     SwitchItem(
         index = 0,
-        count = 1,
+        count = APPLYING_ITEMS,
         icon = Tabler.Outline.Power,
         title = R.string.settings_apply_on_boot,
         text = if (shizuku) R.string.settings_apply_on_boot_shizuku_text else R.string.settings_apply_on_boot_text,
         checked = values.applyOnBoot,
         onCheckedChange = actions.onApplyOnBoot,
     )
+    ExclusionsItem(index = 1, count = APPLYING_ITEMS, values = values, actions = actions)
 }
 
 @Composable
 private fun ConnectionItems(values: SettingsValues, actions: SettingsActions) {
     val shizuku = values.shellBackend == ShellBackend.Shizuku
-    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on.
+    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on. Redo
+    // setup closes the group: it sets up the connection again.
     val count = if (shizuku) CONNECTION_ITEMS - 1 else CONNECTION_ITEMS
     // A row that opens a question, not a switch: changing it starts setup again, which a switch does not promise.
     ChoiceItem(
@@ -285,7 +277,7 @@ private fun ConnectionItems(values: SettingsValues, actions: SettingsActions) {
         )
     }
     SwitchItem(
-        index = count - 1,
+        index = count - 2,
         count = count,
         icon = Tabler.Outline.PlugConnected,
         title = R.string.settings_external_triggers,
@@ -293,13 +285,24 @@ private fun ConnectionItems(values: SettingsValues, actions: SettingsActions) {
         checked = values.allowExternalTriggers,
         onCheckedChange = actions.onAllowExternalTriggers,
     )
+    BurkanSegmentItem(
+        index = count - 1,
+        count = count,
+        headline = stringResource(R.string.settings_redo_setup),
+        // With Shizuku there is no pairing to forget.
+        supporting = stringResource(
+            if (shizuku) R.string.settings_redo_setup_shizuku_text else R.string.settings_redo_setup_text,
+        ),
+        onClick = { actions.onShow(SettingsDialog.RedoSetup) },
+        leading = { Icon(Tabler.Outline.Refresh, contentDescription = null) },
+    )
 }
 
 @Composable
-private fun ExclusionsItem(values: SettingsValues, actions: SettingsActions) {
+private fun ExclusionsItem(index: Int, count: Int, values: SettingsValues, actions: SettingsActions) {
     BurkanSegmentItem(
-        index = 0,
-        count = 1,
+        index = index,
+        count = count,
         headline = stringResource(R.string.settings_exclusions),
         // One UI leaves a row that opens a screen to that screen to explain itself, and writes the row's value,
         // here the count, under its name.
@@ -391,7 +394,8 @@ private fun AboutItems(version: String, actions: SettingsActions) {
     BurkanSegmentItem(
         index = 1,
         count = ABOUT_ITEMS,
-        headline = stringResource(R.string.settings_star),
+        headline = stringResource(R.string.settings_source),
+        supporting = stringResource(R.string.settings_source_text),
         onClick = actions.onOpenSource,
         leading = { Icon(Tabler.Outline.BrandGithub, contentDescription = null) },
         trailing = { Chevron() },
@@ -434,7 +438,13 @@ private fun SettingsDialogs(
     when (dialog) {
         SettingsDialog.RedoSetup -> BurkanConfirm(
             title = stringResource(R.string.settings_redo_setup_confirm_title),
-            text = stringResource(R.string.settings_redo_setup_confirm_text),
+            text = stringResource(
+                if (values.shellBackend == ShellBackend.Shizuku) {
+                    R.string.settings_redo_setup_confirm_shizuku_text
+                } else {
+                    R.string.settings_redo_setup_confirm_text
+                },
+            ),
             confirm = stringResource(R.string.settings_redo_setup_confirm_action),
             dismiss = stringResource(R.string.dialog_cancel),
             onConfirm = actions.onConfirmRedoSetup,
@@ -620,7 +630,8 @@ private fun SwitchItem(
 /**
  * A preference that opens a sheet of choices. In Material what is chosen now sits at the end of the row, before the
  * chevron, so the group reads as two columns: the names down one side, their values down the other. One UI writes
- * it under the name, in the accent colour, and has no chevron.
+ * it under the name, in the accent colour, and has no chevron. At a large text size Material writes it under the name
+ * too: at the end of the row it would be cut short.
  */
 @Composable
 private fun ChoiceItem(
@@ -633,11 +644,12 @@ private fun ChoiceItem(
     onClick: () -> Unit,
 ) {
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
+    val underName = oneUi || LocalDensity.current.fontScale > VALUE_UNDER_NAME_ABOVE_FONT_SCALE
     BurkanSegmentItem(
         index = index,
         count = count,
         headline = stringResource(title),
-        supporting = if (oneUi) value else null,
+        supporting = if (underName) value else null,
         supportingColor = valueColor,
         onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
@@ -651,7 +663,7 @@ private fun ChoiceItem(
                         .size(14.dp)
                         .background(swatch, CircleShape),
                 )
-                if (!oneUi) {
+                if (!underName) {
                     TrailingValue(value)
                 }
                 Chevron()
@@ -688,8 +700,12 @@ private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 
-private const val CONNECTION_ITEMS = 3
+private const val APPLYING_ITEMS = 2
+private const val CONNECTION_ITEMS = 4
 private const val ABOUT_ITEMS = 5
+
+/** Above this text size a value goes under its row's name, where it has the row's width. */
+private const val VALUE_UNDER_NAME_ABOVE_FONT_SCALE = 1.15f
 
 private fun sample(
     dialog: SettingsDialog? = null,

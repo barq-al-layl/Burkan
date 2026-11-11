@@ -212,23 +212,37 @@ The status, and the two actions. The two styles lay it out differently; what it 
 
 ### Settings (`SettingsRoute`)
 
-- Apply after restart (on by default).
-- Turn off wireless debugging after applying (on by default).
-- Never restart these apps: the user's own exclusions for Restart all apps, chosen from the installed apps on their
-  own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the selected
-  apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the app's label and icon
-  where it is installed. Listing the apps has its own loading, empty and failed states.
-- Appearance: style (Material or One UI), dark theme, colour and, in the Material style, palette style, each
-  chosen in a bottom sheet. A Samsung phone starts in One UI, and that style starts in blue; Material starts from
-  the wallpaper's colour. A change applies at once, in a circle that spreads from the tap across the screen and
-  the sheet alike, and leaves the user on the screen they were on.
-  The options and defaults are in `CONTRIBUTING.md`.
-- Redo setup: forgets the pairing and returns to Setup at its first step, after a confirmation.
-- About: Report a problem, a link to the source on GitHub, the app's licence (Apache-2.0), the libraries'
-  licences on their own screen (`LicencesRoute`), and the version last. That list is generated at build time from the
-  dependencies (AboutLibraries) and read from the app's resources: no network at run time.
+Four groups: Applying, Connection, Appearance and About.
+
+- **Applying**
+  - Apply after restart (on by default).
+  - Never restart these apps: the user's own exclusions for Restart all apps, chosen from the installed apps on
+    their own screen (`ExclusionsRoute`), which can be searched by name or package name and filtered to the
+    selected apps, the user's own or the system's. The fixed exclusions are listed read-only beneath, with the
+    app's label and icon where it is installed. Listing the apps has its own loading, empty and failed states.
+    TalkBack reads an app by its name and whether it is ticked; its package name is read only when it has no name.
+- **Connection**
+  - Connection: wireless debugging or Shizuku, changed after a confirmation, which starts setup again.
+  - Turn off wireless debugging after applying (on by default), with wireless debugging only.
+  - Let other apps start runs (on by default): Tasker and other automation apps can start Apply now or Restart all
+    apps (see Permissions and manifest, below).
+  - Redo setup: returns to Setup at its first step, after a confirmation. With wireless debugging it forgets the
+    pairing; with Shizuku there is none, and the row and the confirmation say so.
+- **Appearance**: style (Material or One UI), dark theme, colour and, in the Material style, palette style, each
+  chosen in a bottom sheet. The palette styles keep Material's names, but for CMF, which reads "Material 2026". A
+  Samsung phone starts in One UI, and that style starts in blue; Material starts from the wallpaper's colour. A
+  change applies at once, in a circle that spreads from the tap across the screen and the sheet alike, and leaves
+  the user on the screen they were on. The options and defaults are in `CONTRIBUTING.md`.
+- **About**: Report a problem, Source code (on GitHub), the app's licence (Apache-2.0), the libraries' licences on
+  their own screen (`LicencesRoute`), and the version last. That list is generated at build time from the
+  dependencies (AboutLibraries) and read from the app's resources: no network at run time. Each licence is named by
+  its short name where it has one ("Apache 2.0"), and its text is shown in the library's sheet. The texts are kept in
+  `app/aboutlibraries/licenses/`, since the plugin runs offline and fetches none: a dependency under a licence not
+  there yet shows a link to it instead, until its text is added.
   Report a problem opens the browser on a new GitHub issue, started from the form in
   `.github/ISSUE_TEMPLATE/bug_report.yml`. Nothing is filled in for the user and nothing is sent by the app.
+- In Material a row's value is at its end; above a font scale of 1.15 it goes under the row's name instead, as One
+  UI always has it, so it is never cut short.
 
 ### Log (`LogRoute`)
 
