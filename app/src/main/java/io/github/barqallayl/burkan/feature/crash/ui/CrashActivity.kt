@@ -46,6 +46,7 @@ class CrashActivity : ComponentActivity() {
                         onShare = { report?.let(::share) },
                         onReport = ::openReportForm,
                         onClose = ::finishAndRemoveTask,
+                        onOpenApp = ::openApp,
                     )
                 }
             }
@@ -59,6 +60,12 @@ class CrashActivity : ComponentActivity() {
             .putExtra(Intent.EXTRA_TEXT, report)
             .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.crash_share_subject))
         startActivity(Intent.createChooser(send, getString(R.string.crash_share_chooser)))
+    }
+
+    /** Starts the app again in place of this screen. */
+    private fun openApp() {
+        packageManager.getLaunchIntentForPackage(packageName)?.let(::startActivity)
+        finish()
     }
 
     private fun openReportForm() {

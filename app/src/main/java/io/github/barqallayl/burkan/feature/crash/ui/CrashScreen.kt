@@ -22,9 +22,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -36,6 +37,7 @@ import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.ActionHeight
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
+import io.github.barqallayl.burkan.designsystem.component.BurkanTextButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.ContentMargin
 import io.github.barqallayl.burkan.designsystem.component.GlassRise
@@ -45,10 +47,10 @@ import io.github.barqallayl.burkan.designsystem.component.burkanButtonShapes
 import io.github.barqallayl.burkan.designsystem.component.burkanTonalButtonColors
 import io.github.barqallayl.burkan.designsystem.component.glass
 import io.github.barqallayl.burkan.designsystem.component.glassSource
-import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.listInset
 import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
 import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
@@ -60,7 +62,13 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
  * [report] is null when it could not be read, and then there is nothing to share.
  */
 @Composable
-fun CrashScreen(report: String?, onShare: () -> Unit, onReport: () -> Unit, onClose: () -> Unit) {
+fun CrashScreen(
+    report: String?,
+    onShare: () -> Unit,
+    onReport: () -> Unit,
+    onClose: () -> Unit,
+    onOpenApp: () -> Unit = {},
+) {
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
     Scaffold(
@@ -113,6 +121,10 @@ fun CrashScreen(report: String?, onShare: () -> Unit, onReport: () -> Unit, onCl
                     colors = burkanTonalButtonColors(),
                 ) {
                     Text(stringResource(R.string.settings_report_problem), style = label)
+                }
+                // What most people want next, and quieter than the two that help get the fault fixed.
+                BurkanTextButton(onClick = onOpenApp, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(stringResource(R.string.crash_open_app))
                 }
             }
         },

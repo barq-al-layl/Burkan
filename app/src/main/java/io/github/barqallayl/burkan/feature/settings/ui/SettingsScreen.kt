@@ -77,6 +77,7 @@ import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.accentTextColor
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
 import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.topBarScroll
@@ -206,7 +207,11 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
+            // Each group is named for what its rows are about: what happens after a restart, how the app reaches
+            // the phone's shell, and what "Restart all apps" leaves alone.
             Section(R.string.settings_section_restart) { RestartItems(values, actions) }
+            Section(R.string.settings_section_connection) { ConnectionItems(values, actions) }
+            Section(R.string.settings_section_restart_all) { ExclusionsItem(values, actions) }
             Section(R.string.settings_section_appearance) {
                 AppearanceItems(
                     values.appearance,
@@ -241,30 +246,36 @@ private fun Section(title: Int, content: @Composable () -> Unit) {
 @Composable
 private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
     val shizuku = values.shellBackend == ShellBackend.Shizuku
-    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on.
-    val count = if (shizuku) RESTART_ITEMS - 1 else RESTART_ITEMS
     SwitchItem(
         index = 0,
-        count = count,
+        count = 1,
         icon = Tabler.Outline.Power,
         title = R.string.settings_apply_on_boot,
         text = if (shizuku) R.string.settings_apply_on_boot_shizuku_text else R.string.settings_apply_on_boot_text,
         checked = values.applyOnBoot,
         onCheckedChange = actions.onApplyOnBoot,
     )
-    // Not a switch that turns at a tap: it asks first, as changing it starts setup again.
-    SwitchItem(
-        index = 1,
+}
+
+@Composable
+private fun ConnectionItems(values: SettingsValues, actions: SettingsActions) {
+    val shizuku = values.shellBackend == ShellBackend.Shizuku
+    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on.
+    val count = if (shizuku) CONNECTION_ITEMS - 1 else CONNECTION_ITEMS
+    // A row that opens a question, not a switch: changing it starts setup again, which a switch does not promise.
+    ChoiceItem(
+        index = 0,
         count = count,
         icon = Tabler.Outline.Terminal,
-        title = R.string.settings_shizuku,
-        text = R.string.settings_shizuku_text,
-        checked = shizuku,
-        onCheckedChange = { actions.onShow(SettingsDialog.SwitchShellBackend) },
+        title = R.string.settings_connection,
+        value = stringResource(
+            if (shizuku) R.string.settings_connection_shizuku else R.string.settings_connection_wireless_debugging,
+        ),
+        onClick = { actions.onShow(SettingsDialog.SwitchShellBackend) },
     )
     if (!shizuku) {
         SwitchItem(
-            index = 2,
+            index = 1,
             count = count,
             icon = Tabler.Outline.WifiOff,
             title = R.string.settings_turn_off_wireless_debugging,
@@ -274,7 +285,7 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         )
     }
     SwitchItem(
-        index = count - 2,
+        index = count - 1,
         count = count,
         icon = Tabler.Outline.PlugConnected,
         title = R.string.settings_external_triggers,
@@ -282,9 +293,13 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
         checked = values.allowExternalTriggers,
         onCheckedChange = actions.onAllowExternalTriggers,
     )
+}
+
+@Composable
+private fun ExclusionsItem(values: SettingsValues, actions: SettingsActions) {
     BurkanSegmentItem(
-        index = count - 1,
-        count = count,
+        index = 0,
+        count = 1,
         headline = stringResource(R.string.settings_exclusions),
         // One UI leaves a row that opens a screen to that screen to explain itself, and writes the row's value,
         // here the count, under its name.
@@ -661,7 +676,7 @@ private fun TrailingValue(value: String) {
 /** The colour of a row's second line when that line is its value: One UI's accent. Material has no such line. */
 private val valueColor: Color?
     @Composable
-    get() = if (LocalAppStyle.current == AppStyle.OneUi) MaterialTheme.colorScheme.primary else null
+    get() = if (LocalAppStyle.current == AppStyle.OneUi) accentTextColor else null
 
 /** A value longer than this is cut short, so the row's name always has the room it needs. */
 private val VALUE_MAX_WIDTH = 150.dp
@@ -673,7 +688,7 @@ private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 
-private const val RESTART_ITEMS = 5
+private const val CONNECTION_ITEMS = 3
 private const val ABOUT_ITEMS = 5
 
 private fun sample(

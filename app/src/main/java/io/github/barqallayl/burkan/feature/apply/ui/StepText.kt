@@ -40,6 +40,18 @@ fun RunPhase.label(): StepLabel = when (this) {
     RunPhase.Checking -> StepLabel(R.string.phase_checking)
 }
 
+/**
+ * A phase as a line of a checklist, worded as the steps are: what is done, not what is going on. [label] is for
+ * saying what a run is at while it is at it.
+ */
+fun RunPhase.stepLabel(): StepLabel = when (this) {
+    RunPhase.Connecting -> StepLabel(R.string.step_connect)
+    RunPhase.ConnectingToShizuku -> StepLabel(R.string.step_connect_shizuku)
+    RunPhase.Reading -> StepLabel(R.string.step_read)
+    is RunPhase.Step -> kind.label()
+    RunPhase.Checking -> StepLabel(R.string.step_check)
+}
+
 fun Resources.text(label: StepLabel): String =
     label.count?.let { getQuantityString(label.resource, it, it) } ?: getString(label.resource)
 

@@ -61,6 +61,8 @@ data class SetupState(
     val isCurrentMet: Boolean = false,
     /** The current step is Shizuku's, and Shizuku is running, so what is left for it is to allow Burkan. */
     val isShizukuRunning: Boolean = false,
+    /** False on a phone with neither Shizuku's app nor Shizuku running: the step then offers to get it. */
+    val isShizukuInstalled: Boolean = true,
     /** The current step needs wireless debugging switched on, and the phone is not on Wi-Fi, where it cannot be. */
     val isWifiMissing: Boolean = false,
     val pairing: PairingStatus = PairingStatus.Idle,
@@ -157,6 +159,7 @@ class SetupViewModel(
         val failure = state.failure.takeIf { current.isAutomatic && current == state.current }
         val wifiMissing = !met && current.needsWifi && !wirelessDebugging.isWifiConnected()
         val shizukuRunning = current == SetupStep.Shizuku && shizuku.isRunning()
+        val shizukuInstalled = current != SetupStep.Shizuku || shizukuRunning || shizuku.appPackage() != null
         reduce {
             state.copy(
                 backend = backend,
@@ -164,6 +167,7 @@ class SetupViewModel(
                 isCurrentMet = met,
                 isWifiMissing = wifiMissing,
                 isShizukuRunning = shizukuRunning,
+                isShizukuInstalled = shizukuInstalled,
                 failure = failure,
             )
         }

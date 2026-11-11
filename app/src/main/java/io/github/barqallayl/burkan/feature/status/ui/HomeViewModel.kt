@@ -207,6 +207,9 @@ class HomeViewModel(
                 statusReadAt = clock.now(),
                 isRefreshing = false,
                 behind = null,
+                // The sheet lists the apps behind: with the list gone it has nothing to show, and must not come
+                // back by itself when a later read finds some.
+                isShowingBehind = false,
                 isCheckingBehind = loaded,
                 pairingCanLapse = pairingCanLapse,
             )
@@ -321,6 +324,7 @@ class HomeViewModel(
                     // as old, so the next return to the screen asks again.
                     statusReadAt = verified.at.takeIf { behind != null },
                     behind = behind,
+                    isShowingBehind = state.isShowingBehind && !behind.isNullOrEmpty(),
                     isCheckingBehind = false,
                 )
             }

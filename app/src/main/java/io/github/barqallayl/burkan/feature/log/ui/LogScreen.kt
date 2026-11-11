@@ -388,13 +388,19 @@ private fun RunSteps(run: RunLogEntry) {
                 }
                 run.detail?.let { Text(it, style = small, color = quiet) }
                 run.steps.forEach { step ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(step.kind.label().text())
+                    Column {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
+                            Text(step.kind.label().text(), modifier = Modifier.weight(1f))
+                            // How long the step took, at the end of its line where the eye can run down them.
+                            step.duration?.let { Text(durationText(it), style = small, color = quiet) }
+                        }
+                        // Under the step's line and as wide as the card, level with its name: beside the
+                        // duration, a sentence was squeezed into a few words a line.
+                        Column(modifier = Modifier.padding(start = 30.dp)) {
                             step.error?.let {
                                 Text(
                                     stringResource(it.resource),
@@ -403,8 +409,6 @@ private fun RunSteps(run: RunLogEntry) {
                             }
                             step.detail?.let { Text(it, style = small, color = quiet) }
                         }
-                        // How long the step took, at the end of its line where the eye can run down them.
-                        step.duration?.let { Text(durationText(it), style = small, color = quiet) }
                     }
                 }
                 // What stands behind the steps, for whoever is looking for a fault: quieter, and after them.

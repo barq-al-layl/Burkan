@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
@@ -92,6 +93,24 @@ val noticeAccentColor: Color
     }
 
 private val OneUiCardShape = RoundedCornerShape(27.dp)
+
+/**
+ * The accent as the colour of a line of text: a value written under its name, as One UI writes one. On a light
+ * screen the accent itself is too pale for body text, so it is taken a shade darker there.
+ */
+val accentTextColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() {
+        val scheme = MaterialTheme.colorScheme
+        return if (scheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+            scheme.primary
+        } else {
+            lerp(scheme.primary, Color.Black, ACCENT_TEXT_SHADE)
+        }
+    }
+
+private const val ACCENT_TEXT_SHADE = 0.3f
 private val SquareCorners = RoundedCornerShape(0.dp)
 
 /** Whether what is drawn sits on a floating sheet. The sheet says so. */
@@ -307,7 +326,10 @@ fun BurkanSegmentItem(
         selectedContentColor = selectedContentColor,
         selectedLeadingContentColor = selectedContentColor,
         selectedTrailingContentColor = selectedContentColor,
-        selectedSupportingContentColor = selectedContentColor.copy(alpha = SUPPORTING_ALPHA),
+        // Not quietened on the tinted row: on that tint the quieter tone falls under the contrast body text needs.
+        // One UI's chosen row keeps the row's own colours, and so its quieter line.
+        selectedSupportingContentColor =
+            if (oneUi) contentColor.copy(alpha = SUPPORTING_ALPHA) else selectedContentColor,
     )
     // A row's icon and control sit level with the middle of its text. A row that carries more under its text keeps
     // them at the top, beside the text they belong to.

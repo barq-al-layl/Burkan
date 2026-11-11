@@ -65,35 +65,37 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.AppWindow
-import com.composables.icons.tabler.outline.ArrowBackUp
 import com.composables.icons.tabler.outline.Apps
+import com.composables.icons.tabler.outline.ArrowBackUp
 import com.composables.icons.tabler.outline.Check
 import com.composables.icons.tabler.outline.Checks
-import com.composables.icons.tabler.outline.ExclamationMark
 import com.composables.icons.tabler.outline.ChevronRight
 import com.composables.icons.tabler.outline.CircleCheck
-import com.composables.icons.tabler.outline.CircleX
 import com.composables.icons.tabler.outline.Clock
+import com.composables.icons.tabler.outline.ExclamationMark
 import com.composables.icons.tabler.outline.HelpCircle
 import com.composables.icons.tabler.outline.History
 import com.composables.icons.tabler.outline.Home
@@ -102,6 +104,7 @@ import com.composables.icons.tabler.outline.Keyboard
 import com.composables.icons.tabler.outline.Link
 import com.composables.icons.tabler.outline.ListSearch
 import com.composables.icons.tabler.outline.Lock
+import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.PlugConnected
 import com.composables.icons.tabler.outline.Power
 import com.composables.icons.tabler.outline.QuestionMark
@@ -116,60 +119,61 @@ import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
-import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.LogRoute
 import io.github.barqallayl.burkan.core.navigation.SettingsRoute
+import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.ui.AppIcon
 import io.github.barqallayl.burkan.core.ui.IconLoader
 import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.core.ui.wirelessDebuggingIntent
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
-import io.github.barqallayl.burkan.designsystem.burkanMotion
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
-import io.github.barqallayl.burkan.designsystem.component.listInset
-import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
-import io.github.barqallayl.burkan.designsystem.component.listTop
-import io.github.barqallayl.burkan.designsystem.component.topBarScroll
-import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
-import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
+import io.github.barqallayl.burkan.designsystem.burkanMotion
 import io.github.barqallayl.burkan.designsystem.component.ActionHeight
+import io.github.barqallayl.burkan.designsystem.component.BurkanBottomSheet
 import io.github.barqallayl.burkan.designsystem.component.BurkanButton
-import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
-import io.github.barqallayl.burkan.designsystem.component.burkanButtonShapes
-import io.github.barqallayl.burkan.designsystem.component.burkanTonalButtonColors
-import io.github.barqallayl.burkan.designsystem.component.glass
-import io.github.barqallayl.burkan.designsystem.component.glassSource
-import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.BurkanConfirm
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentChoice
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetActions
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetHeader
 import io.github.barqallayl.burkan.designsystem.component.BurkanSheetPreview
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
-import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentChoice
-import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
 import io.github.barqallayl.burkan.designsystem.component.ContentMargin
 import io.github.barqallayl.burkan.designsystem.component.GlassRise
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentedColumn
 import io.github.barqallayl.burkan.designsystem.component.Tone
+import io.github.barqallayl.burkan.designsystem.component.accentTextColor
+import io.github.barqallayl.burkan.designsystem.component.burkanButtonShapes
+import io.github.barqallayl.burkan.designsystem.component.burkanTonalButtonColors
 import io.github.barqallayl.burkan.designsystem.component.colors
-import io.github.barqallayl.burkan.designsystem.component.noticeColors
+import io.github.barqallayl.burkan.designsystem.component.glass
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.noticeAccentColor
+import io.github.barqallayl.burkan.designsystem.component.noticeColors
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.apply.data.RunPhase
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
@@ -178,6 +182,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.apply.ui.label
+import io.github.barqallayl.burkan.feature.apply.ui.stepLabel
 import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
@@ -190,10 +195,10 @@ import io.github.barqallayl.burkan.feature.log.ui.runningLabel
 import io.github.barqallayl.burkan.feature.status.model.BehindApp
 import io.github.barqallayl.burkan.feature.status.model.Headline
 import io.github.barqallayl.burkan.feature.status.model.headline
-import java.time.ZoneId
-import java.time.ZoneOffset
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -669,7 +674,8 @@ private fun StatusGroup(state: HomeState) {
             }
             Text(
                 when {
-                    run != null -> stringResource(run.kind.label)
+                    // What is happening, not the name of the button that started it.
+                    run != null -> stringResource(run.kind.runningLabel)
                     failed != null -> stringResource(failed.error.failureTitle())
                     headline == null -> stringResource(R.string.home_checking)
                     else -> stringResource(headline.title)
@@ -686,7 +692,7 @@ private fun StatusGroup(state: HomeState) {
                 run != null -> run.phase.label().text()
                 failed != null -> stringResource(failed.error.failureText())
                 headline == null -> ""
-                headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
+                headline == Headline.VulkanActive && state.lastRun.isManualLightApply() && state.mayHaveAppsBehind ->
                     stringResource(R.string.home_open_apps_note)
                 else -> stringResource(headline.text)
             }
@@ -706,7 +712,10 @@ private fun StatusGroup(state: HomeState) {
 }
 
 /** What the surfaces were before the run that is now changing them. */
-private const val STALE_ALPHA = 0.5f
+private const val STALE_ALPHA = 0.7f
+
+/** False once the open apps have been read and none is behind: there is then nothing to warn of. */
+private val HomeState.mayHaveAppsBehind: Boolean get() = behind?.isEmpty() != true
 
 /** The track of the progress indicator, as a share of the indicator's own colour. */
 private const val TRACK_ALPHA = 0.16f
@@ -803,7 +812,8 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                         run != null -> run.phase.label().text()
                         failed != null -> stringResource(failed.error.failureText())
                         headline == null -> ""
-                        headline == Headline.VulkanActive && state.lastRun.isManualLightApply() ->
+                        headline == Headline.VulkanActive && state.lastRun.isManualLightApply() &&
+                            state.mayHaveAppsBehind ->
                             stringResource(R.string.home_open_apps_note)
                         else -> stringResource(headline.text)
                     },
@@ -811,7 +821,6 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     minLines = 2,
-                    maxLines = 2,
                     modifier = Modifier
                         .padding(top = 6.dp)
                         .semantics { liveRegion = LiveRegionMode.Polite },
@@ -877,26 +886,38 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
                 Text(stringResource(R.string.home_cancel_run), style = style)
             }
 
-            SummaryActions.Apply -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
+            SummaryActions.Apply -> {
+                val buttons = listOf(
                     R.string.home_apply_now to actions.onApplyNow,
                     R.string.home_restart_all to actions.onRestartAll,
-                ).forEach { (label, onClick) ->
-                    FilledTonalButton(
+                )
+                val button: @Composable (Int, () -> Unit, Modifier) -> Unit = { label, onClick, size ->
+                    // The everyday action is the accent's; the one that closes every app stays grey beside it.
+                    val everyday = label == R.string.home_apply_now
+                    Button(
                         onClick = { if (live) onClick() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(SUMMARY_ACTION_HEIGHT),
-                        colors = grey,
+                        modifier = size.heightIn(min = SUMMARY_ACTION_HEIGHT),
+                        colors = if (everyday) ButtonDefaults.buttonColors() else grey,
                         contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
-                        // One line in any font size: the label is set smaller before it is ever cut.
+                        // One line: the label is set a little smaller before it is ever cut.
                         Text(
                             stringResource(label),
                             style = style,
                             maxLines = 1,
                             autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize),
                         )
+                    }
+                }
+                // Side by side while the labels fit at the size the user reads at. With larger text they would
+                // only fit by being set smaller, which is the opposite of what was asked for: each gets a row.
+                if (LocalDensity.current.fontScale > STACK_ABOVE_FONT_SCALE) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        buttons.forEach { (label, onClick) -> button(label, onClick, Modifier.fillMaxWidth()) }
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        buttons.forEach { (label, onClick) -> button(label, onClick, Modifier.weight(1f)) }
                     }
                 }
             }
@@ -906,6 +927,7 @@ private fun SummaryAction(action: SummaryActions, actions: HomeActions, modifier
 
 private val SUMMARY_ACTION_HEIGHT = 52.dp
 private val SUMMARY_ACTION_MIN_WIDTH = 160.dp
+private const val STACK_ABOVE_FONT_SCALE = 1.15f
 
 /**
  * Under the summary: the surfaces, or, from the start of a run until the user has seen how it went, the run's steps.
@@ -1004,7 +1026,7 @@ private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
         )
         // The step by its short name: the longer sentence about the one under way is in the summary card.
         Text(
-            if (phase is RunPhase.Step) phase.kind.label().text() else phase.label().text(),
+            phase.stepLabel().text(),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
         )
@@ -1146,8 +1168,14 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> 
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                     )
-                    Button(onClick = onRetry, enabled = !state.isRefreshing) {
-                        Text(stringResource(failed.error.retryLabel()))
+                    // Tonal: the screen's one filled button is the action docked at its foot.
+                    FilledTonalButton(onClick = onRetry, enabled = !state.isRefreshing) {
+                        // Trying again takes a few seconds, sometimes many: the button says it is at it.
+                        if (state.isRefreshing) {
+                            LoadingIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Text(stringResource(failed.error.retryLabel()))
+                        }
                     }
                 }
             }
@@ -1206,7 +1234,7 @@ private fun OpenAppsRow(
             label,
             stringResource(R.string.home_open_apps_all, stringResource(newApps.nameRes)),
             // Caught up with whatever new apps get, which after going back is OpenGL: neither good nor bad then.
-            if (newApps == Renderer.Vulkan) SurfaceMark.Good else SurfaceMark.Unknown,
+            if (newApps == Renderer.Vulkan) SurfaceMark.Good else SurfaceMark.Even,
         )
 
         else -> SurfaceLine(
@@ -1226,7 +1254,15 @@ private fun OpenAppsRow(
 }
 
 /** What a row of the surfaces list says at a glance, beside its words. */
-private enum class SurfaceMark { Good, Behind, Unknown, Checking }
+private enum class SurfaceMark {
+    Good,
+    Behind,
+
+    /** Known, and neither good nor bad: a question mark would say it was not known. */
+    Even,
+    Unknown,
+    Checking,
+}
 
 @Composable
 private fun SurfaceLine(
@@ -1242,6 +1278,7 @@ private fun SurfaceLine(
             SurfaceMark.Good -> Tabler.Outline.Check to Tone.Good
             // Not a fault: it is how every restart leaves things. It is what wants attention, so it is orange.
             SurfaceMark.Behind -> Tabler.Outline.ExclamationMark to Tone.HeldUp
+            SurfaceMark.Even -> Tabler.Outline.Minus to Tone.Neutral
             SurfaceMark.Unknown -> Tabler.Outline.QuestionMark to Tone.Neutral
             SurfaceMark.Checking -> Tabler.Outline.Hourglass to Tone.Neutral
         }
@@ -1250,6 +1287,8 @@ private fun SurfaceLine(
             count = SURFACE_COUNT,
             headline = label,
             supporting = value,
+            // One UI's rows carry no chevron: a row that opens something has its value in the accent instead.
+            supportingColor = if (onClick != null) accentTextColor else null,
             onClick = onClick,
             leading = { Icon(icon, contentDescription = null) },
             trailing = { StatusMark(mark, tone, 24.dp) },
@@ -1259,7 +1298,10 @@ private fun SurfaceLine(
     val scheme = MaterialTheme.colorScheme
     val (mark, markColor) = when (surfaceMark) {
         SurfaceMark.Good -> Tabler.Outline.CircleCheck to scheme.primary
-        SurfaceMark.Behind -> Tabler.Outline.CircleX to scheme.error
+        // Not a fault: it is how every restart leaves things. It wants attention, so it is the notice's amber,
+        // and the error colour is kept for what has failed.
+        SurfaceMark.Behind -> Tabler.Outline.AlertCircle to noticeAccentColor
+        SurfaceMark.Even -> Tabler.Outline.Minus to scheme.onSurfaceVariant
         SurfaceMark.Unknown -> Tabler.Outline.HelpCircle to scheme.onSurfaceVariant
         SurfaceMark.Checking -> Tabler.Outline.Hourglass to scheme.onSurfaceVariant
     }
@@ -1273,6 +1315,8 @@ private fun SurfaceLine(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 TrailingText(value)
                 Icon(mark, contentDescription = null, modifier = Modifier.size(20.dp), tint = markColor)
+                // The one row here that opens something says so, as the rows that do elsewhere on the screen.
+                if (onClick != null) Icon(Tabler.Outline.ChevronRight, contentDescription = null)
             }
         },
     )
@@ -1492,7 +1536,7 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 count = count,
                 headline = stringResource(R.string.settings_apply_on_boot),
                 supporting = stringResource(if (applyOnBoot) R.string.value_on else R.string.value_off),
-                supportingColor = MaterialTheme.colorScheme.primary,
+                supportingColor = accentTextColor,
                 onClick = actions.onOpenSettings,
                 leading = { BurkanIconBadge(Tabler.Outline.Power) },
             )
@@ -1525,7 +1569,7 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 headline = stringResource(R.string.home_restart_all),
                 supporting = stringResource(R.string.home_restart_all_text),
                 // Nothing to start while a run is under way: the row stays, dimmed, and does not react.
-                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
+                modifier = Modifier.unavailableUnless(idle),
                 onClick = actions.onRestartAll.takeIf { idle },
                 leading = { BurkanIconBadge(Tabler.Outline.Refresh) },
                 trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
@@ -1536,7 +1580,7 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
                 index = count - 1,
                 count = count,
                 headline = stringResource(R.string.home_revert),
-                modifier = Modifier.alpha(if (idle) 1f else STALE_ALPHA),
+                modifier = Modifier.unavailableUnless(idle),
                 onClick = actions.onRevert.takeIf { idle },
                 leading = { BurkanIconBadge(Tabler.Outline.ArrowBackUp) },
                 trailing = { Icon(Tabler.Outline.ChevronRight, contentDescription = null) },
@@ -1544,6 +1588,12 @@ private fun Details(state: HomeState, zone: ZoneId, actions: HomeActions, showEr
         }
     }
 }
+
+/**
+ * A row that does nothing while a run is under way: dimmed, and said to be unavailable to whoever cannot see that.
+ */
+private fun Modifier.unavailableUnless(available: Boolean): Modifier =
+    if (available) this else alpha(STALE_ALPHA).semantics { disabled() }
 
 /** The newest run, as the log shows it. It opens the log. */
 @Composable
@@ -2023,6 +2073,31 @@ private fun HomeRestartAllSheetOneUiPreview() {
                 onDismiss = {},
             )
         }
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeRunningOneUiLargeTextPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi, fontScale = LargeFontScale) {
+        HomePreviewContent(
+            sample(
+                run = ApplyRunState.Running(
+                    ApplyKind.Light,
+                    RunTrigger.Manual,
+                    RunPhase.Step(StepKind.RestartSystemUi),
+                ),
+                lastRun = sampleLightRun,
+            ),
+        )
+    }
+}
+
+@BurkanPreview
+@Composable
+private fun HomeNotAppliedOneUiLargeTextPreview() {
+    BurkanPreviewTheme(appStyle = AppStyle.OneUi, fontScale = LargeFontScale) {
+        HomePreviewContent(sample())
     }
 }
 

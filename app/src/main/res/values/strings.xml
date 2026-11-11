@@ -2,6 +2,7 @@
     <string name="app_name">Burkan</string>
 
     <string name="setup_title">Set up Burkan</string>
+    <string name="setup_intro">Burkan keeps the phone drawing with Vulkan by applying it again after every restart. To do that it needs the phone’s own debugging connection, set up once, on Wi-Fi.</string>
     <string name="setup_untested_model">Burkan is tested only on the Galaxy S23, S23+ and S23 Ultra. It may not work on this phone.</string>
     <string name="setup_progress">Step %1$d of %2$d</string>
     <plurals name="setup_steps_done">
@@ -35,10 +36,12 @@
     <string name="setup_pair_in_progress">Pairing…</string>
     <string name="setup_pair_met">Burkan is paired.</string>
     <string name="setup_use_shizuku_instead">Use Shizuku instead</string>
+    <string name="setup_use_shizuku_text">Shizuku is a separate app that gives Burkan the same access. Choose it if you already keep it running.</string>
     <string name="setup_use_wireless_debugging_instead">Use wireless debugging instead</string>
     <string name="setup_shizuku_title">Allow Shizuku</string>
     <string name="setup_shizuku_text">Start Shizuku, then allow Burkan to use it. If no dialog asks, open Shizuku and allow Burkan in its list of apps. Burkan asks Shizuku for a shell on this phone, so it needs no pairing.</string>
     <string name="setup_shizuku_open_action">Open Shizuku</string>
+    <string name="setup_shizuku_get_action">Get Shizuku</string>
     <string name="setup_shizuku_allow_action">Allow</string>
     <string name="setup_shizuku_met">Shizuku is running and Burkan may use it.</string>
     <string name="setup_connect_title">Connect</string>
@@ -58,11 +61,14 @@
     <string name="setup_battery_met">Burkan is allowed to run after a restart.</string>
     <string name="settings_title">Settings</string>
     <string name="settings_section_restart">After a restart</string>
+    <string name="settings_section_connection">Connection</string>
+    <string name="settings_section_restart_all">Restart all apps</string>
+    <string name="settings_connection">Connect through</string>
+    <string name="settings_connection_wireless_debugging">Wireless debugging</string>
+    <string name="settings_connection_shizuku">Shizuku</string>
     <string name="settings_apply_on_boot">Apply after restart</string>
     <string name="settings_apply_on_boot_text">Once the phone is on Wi-Fi</string>
     <string name="settings_apply_on_boot_shizuku_text">Once Shizuku is running</string>
-    <string name="settings_shizuku">Use Shizuku</string>
-    <string name="settings_shizuku_text">Instead of wireless debugging</string>
     <string name="settings_turn_off_wireless_debugging">Turn off wireless debugging</string>
     <string name="settings_turn_off_wireless_debugging_text">Only if Burkan switched it on</string>
     <string name="settings_external_triggers">Let other apps start runs</string>
@@ -164,6 +170,7 @@
     <string name="crash_text">Something went wrong and Burkan had to close. Nothing has been sent anywhere. The report below holds the error, this phone\'s model and its Android version. Sharing it in a report helps to get the problem fixed.</string>
     <string name="crash_share">Share the report</string>
     <string name="crash_close">Close</string>
+    <string name="crash_open_app">Open Burkan again</string>
     <string name="crash_no_report">The report could not be read.</string>
     <string name="crash_share_chooser">Share the crash report</string>
     <string name="crash_share_subject">Burkan crash report</string>
@@ -232,6 +239,10 @@
     <string name="phase_reading">Reading the phone’s state</string>
     <string name="phase_restart_system_ui">Restarting System UI. The screen locks for a moment; unlock to carry on.</string>
     <string name="phase_checking">Checking the result</string>
+    <string name="step_connect">Connect to wireless debugging</string>
+    <string name="step_connect_shizuku">Connect to Shizuku</string>
+    <string name="step_read">Read the phone’s state</string>
+    <string name="step_check">Check the result</string>
 
     <string name="apply_channel_name">Applying Vulkan</string>
     <string name="apply_channel_description">Shows a run while it is in progress, and a run that failed.</string>
@@ -339,7 +350,7 @@
         <item quantity="other">%1$d still on %2$s</item>
     </plurals>
     <string name="home_behind_title">Still on %1$s</string>
-    <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost.</string>
+    <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost. The shield keeps an app out of every restart from now on; the arrow restarts that app alone.</string>
     <string name="home_behind_action">Restart them</string>
     <string name="home_behind_restart_one">Restart %1$s</string>
     <string name="home_behind_keep">Never restart %1$s</string>

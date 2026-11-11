@@ -58,7 +58,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -80,41 +82,41 @@ import io.github.barqallayl.burkan.core.ui.openSettings
 import io.github.barqallayl.burkan.core.ui.wirelessDebuggingIntent
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.LocalAppStyle
-import io.github.barqallayl.burkan.designsystem.burkanMotion
-import io.github.barqallayl.burkan.designsystem.emphasis
-import io.github.barqallayl.burkan.designsystem.component.BurkanButton
-import io.github.barqallayl.burkan.designsystem.component.BurkanTextButton
-import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
-import io.github.barqallayl.burkan.designsystem.component.glassSource
-import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.SeedColors
-import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.designsystem.ThemeMode
-import io.github.barqallayl.burkan.designsystem.component.listInset
-import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
-import io.github.barqallayl.burkan.designsystem.component.listTop
-import io.github.barqallayl.burkan.designsystem.component.topBarScroll
-import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
-import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
+import io.github.barqallayl.burkan.designsystem.burkanMotion
+import io.github.barqallayl.burkan.designsystem.component.BurkanButton
 import io.github.barqallayl.burkan.designsystem.component.BurkanIconBadge
 import io.github.barqallayl.burkan.designsystem.component.BurkanPill
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import io.github.barqallayl.burkan.designsystem.component.BurkanSegmentItem
+import io.github.barqallayl.burkan.designsystem.component.BurkanTextButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTonalButton
+import io.github.barqallayl.burkan.designsystem.component.BurkanTopBar
 import io.github.barqallayl.burkan.designsystem.component.GroupGap
-import io.github.barqallayl.burkan.designsystem.component.noticeColors
 import io.github.barqallayl.burkan.designsystem.component.ScreenMargin
 import io.github.barqallayl.burkan.designsystem.component.SegmentGap
 import io.github.barqallayl.burkan.designsystem.component.Tone
+import io.github.barqallayl.burkan.designsystem.component.glassSource
+import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.listTop
+import io.github.barqallayl.burkan.designsystem.component.noticeColors
+import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
+import io.github.barqallayl.burkan.designsystem.component.readableWidth
+import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
 import io.github.barqallayl.burkan.designsystem.component.segmentContainerColor
 import io.github.barqallayl.burkan.designsystem.component.segmentedShape
+import io.github.barqallayl.burkan.designsystem.component.topBarScroll
+import io.github.barqallayl.burkan.designsystem.emphasis
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
+import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
 import io.github.barqallayl.burkan.feature.connection.data.PairingStatus
 import io.github.barqallayl.burkan.feature.connection.data.shizukuAppPackage
-import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
+import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
 import org.orbitmvi.orbit.compose.collectAsState
@@ -267,6 +269,15 @@ private fun SetupContent(
                 var shownFinished by remember { mutableStateOf(finished) }
                 if (finished.isNotEmpty()) shownFinished = finished
                 Column(verticalArrangement = Arrangement.spacedBy(GroupGap)) {
+                    // Said once, before anything is asked for: what all this is in aid of.
+                    if (finished.isEmpty()) {
+                        Text(
+                            stringResource(R.string.setup_intro),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
+                    }
                     ProgressBar(steps, done)
                     // Every step has its place here, shown or not, so one that is finished closes where it stood
                     // while the row of finished steps opens above it and the next step opens under it. The group
@@ -317,6 +328,18 @@ private fun SetupContent(
                                 R.string.setup_use_shizuku_instead
                             },
                         ),
+                    )
+                }
+                // What the other way is, for someone who has not met it.
+                if (state.backend != ShellBackend.Shizuku) {
+                    Text(
+                        stringResource(R.string.setup_use_shizuku_text),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(horizontal = 24.dp),
                     )
                 }
             }
@@ -436,7 +459,10 @@ private fun StepItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                // A step still to come is read as one thing, its name and that it is not yet done. The current
+                // one has buttons under its name, which are stops of their own.
+                .then(if (isCurrent) Modifier else Modifier.semantics(mergeDescendants = true) { }),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StepNumber(state.steps.indexOf(step) + 1, isCurrent)
@@ -703,9 +729,13 @@ private val SetupStep.met: Int
 private fun SetupStep.action(state: SetupState): Int = when (this) {
     SetupStep.Notifications -> R.string.setup_notifications_action
     SetupStep.DeveloperOptions -> R.string.setup_developer_options_action
-    // Shizuku is started in its own app; once it runs, what is left is to allow Burkan.
-    SetupStep.Shizuku ->
-        if (state.isShizukuRunning) R.string.setup_shizuku_allow_action else R.string.setup_shizuku_open_action
+    // Shizuku is started in its own app; once it runs, what is left is to allow Burkan. A phone without it is
+    // sent to where it comes from, and the button says so.
+    SetupStep.Shizuku -> when {
+        state.isShizukuRunning -> R.string.setup_shizuku_allow_action
+        state.isShizukuInstalled -> R.string.setup_shizuku_open_action
+        else -> R.string.setup_shizuku_get_action
+    }
     else -> R.string.setup_wireless_debugging_action
 }
 

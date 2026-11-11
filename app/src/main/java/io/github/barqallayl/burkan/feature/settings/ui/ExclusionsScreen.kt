@@ -435,8 +435,10 @@ private fun AppItem(
     BurkanSegmentItem(
         index = index,
         count = count,
-        headline = app.label ?: notInstalled(),
-        supporting = app.packageName.value,
+        // An app that is gone is known by its package, as it is in the list below: that is what tells one from
+        // another.
+        headline = app.label ?: app.packageName.value,
+        supporting = if (app.label != null) app.packageName.value else notInstalled(),
         supportingOneLine = true,
         checked = excluded,
         onCheckedChange = { onToggle() },
