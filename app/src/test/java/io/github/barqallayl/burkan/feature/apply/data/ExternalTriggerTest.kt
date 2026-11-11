@@ -1,22 +1,73 @@
 package io.github.barqallayl.burkan.feature.apply.data
 
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
 import io.github.barqallayl.burkan.feature.apply.FakeRunAlerts
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
+import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
+import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
+import io.github.barqallayl.burkan.feature.log.model.RunResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class ExternalTriggerTest {
 
     private val deviceState = FakeDeviceStateStorage(paired = true, setupStepsDone = 7, setupComplete = true)
     private val launcher = FakeApplyLauncher()
     private val alerts = FakeRunAlerts()
-    private val trigger = ExternalTrigger(deviceState, launcher, alerts)
+    private val settings = FakeSettingsStorage()
+    private val runLog = FakeRunLogStorage()
+    private val clock = TestClock()
+    private val trigger = ExternalTrigger(deviceState, launcher, alerts, settings, runLog, clock)
+
+    /** A run of [kind] started from outside that took ten seconds and has just ended. */
+    private suspend fun justRan(kind: ApplyKind, trigger: RunTrigger = RunTrigger.External) {
+        runLog.add(RunLogEntry(clock.now(), trigger, kind, RunResult.Succeeded, 10.seconds, emptyList()))
+        clock.advance(10.seconds)
+    }
+
+    @Test
+    fun `with the broadcasts switched off, none starts a run, and the shortcuts and the tile still do`() = runTest {
+        settings.allowExternalTriggers.value = false
+
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_APPLY))
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+        assertTrue(alerts.notStarted.isEmpty(), "nothing is offered for a run the user switched off")
+
+        assertTrue(trigger.onShortcut(ExternalTrigger.SHORTCUT_APPLY))
+        assertTrue(trigger.onTile())
+    }
+
+    @Test
+    fun `a broadcast for a run that has just ended starts nothing, until a minute has passed`() = runTest {
+        justRan(ApplyKind.Full)
+
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+        clock.advance(ExternalTrigger.MIN_INTERVAL - 1.seconds)
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+
+        clock.advance(1.seconds)
+        assertTrue(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+    }
+
+    @Test
+    fun `the wait is for the same run only, and only after one started from outside`() = runTest {
+        justRan(ApplyKind.Light)
+        justRan(ApplyKind.Full, RunTrigger.Manual)
+
+        // An automation that applies and then restarts the open apps is not held up.
+        assertTrue(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_OPEN_APPS))
+        assertTrue(trigger.onBroadcast(ExternalTrigger.ACTION_RESTART_ALL))
+        assertFalse(trigger.onBroadcast(ExternalTrigger.ACTION_APPLY))
+        // The user's own shortcut is never made to wait.
+        assertTrue(trigger.onShortcut(ExternalTrigger.SHORTCUT_APPLY))
+    }
 
     @Test
     fun `each action starts its run`() = runTest {

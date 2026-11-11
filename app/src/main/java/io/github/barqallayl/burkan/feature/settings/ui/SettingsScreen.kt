@@ -61,6 +61,7 @@ import com.composables.icons.tabler.outline.Refresh
 import com.composables.icons.tabler.outline.Scale
 import com.composables.icons.tabler.outline.SunMoon
 import com.composables.icons.tabler.outline.Terminal
+import com.composables.icons.tabler.outline.PlugConnected
 import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.Appearance
@@ -122,6 +123,7 @@ fun SettingsScreen() {
             onBack = viewModel::back,
             onApplyOnBoot = viewModel::setApplyOnBoot,
             onTurnOffWirelessDebugging = viewModel::setTurnOffWirelessDebugging,
+            onAllowExternalTriggers = viewModel::setAllowExternalTriggers,
             onOpenExclusions = viewModel::openExclusions,
             onShow = viewModel::show,
             onDismissDialog = viewModel::dismissDialog,
@@ -143,6 +145,7 @@ private class SettingsActions(
     val onBack: () -> Unit = {},
     val onApplyOnBoot: (Boolean) -> Unit = {},
     val onTurnOffWirelessDebugging: (Boolean) -> Unit = {},
+    val onAllowExternalTriggers: (Boolean) -> Unit = {},
     val onOpenExclusions: () -> Unit = {},
     val onShow: (SettingsDialog) -> Unit = {},
     val onDismissDialog: () -> Unit = {},
@@ -270,6 +273,15 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
             onCheckedChange = actions.onTurnOffWirelessDebugging,
         )
     }
+    SwitchItem(
+        index = count - 2,
+        count = count,
+        icon = Tabler.Outline.PlugConnected,
+        title = R.string.settings_external_triggers,
+        text = R.string.settings_external_triggers_text,
+        checked = values.allowExternalTriggers,
+        onCheckedChange = actions.onAllowExternalTriggers,
+    )
     BurkanSegmentItem(
         index = count - 1,
         count = count,
@@ -432,7 +444,13 @@ private fun SettingsDialogs(
             )
         }
 
-        else -> BurkanBottomSheet(onDismiss = actions.onDismissDialog) { AppearanceChoices(dialog, appearance, actions) }
+        else -> BurkanBottomSheet(onDismiss = actions.onDismissDialog) {
+            AppearanceChoices(
+                dialog,
+                appearance,
+                actions,
+            )
+        }
     }
 }
 
@@ -655,7 +673,7 @@ private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 
-private const val RESTART_ITEMS = 4
+private const val RESTART_ITEMS = 5
 private const val ABOUT_ITEMS = 5
 
 private fun sample(
@@ -667,6 +685,7 @@ private fun sample(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
         shellBackend = SettingsStorage.Defaults.shellBackend,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
+        allowExternalTriggers = SettingsStorage.Defaults.ALLOW_EXTERNAL_TRIGGERS,
         exclusionCount = exclusions,
         appearance = sampleAppearance(appStyle),
     ),

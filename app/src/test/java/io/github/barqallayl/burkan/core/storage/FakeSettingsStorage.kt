@@ -19,6 +19,7 @@ class FakeSettingsStorage : SettingsStorage {
     override val shellBackend = MutableStateFlow(SettingsStorage.Defaults.shellBackend)
     override val turnOffWirelessDebugging =
         MutableStateFlow(SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING)
+    override val allowExternalTriggers = MutableStateFlow(SettingsStorage.Defaults.ALLOW_EXTERNAL_TRIGGERS)
     override val userExclusions = MutableStateFlow(emptySet<PackageName>())
 
     override suspend fun setAppStyle(style: AppStyle) {
@@ -47,6 +48,10 @@ class FakeSettingsStorage : SettingsStorage {
 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) {
         turnOffWirelessDebugging.value = enabled
+    }
+
+    override suspend fun setAllowExternalTriggers(enabled: Boolean) {
+        allowExternalTriggers.value = enabled
     }
 
     override suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>) {

@@ -97,6 +97,7 @@ class DataStoreSettingsStorageTest {
 
         assertTrue(storage.applyOnBoot.first())
         assertTrue(storage.turnOffWirelessDebugging.first())
+        assertTrue(storage.allowExternalTriggers.first())
         assertEquals(emptySet(), storage.userExclusions.first())
     }
 
@@ -124,6 +125,7 @@ class DataStoreSettingsStorageTest {
         storage.setPaletteStyle(PaletteStyles.Rainbow)
         storage.setApplyOnBoot(false)
         storage.setTurnOffWirelessDebugging(false)
+        storage.setAllowExternalTriggers(false)
         storage.updateUserExclusions { excluded }
 
         assertEquals(ThemeMode.Light, storage.themeMode.first())
@@ -131,6 +133,7 @@ class DataStoreSettingsStorageTest {
         assertEquals(PaletteStyles.Rainbow, storage.paletteStyle.first())
         assertFalse(storage.applyOnBoot.first())
         assertFalse(storage.turnOffWirelessDebugging.first())
+        assertFalse(storage.allowExternalTriggers.first())
         assertEquals(excluded, storage.userExclusions.first())
     }
 

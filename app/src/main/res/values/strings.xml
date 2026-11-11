@@ -65,6 +65,8 @@
     <string name="settings_shizuku_text">Instead of wireless debugging</string>
     <string name="settings_turn_off_wireless_debugging">Turn off wireless debugging</string>
     <string name="settings_turn_off_wireless_debugging_text">Only if Burkan switched it on</string>
+    <string name="settings_external_triggers">Let other apps start runs</string>
+    <string name="settings_external_triggers_text">Tasker and the like, by broadcast</string>
     <string name="settings_exclusions">Never restart these apps</string>
     <string name="restart_scope_all">Every app</string>
     <plurals name="restart_scope_recent">
