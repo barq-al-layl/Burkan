@@ -219,6 +219,22 @@
     <string name="error_apps_not_listed">Android did not answer when asked for the installed apps.</string>
     <string name="error_licences_unreadable">The list of libraries built into Burkan could not be read. The source code lists them too.</string>
     <string name="error_unexpected">Something went wrong.</string>
+    <string name="log_error_no_wifi">The phone was not on Wi-Fi, which wireless debugging needs.</string>
+    <string name="log_error_wireless_debugging_off">Wireless debugging was off.</string>
+    <string name="log_error_wireless_debugging_refused">The phone switched wireless debugging straight back off.</string>
+    <string name="log_error_local_network_denied">Burkan was not allowed to find nearby devices, which it needs to find wireless debugging.</string>
+    <string name="log_error_daemon_not_found">Wireless debugging did not answer.</string>
+    <string name="log_error_not_authorised">The phone no longer accepted Burkan’s pairing.</string>
+    <string name="log_error_connect_failed">Burkan could not connect to wireless debugging.</string>
+    <string name="log_error_shizuku_not_running">Shizuku was not running.</string>
+    <string name="log_error_shizuku_not_allowed">Shizuku had not allowed Burkan to use it.</string>
+    <string name="log_error_shizuku_shell_failed">Shizuku was running, but Burkan could not start working through it.</string>
+    <string name="log_error_connection_lost">The connection to wireless debugging was lost.</string>
+    <string name="log_error_command_timed_out">The phone took too long to answer.</string>
+    <string name="log_error_shell_failed">Shizuku could not run a command for Burkan.</string>
+    <string name="log_error_grant_failed">Burkan could not give itself the permission it needs.</string>
+    <string name="log_error_recent_apps_unknown">Android did not say which apps were used recently, so nothing was restarted.</string>
+    <string name="log_error_system_ui_restarted_recently">System UI had been restarted less than a minute before, so it was left alone. Restarting it again so soon makes One UI switch off its customisation add-ons.</string>
 
     <string name="pairing_channel_name">Pairing</string>
     <string name="pairing_channel_description">Where you type the pairing code from Wireless debugging.</string>
@@ -306,6 +322,9 @@
     <string name="apply_not_started_action">Start</string>
 
     <!-- Non-breaking spaces keep each number with its unit at large text sizes. -->
+    <string name="duration_under_second">Under\u00A01\u00A0s</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
     <string name="duration_seconds">%1$d\u00A0s</string>
     <string name="duration_minutes_seconds">%1$d\u00A0min %2$d\u00A0s</string>
     <string name="navigate_back">Back</string>
@@ -424,14 +443,14 @@
         <item quantity="other">%1$d runs</item>
     </plurals>
     <string name="log_filter_all">All</string>
-    <string name="log_filter_other">Other</string>
+    <string name="log_filter_other">Not finished</string>
     <string name="filter_with_count">%1$s (%2$d)</string>
     <string name="log_share">Share</string>
     <string name="log_expand">Show the steps</string>
     <string name="log_collapse">Hide the steps</string>
     <string name="log_empty_title">No runs yet</string>
     <string name="log_empty_text">Each time Burkan applies Vulkan, by hand or after a restart, the run appears here with each of its steps.</string>
-    <string name="log_empty_action">Back to apply</string>
+    <string name="log_empty_action">Back to Home</string>
     <string name="log_unreadable_title">The log could not be read</string>
     <string name="log_unreadable_text">It may have been written by another version of Burkan. The next run starts a new log.</string>
     <string name="log_run_detail">%1$s · %2$s · %3$s</string>
@@ -442,6 +461,14 @@
     <plurals name="log_behind">
         <item quantity="one">%1$d open app left on the other renderer</item>
         <item quantity="other">%1$d open apps left on the other renderer</item>
+    </plurals>
+    <plurals name="log_behind_on">
+        <item quantity="one">%1$d open app left on %2$s</item>
+        <item quantity="other">%1$d open apps left on %2$s</item>
+    </plurals>
+    <plurals name="log_run_count_filtered">
+        <item quantity="one">%1$d of %2$d run</item>
+        <item quantity="other">%1$d of %2$d runs</item>
     </plurals>
     <string name="log_share_chooser">Share the log</string>
     <string name="log_share_subject">Burkan log</string>

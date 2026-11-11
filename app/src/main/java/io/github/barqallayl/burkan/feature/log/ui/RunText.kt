@@ -80,7 +80,21 @@ fun Resources.runDetailLines(run: RunLogEntry): List<String> = buildList {
     run.preparing?.let { add(getString(R.string.log_preparing, durationText(it))) }
     run.before?.let { add(getString(R.string.log_before, surfacesText(it))) }
     run.after?.let { add(getString(R.string.log_after, surfacesText(it))) }
-    run.behind?.let { add(getQuantityString(R.plurals.log_behind, it, it)) }
+    run.behind?.let { count ->
+        // Left on the renderer new apps were moved off, named where the run read where they went.
+        val leftOn = when (run.after?.newApps) {
+            Renderer.Vulkan -> Renderer.OpenGL
+            Renderer.OpenGL -> Renderer.Vulkan
+            else -> null
+        }
+        add(
+            if (leftOn == null) {
+                getQuantityString(R.plurals.log_behind, count, count)
+            } else {
+                getQuantityString(R.plurals.log_behind_on, count, count, getString(leftOn.label))
+            },
+        )
+    }
 }
 
 private fun Resources.surfacesText(status: RendererStatus): String = getString(

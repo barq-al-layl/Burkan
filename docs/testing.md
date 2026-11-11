@@ -363,6 +363,13 @@ checks.
 - [ ] TalkBack on Never restart these apps reads "Chat, checked", not its package name; an app with no name is
       read by its package name.
 
+- [ ] The Log groups runs under Today, Yesterday and dates in the phone's own format, and each row shows only the
+      time; a failed run says why on its row, in the past tense, without being opened.
+- [ ] An opened run's steps read in the body font, with the durations lined up; a step under a second says
+      "Under 1 s".
+- [ ] With a filter on, the Log's count reads "2 of 5 runs"; "Not finished" holds cancelled runs and those left for
+      the lock.
+
 ## The lock screen, the launcher and the screens
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has

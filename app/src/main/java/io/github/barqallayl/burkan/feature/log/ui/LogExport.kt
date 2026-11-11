@@ -46,13 +46,13 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
                 ).joinToString(separator = " | "),
             )
             val under = INDENT + " ".repeat(MARK_DONE.length)
-            run.error?.let { appendLine("$INDENT$MARK_FAILED ${getString(it.resource)}") }
+            run.error?.let { appendLine("$INDENT$MARK_FAILED ${getString(it.logResource)}") }
             run.detail?.let { appendLine("$under $it") }
             run.steps.forEach { step ->
                 val mark = if (step.error == null) MARK_DONE else MARK_FAILED
                 val took = step.duration?.let { " (${durationText(it)})" }.orEmpty()
                 appendLine("$INDENT$mark ${text(step.kind.label())}$took")
-                step.error?.let { appendLine("$under ${getString(it.resource)}") }
+                step.error?.let { appendLine("$under ${getString(it.logResource)}") }
                 step.detail?.let { appendLine("$under $it") }
             }
             runDetailLines(run).forEach { appendLine("$INDENT$MARK_NOTE $it") }

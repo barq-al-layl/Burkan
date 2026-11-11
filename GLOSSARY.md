@@ -61,3 +61,10 @@ _Avoid_: full apply, deep apply
 **Apps left behind**:
 Open apps still drawing with the renderer they started on, after new apps have been moved to the other one.
 _Avoid_: stale apps, old apps, outdated apps
+
+## Log
+
+**Run**:
+One go of Apply now or Restart all apps, started by hand, after a restart, at the lock, or by another app. The log
+keeps the last 50.
+_Avoid_: job, attempt, apply (as a noun)

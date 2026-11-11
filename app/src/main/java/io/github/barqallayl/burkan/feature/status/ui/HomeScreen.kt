@@ -188,6 +188,7 @@ import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import io.github.barqallayl.burkan.feature.log.ui.RunResultBadge
 import io.github.barqallayl.burkan.feature.log.ui.RunSummary
+import io.github.barqallayl.burkan.feature.log.ui.failureReason
 import io.github.barqallayl.burkan.feature.log.ui.label
 import io.github.barqallayl.burkan.feature.log.ui.runningLabel
 import io.github.barqallayl.burkan.feature.status.model.BehindApp
@@ -399,7 +400,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
         ) {
             // The status card already gives this reason when it is why the status cannot be read either.
             val shownAbove = (state.status as? StatusState.Failed)?.error?.type()
-            val showError = state.lastRun?.error != shownAbove
+            val showError = state.lastRun?.failureReason != shownAbove
             // The status is always first and always the same size, whatever it has to say: checking, a run under
             // way, an answer, or none. Nothing above it comes and goes, so nothing on the screen jumps. What the
             // automatic apply is waiting for comes in under it, opening the room it needs.
@@ -1730,9 +1731,9 @@ private fun LastRun(
             ) {
                 RunSummary(run, zone)
                 // Only a run that failed has more to say.
-                run.error?.takeIf { showError }?.let { error ->
+                run.failureReason?.takeIf { showError }?.let { error ->
                     Text(
-                        stringResource(error.resource),
+                        stringResource(error.logResource),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )

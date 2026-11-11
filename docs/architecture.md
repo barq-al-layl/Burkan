@@ -246,20 +246,26 @@ Four groups: Applying, Connection, Appearance and About.
 
 ### Log (`LogRoute`)
 
-- The last 50 runs, newest first: time, trigger, result, duration. With no runs, a centred message says what will
-  appear and leads back to apply; a stored log that cannot be read says so.
-- Opening a run shows its steps in words, each with success or the error and how long it took. Under them, for
-  whoever is looking for a fault: how long it took to connect and read the phone, what the four surfaces ran on
-  before and after, and how many open apps were left on the other renderer. A run that changed nothing can be
-  opened too, for what it found.
+- The last 50 runs, newest first, under a heading for each day ("Today", "Yesterday", then the date): each run's
+  time, trigger and duration. A run that failed says why on its row, without being opened, in the past tense of the
+  log ("The phone was not on Wi-Fi, which wireless debugging needs"); the instruction the live message ends with is
+  for Home and the notifications, where there is something to do. The result is a badge on every row, and a pill as
+  well only where it wants attention: Failed, Cancelled, Left for the next lock. With no runs, a centred message
+  says what will appear and leads back to Home; a stored log that cannot be read says so.
+- Filters by result appear when the log holds more than two kinds: All, Failed, Succeeded and Not finished
+  (cancelled, or left for the next lock). With one on, the count under the title reads "2 of 5 runs".
+- Opening a run shows its steps in words, each with success or the error and how long it took, the durations in
+  figures of one width so they line up. Under them, for whoever is looking for a fault: how long it took to
+  connect and read the phone, what the four surfaces ran on before and after, and how many open apps were left on
+  the renderer new apps were moved off, by name. A run that changed nothing can be opened too, for what it found.
 - A command that failed leaves its own words in the log: its exit status and the first line of its error
   output, cut to 200 characters.
 - **Share** exports the log as a `.log` file: a header with the app version, the phone's model and Android
   version, then each run on a line with its steps marked done or failed beneath, and the same details as the
-  screen. It never contains the ADB key, and none of the user's apps by name: steps are recorded with counts
-  ("Stop 612 apps"), and the commands that go through the user's apps never fail by their status, so a failed
-  command's words can only name System UI, the home app or the keyboard. There is nothing to warn about before
-  sharing.
+  screen, in the same past-tense words. It never contains the ADB key, and none of the user's apps by name: steps
+  are recorded with counts ("Close 612 apps"), and the commands that go through the user's apps never fail by their
+  status, so a failed command's words can only name System UI, the home app or the keyboard. There is nothing to
+  warn about before sharing.
 - Runs logged by an earlier version have none of these details and show as they did.
 
 ### After a crash (`CrashActivity`)

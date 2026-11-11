@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.designsystem.preview
 
+import io.github.barqallayl.burkan.core.ui.LocalToday
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -52,6 +53,7 @@ fun BurkanPreviewTheme(
     // The sample runs are from this year, and stay written that way whenever the screenshots are recorded.
     CompositionLocalProvider(
         LocalCurrentYear provides PREVIEW_YEAR,
+        LocalToday provides PREVIEW_TODAY,
         LocalDensity provides Density(density.density, density.fontScale * fontScale),
         LocalGlassBlurs provides false,
     ) {
@@ -67,6 +69,9 @@ fun BurkanPreviewTheme(
 }
 
 private const val PREVIEW_YEAR = 2026
+
+/** The day the sample runs' newest is from, so the log's headings read "Today" and "Yesterday". */
+private val PREVIEW_TODAY = java.time.LocalDate.of(PREVIEW_YEAR, 10, 1)
 
 /** A large system font size, for previews that check a screen still holds together at one. */
 const val LargeFontScale = 1.3f
