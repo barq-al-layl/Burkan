@@ -14,9 +14,20 @@ When you check one, tick it here and record what you saw in the device notes.
 - [x] A fresh install opens on Welcome, and the phone in it redraws once, top to bottom, then rests. With Shizuku's
       app installed, Get started offers the choice of connection, and Back goes from it to Welcome. (Android 17,
       One UI, dark, 11 Nov 2026.)
-- [x] Notifications and Finishing setup show their tick and move on by themselves; Developer options, Wireless
-      debugging and the battery step wait for Done. Pairing's two actions lead through pairing from the
-      notification. Setup ends on First apply, and Apply now opens Home on the run. (Same pass.)
+- [x] Notifications and Finishing setup show their tick and move on by themselves; Developer options and Wireless
+      debugging wait for Done. Pairing's two actions lead through pairing from the notification. Setup ends on
+      First apply, and Apply now opens Home on the run. (Same pass.)
+- [ ] Allowing the battery exemption in its dialog shows the tick and moves on, with no Done.
+- [ ] Refusing notifications twice, then tapping Allow, opens Burkan's notification settings; switching them on
+      there and coming back moves the step on.
+- [ ] On a phone without Shizuku's app, Welcome's Wi-Fi line comes and goes as Wi-Fi is switched from the
+      notification shade, without leaving the app.
+- [ ] With Shizuku's app installed, backing out of the choice of connection, closing the app and opening it again
+      opens on Welcome; Continue on the choice leaves Welcome for good.
+- [ ] Setup's back arrow goes back to the choice of connection or to Welcome while getting started, and is not
+      there after "Redo setup".
+- [ ] With the pairing dialog closed while waiting for the code, Open Wireless debugging under the first action
+      opens it again.
 - [ ] First apply with System UI on OpenGL: the screen locks once, and Home shows System UI on Vulkan after the
       unlock. Later opens Home with nothing applied.
 - [ ] Welcome with Android's animations removed: the phone is drawn redrawn, with no movement.

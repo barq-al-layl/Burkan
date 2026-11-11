@@ -69,12 +69,15 @@ Welcome.
 
 ### Welcome (`WelcomeRoute`)
 
-Shown once, on a fresh install: not after an update, and not after "Redo setup", which marks it seen. A phone drawn
+Shown on a fresh install until it is left for good: not after an update, and not after "Redo setup", which marks it
+seen. A phone without Shizuku's app leaves it with Get started; one with Shizuku's app leaves it when the connection
+is chosen, so backing out of the choice and closing the app opens on Welcome again. A phone drawn
 in the style's own colours, whose status bar, home-screen icons and keyboard redraw one after another in about a
 second and a half, then rest; with Android's animations removed it is drawn redrawn from the start. Under it, what
-Burkan does, that setup takes about two minutes and Developer options once, and a line when the phone is not on
-Wi-Fi, which informs and does not block. Get started goes on to the choice of connection when Shizuku's app is
-installed, and to Setup otherwise.
+Burkan does, that setup takes about two minutes and Developer options once. On a phone without Shizuku's app, which
+can only use wireless debugging, a line comes first when the phone is not on Wi-Fi; it informs and does not block, and
+follows Wi-Fi as it comes and goes, also when switched from the notification shade. Get started goes on to the choice
+of connection when Shizuku's app is installed, and to Setup otherwise.
 
 ### Connection (`ConnectionRoute`)
 
@@ -89,19 +92,19 @@ step carries its instructions and its action, and the ones still to come wait un
 
 | Step | Action | Its check passes when |
 |---|---|---|
-| Notifications | Request `POST_NOTIFICATIONS` | Granted |
+| Notifications | Request `POST_NOTIFICATIONS`. Once Android stops asking, after two refusals, open the app's notification settings instead | Granted |
 | Developer options | Open About phone and explain how to unlock Developer options there (the Developer options screen cannot open while they are locked) | `development_settings_enabled` is 1 |
 | Wireless debugging | Open Developer options; ask the user to switch Wireless debugging on and tick "Always allow on this network" | `adb_wifi_enabled` is 1 |
 | Pair | On Android 17, ask for the nearby devices permission first if it is not held. Then start the pairing service and open Developer options. Shown as two numbered actions: tap "Pair device with pairing code", then type the code into Burkan's notification | Pairing succeeded |
 | Finishing setup | Automatic: a shell command, then the app grants itself `WRITE_SECURE_SETTINGS` over the connection if it does not hold it | The command returned and the permission is held |
-| Battery | Ask to be exempt from battery optimisation, with one sentence saying why. Marked recommended | Exempt. It can also be skipped |
+| Battery | Ask to be exempt from battery optimisation, with one sentence saying why. Marked recommended while it waits | Exempt. It can also be skipped |
 
 - A step is looked at only once it is the current one. Nothing further down is checked, or done, ahead of time:
   Finishing setup connects and grants when the user reaches it.
 - What passes the check is detected, never self-declared. A step done in Settings is finished only when the user
-  taps Done, and one the phone already satisfies shows that it does and still waits. Notifications, Finishing setup
-  and Shizuku's permission end in a system dialog or the app's own work, so they show their tick for a moment and
-  move on by themselves.
+  taps Done, and one the phone already satisfies shows that it does and still waits. Notifications, Finishing setup,
+  Shizuku's permission and Battery end in a system dialog or the app's own work, so they show their tick for a moment
+  and move on by themselves.
 - How far the user has got is stored as a count of finished steps, with the phone's own state, which is never
   backed up, and the version of the step list it counts in. A count from version 1, which had Connect and
   Permission as two steps, is translated once: someone who had connected lands on Finishing setup. Redoing setup
@@ -116,7 +119,9 @@ step carries its instructions and its action, and the ones still to come wait un
   Home for Setup, and nothing is applied after a restart until it has been finished again.
 - If the device model is not SM-S911*, SM-S916* or SM-S918*, a notice at the top invites the owner to try it: it
   says the app is tested on the S23 family and should work on this phone too, with a link to report a problem. It
-  does not block.
+  is shown before the first step is finished, with the intro, and does not block.
+- Setup has a back arrow while there is a screen behind it, the choice of connection or Welcome; after "Redo setup"
+  there is none.
 - Once every step is done, setup is complete, and the apply after a restart is on, but the screen stays for the
   First apply: Apply now, after saying that the screen locks once, or Later. Either one ends getting started and
   Home opens. It is offered when setup is completed, and not again.

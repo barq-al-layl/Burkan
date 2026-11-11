@@ -395,7 +395,7 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `finishing the last step completes setup`() = runTest {
+    fun `the battery step, once allowed, moves on by itself and completes setup`() = runTest {
         readyToConnect()
         deviceState.setupStepsDone.value = SetupStep.Battery.ordinal
         checks.battery = true
@@ -403,11 +403,10 @@ class SetupViewModelTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
             awaitState { it.current == SetupStep.Battery && it.isCurrentMet }
-            assertFalse(deviceState.isSetupComplete.value)
 
-            containerHost.finishStep()
-
+            // The system dialog is the step's end: no Done.
             awaitState { it.done != null && it.current == null }
+            assertEquals(stepsFor(ShellBackend.WirelessDebugging).size, deviceState.setupStepsDone.value)
             assertTrue(deviceState.isSetupComplete.value)
 
             creating.cancel()

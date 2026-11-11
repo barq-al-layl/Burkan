@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.designsystem.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -288,6 +289,10 @@ fun SegmentedColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  *
  * [pressMorph] is whether the row changes shape while it is pressed, as Material's does. A row whose tap is
  * answered by the whole screen changing does not: see `BurkanChoiceList`.
+ *
+ * [headlineBadge] goes on the headline's own line, after it, such as a "Recommended" label; it moves under the
+ * headline when the two do not fit side by side. Unlike [content], it leaves the row's icon and control level with
+ * the middle of its text.
  */
 @Composable
 fun BurkanSegmentItem(
@@ -308,6 +313,7 @@ fun BurkanSegmentItem(
     pressMorph: Boolean = true,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    headlineBadge: (@Composable () -> Unit)? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     // Selection is the primary colour's tint, like the app's other marks of "this one": under the expressive palette
@@ -362,7 +368,20 @@ fun BurkanSegmentItem(
             }
         }
     }
-    val headlineContent = @Composable { Text(headline, style = headlineStyle) }
+    val headlineContent = @Composable {
+        if (headlineBadge == null) {
+            Text(headline, style = headlineStyle)
+        } else {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(headline, style = headlineStyle)
+                headlineBadge()
+            }
+        }
+    }
     when {
         checked != null && onCheckedChange != null -> SegmentedListItem(
             checked = checked,

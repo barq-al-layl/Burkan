@@ -35,7 +35,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.Settings
@@ -71,10 +70,6 @@ fun WelcomeScreen() {
     val viewModel = metroViewModel<WelcomeViewModel>()
     val state by viewModel.collectAsState()
     val navigator = LocalNavigator.current
-    LifecycleResumeEffect(viewModel) {
-        viewModel.refresh()
-        onPauseOrDispose { }
-    }
     viewModel.collectSideEffect { effect ->
         when (effect) {
             WelcomeSideEffect.ChooseConnection -> navigator.push(ConnectionRoute)
@@ -164,11 +159,9 @@ private fun WelcomeContent(state: WelcomeState, onGetStarted: () -> Unit) {
                         modifier = Modifier.padding(top = 28.dp, start = 8.dp, end = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Fact(Tabler.Outline.Clock, stringResource(R.string.welcome_time))
-                        Fact(Tabler.Outline.Settings, stringResource(R.string.welcome_developer_options))
-                        // Said here, not as a wall: a Shizuku user may need no Wi-Fi at all.
+                        // Said here, not as a wall, and first, where it is seen at the largest text size too.
                         AnimatedVisibility(
-                            visible = !state.isOnWifi,
+                            visible = state.showsNoWifi,
                             enter = expandVertically(
                                 motion.move(),
                                 expandFrom = Alignment.Top,
@@ -184,6 +177,8 @@ private fun WelcomeContent(state: WelcomeState, onGetStarted: () -> Unit) {
                                 emphasized = true,
                             )
                         }
+                        Fact(Tabler.Outline.Clock, stringResource(R.string.welcome_time))
+                        Fact(Tabler.Outline.Settings, stringResource(R.string.welcome_developer_options))
                     }
                 }
             }

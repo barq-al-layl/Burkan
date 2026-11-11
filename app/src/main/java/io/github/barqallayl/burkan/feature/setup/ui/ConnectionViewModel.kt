@@ -8,6 +8,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.ShellBackend
+import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
@@ -28,6 +29,7 @@ sealed interface ConnectionSideEffect {
 class ConnectionViewModel(
     store: SettingsStore,
     private val switcher: ShellBackendSwitcher,
+    private val deviceState: DeviceStateStorage,
 ) : OrbitContainerHost<ConnectionState, ConnectionState, ConnectionSideEffect>, ViewModel() {
 
     override val container = orbitContainer<ConnectionState, ConnectionSideEffect>(
@@ -36,9 +38,13 @@ class ConnectionViewModel(
 
     fun select(backend: ShellBackend) = intent { reduce { state.copy(selected = backend) } }
 
-    /** Continue: the chosen connection is the one Setup's steps are for. Nothing is stored until now. */
+    /**
+     * Continue: the chosen connection is the one Setup's steps are for, and Welcome is left for good. Nothing is stored
+     * until now, so backing out of the choice leaves Welcome to open again.
+     */
     fun confirm() = intent {
         switcher.choose(state.selected)
+        deviceState.setWelcomeSeen(true)
         postSideEffect(ConnectionSideEffect.StartSetup)
     }
 }

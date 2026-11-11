@@ -18,6 +18,7 @@ import io.github.barqallayl.burkan.core.shell.packet
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.IOException
 import kotlin.time.Duration
 
@@ -71,11 +72,20 @@ class FakeAdbDiscovery : AdbDiscovery {
 class FakeWirelessDebugging(
     var on: Boolean = false,
     var permitted: Boolean = true,
-    var wifi: Boolean = true,
+    wifi: Boolean = true,
     var systemRefuses: Boolean = false,
     var forgetsPairings: Boolean = false,
 ) : WirelessDebugging {
     val writes = mutableListOf<Boolean>()
+
+    /** Whether the phone is on Wi-Fi; setting it is a network coming up or going, which [wifiConnected] tells of. */
+    var wifi: Boolean
+        get() = wifiConnected.value
+        set(value) {
+            wifiConnected.value = value
+        }
+
+    override val wifiConnected = MutableStateFlow(wifi)
 
     override fun isOn(): Boolean = on
 

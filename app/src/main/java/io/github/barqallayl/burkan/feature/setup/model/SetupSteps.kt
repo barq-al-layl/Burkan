@@ -39,6 +39,17 @@ fun stepsFor(backend: ShellBackend): List<SetupStep> = when (backend) {
 }
 
 /**
+ * The steps that end in a system dialog or in the app's own work, with no tick in Settings worth stopping to look at:
+ * once done, they show their tick for a moment and give way to the next. The steps done in Settings wait for Done, so
+ * the user sees that what they did there counted.
+ */
+val SetupStep.movesOnByItself: Boolean
+    get() = when (this) {
+        SetupStep.Notifications, SetupStep.Finishing, SetupStep.Shizuku, SetupStep.Battery -> true
+        SetupStep.DeveloperOptions, SetupStep.WirelessDebugging, SetupStep.Pair -> false
+    }
+
+/**
  * What the stored count of finished steps counts in. Version 1 had Connect and Permission as two steps; version 2 has
  * them as one, [SetupStep.Finishing]. A count stored before there was a version is a version 1 count.
  */

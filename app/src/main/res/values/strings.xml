@@ -19,6 +19,7 @@
     <string name="setup_no_wifi">This phone is not on Wi-Fi. Wireless debugging can be switched on only while it is connected to a Wi-Fi network.</string>
     <string name="setup_notifications_title">Allow notifications</string>
     <string name="setup_notifications_text">You type the pairing code into a notification, and Burkan reports on its runs there.</string>
+    <string name="setup_notifications_shizuku_text">Burkan reports on its runs in a notification. If Shizuku starts after Burkan, you apply from there.</string>
     <string name="setup_notifications_action">Allow</string>
     <string name="setup_notifications_met">Notifications are allowed.</string>
     <string name="setup_developer_options_title">Turn on Developer options</string>
@@ -37,17 +38,16 @@
     <string name="setup_pair_in_progress">Pairing…</string>
     <string name="setup_pair_met">Burkan is paired.</string>
     <string name="setup_use_shizuku_instead">Use Shizuku instead</string>
-    <string name="setup_use_shizuku_text">Shizuku is a separate app that gives Burkan the same access. Choose it only if Shizuku starts by itself after a restart.</string>
     <string name="setup_use_wireless_debugging_instead">Use wireless debugging instead</string>
     <string name="setup_shizuku_title">Allow Shizuku</string>
-    <string name="setup_shizuku_text">Start Shizuku, then allow Burkan to use it. If no dialog asks, open Shizuku and allow Burkan in its list of apps. Burkan asks Shizuku for a shell on this phone, so it needs no pairing.</string>
+    <string name="setup_shizuku_text">Start Shizuku, then allow Burkan to use it. If no dialog asks, open Shizuku and allow Burkan in its list of apps. With Shizuku, Burkan needs no pairing.</string>
     <string name="setup_shizuku_open_action">Open Shizuku</string>
     <string name="setup_shizuku_get_action">Get Shizuku</string>
     <string name="setup_shizuku_allow_action">Allow</string>
     <string name="setup_shizuku_met">Shizuku is running and Burkan may use it.</string>
     <string name="setup_finishing_title">Finish setting up</string>
     <string name="setup_finishing_text">Burkan connects to this phone and gives itself the permission it needs after a restart. You do not need to do anything.</string>
-    <string name="setup_finishing_shizuku_text">Burkan asks Shizuku for a shell and gives itself the permission it needs. You do not need to do anything.</string>
+    <string name="setup_finishing_shizuku_text">Burkan connects through Shizuku and gives itself the permission it needs. You do not need to do anything.</string>
     <string name="setup_finishing_in_progress">Finishing setup…</string>
     <string name="setup_finishing_met">Burkan is connected and has its permission.</string>
     <string name="setup_battery_title">Let Burkan run after a restart</string>

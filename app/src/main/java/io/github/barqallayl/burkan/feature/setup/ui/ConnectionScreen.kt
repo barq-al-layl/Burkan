@@ -131,7 +131,8 @@ private fun ConnectionContent(
                 stringResource(R.string.connection_text),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 8.dp),
+                // Level with the rows' own text, as a group's title is.
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
             SegmentedColumn {
                 BurkanSegmentChoice(
@@ -141,9 +142,8 @@ private fun ConnectionContent(
                     supporting = stringResource(R.string.connection_wireless_debugging_text),
                     selected = state.selected == ShellBackend.WirelessDebugging,
                     onClick = { onSelect(ShellBackend.WirelessDebugging) },
-                ) {
-                    RecommendedLabel(modifier = Modifier.padding(top = 8.dp))
-                }
+                    headlineBadge = { RecommendedLabel() },
+                )
                 BurkanSegmentChoice(
                     index = 1,
                     count = 2,

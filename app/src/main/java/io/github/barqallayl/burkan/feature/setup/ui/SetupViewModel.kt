@@ -41,6 +41,7 @@ import io.github.barqallayl.burkan.feature.setup.model.SetupStep
 import io.github.barqallayl.burkan.feature.setup.model.currentStep
 import io.github.barqallayl.burkan.feature.setup.model.doneSteps
 import io.github.barqallayl.burkan.feature.setup.model.isTestedModel
+import io.github.barqallayl.burkan.feature.setup.model.movesOnByItself
 import io.github.barqallayl.burkan.feature.setup.model.stepsDoneNow
 import io.github.barqallayl.burkan.feature.setup.model.stepsFor
 import kotlinx.coroutines.delay
@@ -225,13 +226,6 @@ class SetupViewModel(
 
     /** Finishing is done by the app, not the user. */
     private val SetupStep.isAutomatic: Boolean get() = this == SetupStep.Finishing
-
-    /**
-     * The steps that end in a system dialog or in the app's own work, with no tick in Settings worth stopping to look
-     * at. The steps done in Settings wait for Done, so the user sees that what they did there counted.
-     */
-    private val SetupStep.movesOnByItself: Boolean
-        get() = this == SetupStep.Notifications || this == SetupStep.Finishing || this == SetupStep.Shizuku
 
     /** The steps done in the Wireless debugging screen, whose switch Android offers only on Wi-Fi. */
     private val SetupStep.needsWifi: Boolean get() = this == SetupStep.WirelessDebugging || this == SetupStep.Pair

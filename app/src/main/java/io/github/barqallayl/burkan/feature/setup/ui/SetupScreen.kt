@@ -6,8 +6,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -58,7 +56,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -116,6 +113,9 @@ import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import io.github.barqallayl.burkan.feature.connection.rememberLocalNetworkRequest
 import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
+import io.github.barqallayl.burkan.feature.setup.model.movesOnByItself
+import io.github.barqallayl.burkan.core.navigation.LocalNavigator
+import io.github.barqallayl.burkan.core.ui.rememberPermissionRequest
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import io.github.barqallayl.burkan.feature.settings.ui.openIfPossible
@@ -129,10 +129,14 @@ fun SetupScreen() {
     val viewModel = metroViewModel<SetupViewModel>()
     val state by viewModel.collectAsState()
     val context = LocalContext.current
-    val notificationPermission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-            viewModel.refresh()
-        }
+    val navigator = LocalNavigator.current
+    // Refused twice, Android no longer asks: the app's notification settings open instead, and the step is checked
+    // again on the way back.
+    val requestNotifications = rememberPermissionRequest(
+        permission = Manifest.permission.POST_NOTIFICATIONS,
+        settingsIntent = { notificationSettingsIntent(it) },
+        onResult = { viewModel.refresh() },
+    )
     val requestLocalNetwork = rememberLocalNetworkRequest(viewModel::onLocalNetworkResult)
     // Most steps are done in Settings, so every return to the app re-checks them.
     LifecycleResumeEffect(viewModel) {
@@ -141,8 +145,7 @@ fun SetupScreen() {
     }
     viewModel.collectSideEffect { effect ->
         when (effect) {
-            SetupSideEffect.RequestNotificationPermission ->
-                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            SetupSideEffect.RequestNotificationPermission -> requestNotifications()
 
             SetupSideEffect.RequestLocalNetworkPermission -> requestLocalNetwork()
 
@@ -159,6 +162,9 @@ fun SetupScreen() {
     }
     SetupContent(
         state = state,
+        // Back to the choice of connection or to Welcome while getting started; after "Redo setup" there is nothing
+        // behind Setup, and no arrow.
+        onBack = if (navigator.canPop) navigator::pop else null,
         onAction = viewModel::onAction,
         onDone = viewModel::finishStep,
         onSkipBattery = viewModel::skipBattery,
@@ -182,6 +188,10 @@ private fun openShizuku(context: Context) {
 
 private const val SHIZUKU_DOWNLOAD_URL = "https://shizuku.rikka.app/download/"
 
+/** This app's page of notification settings, where notifications can be allowed once Android stops asking. */
+private fun notificationSettingsIntent(context: Context): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+
 /** The exemption request is the point of the step: the run after boot must not be held back. */
 @SuppressLint("BatteryLife")
 private fun batteryExemptionIntent(context: Context): Intent =
@@ -199,6 +209,7 @@ private fun SetupContent(
     onSwitchBackend: () -> Unit,
     onApplyFirst: () -> Unit,
     onSkipFirstApply: () -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
@@ -208,6 +219,7 @@ private fun SetupContent(
             BurkanTopBar(
                 appBar = appBar,
                 contentScroll = { scrollState.value },
+                onBack = onBack,
                 title = { Text(stringResource(R.string.setup_title)) },
             )
         },
@@ -230,7 +242,8 @@ private fun SetupContent(
                 .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            if (state.isUntestedModel) OtherModelNotice()
+            // Said once, with the intro, before anything is asked for; the report link stays in Settings › About.
+            if (state.isUntestedModel && state.done?.isEmpty() == true) OtherModelNotice()
             if (done == null) {
                 Box(
                     Modifier
@@ -257,7 +270,8 @@ private fun SetupContent(
                             stringResource(R.string.setup_intro),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp),
+                            // Level with the rows' own text, as a group's title is.
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
                     ProgressBar(steps, done)
@@ -316,18 +330,6 @@ private fun SetupContent(
                         ),
                     )
                 }
-                // What the other way is, for someone who has not met it.
-                if (state.current != null && state.backend != ShellBackend.Shizuku) {
-                    Text(
-                        stringResource(R.string.setup_use_shizuku_text),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(horizontal = 24.dp),
-                    )
-                }
             }
         }
     }
@@ -381,15 +383,13 @@ private fun ProgressBar(steps: List<SetupStep>, done: Set<SetupStep>) {
 
 private enum class StepStatus { Current, Waiting }
 
-/** Every finished step in one row: how many, and which. */
+/** Every finished step in one row, by count: the steps are named where they were done, and in the bar above. */
 @Composable
 private fun DoneItem(finished: List<SetupStep>, count: Int) {
-    val names = finished.map { stringResource(it.title) }
     BurkanSegmentItem(
         index = 0,
         count = count,
         headline = pluralStringResource(R.plurals.setup_steps_done, finished.size, finished.size),
-        supporting = names.joinToString(separator = stringResource(R.string.list_separator)),
         leading = {
             BurkanIconBadge(
                 Tabler.Outline.Check,
@@ -671,10 +671,6 @@ private fun Met(step: SetupStep, onDone: (() -> Unit)?) {
     if (onDone != null) BurkanButton(onClick = onDone) { Text(stringResource(R.string.setup_done_action)) }
 }
 
-/** The steps that end in a system dialog or in the app's own work: they move on by themselves once done. */
-private val SetupStep.movesOnByItself: Boolean
-    get() = this == SetupStep.Notifications || this == SetupStep.Finishing || this == SetupStep.Shizuku
-
 /**
  * Pairing is two things to do, one after the other, and the user does both outside the app: open the pairing dialog in
  * Wireless debugging, then type its code into the notification. Each is its own line, and the one to do now has the
@@ -690,15 +686,14 @@ private fun PairDetail(pairing: PairingStatus, onAction: () -> Unit) {
     PairAction(number = 1, text = stringResource(R.string.setup_pair_open_text), isDone = opened) {
         if (!opened) {
             BurkanButton(onClick = onAction) { Text(stringResource(R.string.setup_pair_open_action)) }
+        } else if (pairing == PairingStatus.WaitingForCode) {
+            // Back in the app with the dialog closed: it is opened again from here, under the action it repeats.
+            BurkanTonalButton(onClick = onAction) { Text(stringResource(R.string.setup_pair_open_action)) }
         }
     }
     PairAction(number = 2, text = stringResource(R.string.setup_pair_type_text), isDone = false) {
         when (pairing) {
-            PairingStatus.WaitingForCode -> {
-                Progress(stringResource(R.string.setup_pair_waiting))
-                // Back in the app with the dialog closed: it is opened again from here.
-                BurkanTonalButton(onClick = onAction) { Text(stringResource(R.string.setup_pair_open_action)) }
-            }
+            PairingStatus.WaitingForCode -> Progress(stringResource(R.string.setup_pair_waiting))
 
             PairingStatus.Pairing, PairingStatus.Paired -> Progress(stringResource(R.string.setup_pair_in_progress))
             else -> Unit
@@ -772,7 +767,9 @@ private val SetupStep.title: Int
 
 /** What a step asks, which for Finishing is told differently when Shizuku is the connection. */
 private fun SetupStep.text(backend: ShellBackend): Int? = when (this) {
-    SetupStep.Notifications -> R.string.setup_notifications_text
+    // Pairing, which Shizuku does without, is what the notification is first needed for.
+    SetupStep.Notifications ->
+        if (backend == ShellBackend.Shizuku) R.string.setup_notifications_shizuku_text else R.string.setup_notifications_text
     SetupStep.DeveloperOptions -> R.string.setup_developer_options_text
     SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_text
     // Pairing's two actions carry its instructions.
@@ -854,6 +851,13 @@ private fun SetupNotificationsPreview() = SetupPreviewContent(sample(SetupStep.N
 @BurkanPreview
 @Composable
 private fun SetupNotificationsMetPreview() = SetupPreviewContent(sample(SetupStep.Notifications, isMet = true))
+
+/** With Shizuku, the first step says what notifications are for without a pairing. */
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun SetupNotificationsShizukuPreview() =
+    SetupPreviewContent(sample(SetupStep.Notifications).copy(backend = ShellBackend.Shizuku))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview

@@ -13,6 +13,9 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 
     val entries: List<Route> get() = backStack
 
+    /** Whether there is a destination behind this one for [pop] to go back to. Read in composition, it is observed. */
+    val canPop: Boolean get() = backStack.size > 1
+
     fun push(route: Route) {
         backStack.add(route)
     }
