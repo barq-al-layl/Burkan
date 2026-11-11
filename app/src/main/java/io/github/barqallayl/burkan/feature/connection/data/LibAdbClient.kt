@@ -78,18 +78,10 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: AdbAuthenticationFailedException) {
-                ConnectionError.NotAuthorised.left()
-            } catch (_: AdbPairingRequiredException) {
-                ConnectionError.NotAuthorised.left()
-            } catch (e: IOException) {
-                Logger.w(e) { "Connecting to $host:$port failed" }
-                ConnectionError.ConnectFailed.left()
-            } catch (e: RuntimeException) {
-                // libadb and the TLS provider under it have more ways to fail than they declare. None of them is a
-                // reason to take the app down: to the caller it is a connection that was not made.
-                Logger.w(e) { "Connecting to $host:$port failed unexpectedly" }
-                ConnectionError.ConnectFailed.left()
+            } catch (e: Exception) {
+                connectionError(e).also {
+                    if (it == ConnectionError.ConnectFailed) Logger.w(e) { "Connecting to $host:$port failed" }
+                }.left()
             }
         }
 
@@ -108,16 +100,10 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     override fun open(destination: String): ShellStream {
         val manager = manager ?: throw IOException("Not connected")
-        // libadb reports a connection that went away in more ways than one; to the caller they all mean not connected.
         val stream = try {
             manager.openStream(destination)
-        } catch (e: ConnectException) {
-            // Not a connection that went away: the daemon is there and said no to this stream.
-            throw StreamRefusedException(e)
-        } catch (e: IllegalStateException) {
-            throw IOException(e)
-        } catch (e: InterruptedException) {
-            throw IOException(e)
+        } catch (e: Exception) {
+            throw streamError(e)
         }
         return object : ShellStream {
             override fun read(buffer: ByteArray): Int = stream.read(buffer, 0, buffer.size)
@@ -127,17 +113,6 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     private suspend fun manager(): Manager =
         manager ?: making.withLock { manager ?: Manager(keyStore.keys()).also { manager = it } }
-
-    /**
-     * libadb reports pairing failures as plain exceptions. A refused connection means the pairing dialog, which owns
-     * the port, is closed; a failed key exchange means the code was wrong. On a Galaxy S23 (Android 16) a wrong code
-     * fails one step later, when the two sides cannot read each other's details with the key the code gave them.
-     */
-    private fun pairingError(e: Exception): PairingError = when {
-        e is ConnectException || e is NoRouteToHostException -> PairingError.DialogClosed
-        e is IOException && e.message in WRONG_CODE_MESSAGES -> PairingError.WrongCode
-        else -> PairingError.Failed.also { Logger.w(e) { "Pairing failed" } }
-    }
 
     private class Manager(private val keys: AdbKeys) : AbsAdbConnectionManager() {
         init {
@@ -158,8 +133,40 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
         /** The name the phone lists this app under, in Wireless debugging's paired devices. */
         const val DEVICE_NAME = "Burkan"
         const val CONNECT_TIMEOUT_SECONDS = 10L
-
-        /** How libadb words the two failures a wrong code can cause. */
-        val WRONG_CODE_MESSAGES = setOf("Exchanging message wasn't successful.", "Could not exchange peer info.")
     }
+}
+
+/** How libadb words the two failures a wrong code can cause. */
+private val WRONG_CODE_MESSAGES = setOf("Exchanging message wasn't successful.", "Could not exchange peer info.")
+
+/**
+ * libadb reports pairing failures as plain exceptions. A refused connection means the pairing dialog, which owns the
+ * port, is closed; a failed key exchange means the code was wrong. On a Galaxy S23 (Android 16) a wrong code fails one
+ * step later, when the two sides cannot read each other's details with the key the code gave them.
+ */
+internal fun pairingError(e: Exception): PairingError = when {
+    e is ConnectException || e is NoRouteToHostException -> PairingError.DialogClosed
+    e is IOException && e.message in WRONG_CODE_MESSAGES -> PairingError.WrongCode
+    else -> PairingError.Failed.also { Logger.w(e) { "Pairing failed" } }
+}
+
+/**
+ * What a failed connect means to the caller. An unknown key is a pairing the phone no longer holds. Anything else,
+ * including the runtime failures libadb and the TLS provider under it throw without declaring them, is a connection
+ * that was not made: none of them is a reason to take the app down.
+ */
+internal fun connectionError(e: Exception): ConnectionError = when (e) {
+    is AdbAuthenticationFailedException, is AdbPairingRequiredException -> ConnectionError.NotAuthorised
+    else -> ConnectionError.ConnectFailed
+}
+
+/**
+ * The exception a failed stream open is rethrown as. A refused connection is the daemon saying no to this stream,
+ * which is not a connection that went away. libadb reports one that went away in more ways than one; to the caller
+ * they all mean not connected, an [IOException]. Anything else is not libadb's to report and is passed on as it is.
+ */
+internal fun streamError(e: Exception): Exception = when (e) {
+    is ConnectException -> StreamRefusedException(e)
+    is IllegalStateException, is InterruptedException -> IOException(e)
+    else -> e
 }

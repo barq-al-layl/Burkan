@@ -515,6 +515,30 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `the sheet of apps behind does not open again by itself when a later read finds some`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh()
+            awaitState { it.behind != null }
+            containerHost.showBehind()
+            awaitState { it.isShowingBehind }
+
+            // A read while the sheet is up takes its list away, and the read of the open apps after it brings one
+            // back.
+            containerHost.refresh()
+            val cleared = awaitState { it.behind == null }
+            val readAgain = awaitState { it.behind != null }
+
+            assertEquals(false, cleared.isShowingBehind)
+            assertEquals(false, readAgain.isShowingBehind)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `going back to OpenGL asks first`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
