@@ -29,10 +29,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.seconds
 
@@ -119,16 +122,32 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         override fun onServiceDisconnected(name: ComponentName) = Unit
     }
 
-    // Built when first used: the version asks the package manager, and nothing needs it while Shizuku is not in use.
-    private val args: Shizuku.UserServiceArgs by lazy {
+    /** Held while a shell is started, so that two callers at once do not wait on one answer. */
+    private val connecting = Mutex()
+
+    /** How many shells have been asked for: each gets a tag of its own. */
+    private val binds = AtomicInteger()
+
+    /** What the shell now up, or being started, was asked for with: ending it takes the same. */
+    @Volatile
+    private var bound: Shizuku.UserServiceArgs? = null
+
+    // Asked once, when first needed: nothing needs it while Shizuku is not in use.
+    private val version: Int by lazy { versionCode() }
+
+    /**
+     * A new tag every time. Shizuku's client keeps what it was told to answer under the tag, and empties it when the
+     * shell under that tag dies. A shell started again under the same tag, before the one just ended has died, would
+     * be answered to nobody: its start would be waited for until the time ran out.
+     */
+    private fun newArgs(): Shizuku.UserServiceArgs =
         Shizuku.UserServiceArgs(ComponentName(application.packageName, ShellService::class.java.name))
             // Gone with the app's process, as well as with the connection.
             .daemon(false)
             .processNameSuffix(PROCESS_SUFFIX)
-            .tag(TAG)
+            .tag("$TAG-${binds.incrementAndGet()}")
             // A new version of the app has Shizuku start the new service, not keep the old one.
-            .version(versionCode())
-    }
+            .version(version)
 
     override fun isRunning(): Boolean = Shizuku.pingBinder()
 
@@ -151,11 +170,11 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
     override suspend fun appPackage(): PackageName? =
         withContext(Dispatchers.IO) { shizukuAppPackage(application.packageManager) }
 
-    override suspend fun connect(): Either<ConnectionError, Unit> {
+    override suspend fun connect(): Either<ConnectionError, Unit> = connecting.withLock {
         disconnect()
-        if (!Shizuku.pingBinder()) return ConnectionError.ShizukuNotRunning.left()
+        if (!Shizuku.pingBinder()) return@withLock ConnectionError.ShizukuNotRunning.left()
         val bound = withTimeoutOrNull(BIND_TIMEOUT) { bind() }
-        if (bound == null) return ConnectionError.ShizukuShellFailed.left()
+        if (bound == null) return@withLock ConnectionError.ShizukuShellFailed.left()
         // 2000 is `shell`, 0 is root. Root runs the same fixed commands, but only `shell` has been tried on a phone.
         val uid = try {
             Shizuku.getUid().toString()
@@ -163,7 +182,7 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
             "unknown"
         }
         Logger.i { "Burkan's shell in Shizuku is up, as uid $uid" }
-        return Unit.right()
+        Unit.right()
     }
 
     private suspend fun bind(): IShellService? = suspendCancellableCoroutine { continuation ->
@@ -173,7 +192,7 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
             unbind()
         }
         try {
-            Shizuku.bindUserService(args, connection)
+            Shizuku.bindUserService(newArgs().also { bound = it }, connection)
         } catch (e: RuntimeException) {
             Logger.w(e) { "Binding Burkan's shell in Shizuku failed" }
             waiting = null
@@ -182,12 +201,16 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
     }
 
     override suspend fun disconnect() {
-        if (service == null && waiting == null) return
+        // Asked of what was started, not of what still answers: a shell given up on after a failed command is
+        // still running, and is ended here.
+        if (bound == null) return
         service = null
         withContext(Dispatchers.IO) { unbind() }
     }
 
     private fun unbind() {
+        val args = bound ?: return
+        bound = null
         try {
             // Removing it, as well as letting go of it, has Shizuku end the shell's process.
             Shizuku.unbindUserService(args, connection, true)
@@ -198,8 +221,13 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
 
     override suspend fun run(command: ShellCommand): Either<ShellError, ShellResult> = withContext(Dispatchers.IO) {
         val shell = service ?: return@withContext ShellError.NotConnected.left()
-        val stdout = ParcelFileDescriptor.createPipe()
-        val stderr = ParcelFileDescriptor.createPipe()
+        val (stdout, stderr) = try {
+            pipes()
+        } catch (e: IOException) {
+            // The app is out of file descriptors: nothing was sent, and a new shell would not help.
+            Logger.w(e) { "No pipe for a command's output" }
+            return@withContext ShellError.Failed.left()
+        }
         try {
             coroutineScope {
                 val output = async { stdout[READ].readText() }
@@ -226,6 +254,8 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         } catch (e: IOException) {
             // A pipe that failed under a read or a close: the output is not whole, so the command is not trusted.
             Logger.w(e) { "Reading a command's output from Burkan's shell in Shizuku failed" }
+            // Nor is the shell with the next one: it is started afresh.
+            service = null
             ShellError.ConnectionLost.left()
         } catch (e: CancellationException) {
             // An IllegalStateException too, so it would be caught below.
@@ -241,6 +271,18 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
 
     private fun ParcelFileDescriptor.readText(): String =
         ParcelFileDescriptor.AutoCloseInputStream(this).use { it.readBytes().toString(Charsets.UTF_8) }
+
+    /** One pipe for a command's output and one for its errors. The first is closed if the second cannot be made. */
+    private fun pipes(): Pair<Array<ParcelFileDescriptor>, Array<ParcelFileDescriptor>> {
+        val stdout = ParcelFileDescriptor.createPipe()
+        val stderr = try {
+            ParcelFileDescriptor.createPipe()
+        } catch (e: IOException) {
+            stdout.forEach { it.close() }
+            throw e
+        }
+        return stdout to stderr
+    }
 
     private fun versionCode(): Int = application.packageManager
         .getPackageInfo(application.packageName, PackageManager.PackageInfoFlags.of(0))
