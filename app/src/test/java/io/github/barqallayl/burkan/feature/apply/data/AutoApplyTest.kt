@@ -64,6 +64,42 @@ class AutoApplyTest {
     }
 
     @Test
+    fun `a run at the lock that could not connect is tried again, twice and no more`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+        val lost = RunOutcome(RunResult.Failed, ConnectionError.DaemonNotFound)
+
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(systemUiAtNextLock = true, lockRetries = 1), storage.state.value)
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(systemUiAtNextLock = true, lockRetries = 2), storage.state.value)
+        assertTrue(alerts.failures.isEmpty(), "nothing is said while it is still being tried")
+
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertEquals(listOf<AppError?>(ConnectionError.DaemonNotFound), alerts.failures)
+    }
+
+    @Test
+    fun `a run at the lock that the phone refused is not tried again`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        autoApply.onRunFinished(RunTrigger.AtLock, RunOutcome(RunResult.Failed, ConnectionError.NotAuthorised))
+
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertEquals(listOf<AppError?>(ConnectionError.NotAuthorised), alerts.failures)
+    }
+
+    @Test
+    fun `the watch for the lock lasts as long as the phone takes to lock, within limits`() {
+        assertEquals(SHORTEST_LOCK_WAIT, lockWait(0.seconds))
+        assertEquals(SHORTEST_LOCK_WAIT, lockWait(5.seconds))
+        assertEquals(35.seconds, lockWait(30.seconds))
+        assertEquals(LONGEST_LOCK_WAIT, lockWait(1800.seconds))
+        // A phone that will not say is watched long enough for a lock a minute after the screen goes off.
+        assertEquals(65.seconds, lockWait(null))
+    }
+
+    @Test
     fun `a restart forgets that the app had switched wireless debugging on, as the restart switched it off`() =
         runTest {
             deviceState.switchedOnWirelessDebugging.value = true

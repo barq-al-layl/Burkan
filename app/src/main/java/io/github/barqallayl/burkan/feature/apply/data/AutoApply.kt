@@ -5,7 +5,9 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.ShellBackend
+import io.github.barqallayl.burkan.core.model.type
 import io.github.barqallayl.burkan.core.storage.DeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.feature.apply.ApplyLauncher
@@ -16,11 +18,13 @@ import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.WirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.model.RunResult
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlin.time.Duration.Companion.seconds
 
 /** The notifications a run's end can leave behind. */
 interface RunAlerts {
@@ -128,6 +132,11 @@ class AutoApply(
             // restart still waits for Wi-Fi, as before it.
             done && outcome.appsOnly -> Unit
             done -> stopWaiting()
+            // At the lock adbd has just restarted, and the first try can come too soon for it: the run could not
+            // connect, or lost its connection. System UI stays left for the lock, and it is tried again, a few
+            // times and no more.
+            trigger == RunTrigger.AtLock && outcome.error.isPassing() && retries() < MAX_LOCK_RETRIES ->
+                storage.set(AutoApplyState(systemUiAtNextLock = true, lockRetries = retries() + 1))
             // Not the apply after a restart, so there is nothing of it to wait for again: the failure is only said.
             trigger == RunTrigger.Manual || trigger.isUnattended ->
                 if (outcome.result == RunResult.Failed) alerts.showFailure(outcome.error)
@@ -166,7 +175,10 @@ class AutoApply(
     suspend fun restartSystemUiAtLocks(goOn: () -> Boolean = { true }, atLock: suspend () -> RunOutcome?) {
         while (awaitLockWhilePending()) {
             val outcome = atLock() ?: return
+            val retries = retries()
             onRunFinished(RunTrigger.AtLock, outcome)
+            // Tried again after a pause, not at once: the phone is still locked, and what failed needs a moment.
+            if (retries() > retries) delay(LOCK_RETRY_PAUSE)
             if (!goOn()) return
         }
     }
@@ -210,4 +222,21 @@ class AutoApply(
     private suspend fun needsWifi(): Boolean = settings.shellBackend.first() == ShellBackend.WirelessDebugging
 
     private suspend fun isEnabled(): Boolean = settings.applyOnBoot.first() && deviceState.isSetupComplete.first()
+
+    private suspend fun retries(): Int = storage.state.first().lockRetries
+
+    /** A failure of the connection, which a later try may not meet, as against one the phone would give again. */
+    private fun AppError?.isPassing(): Boolean = when (this?.type()) {
+        AppErrorType.DaemonNotFound, AppErrorType.ConnectFailed, AppErrorType.ConnectionLost,
+        AppErrorType.CommandTimedOut,
+        -> true
+
+        else -> false
+    }
+
+    companion object {
+        /** How many times a run at the lock that could not connect is tried again. */
+        const val MAX_LOCK_RETRIES = 2
+        val LOCK_RETRY_PAUSE = 15.seconds
+    }
 }

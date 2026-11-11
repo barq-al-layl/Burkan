@@ -53,6 +53,7 @@ class DataStoreAutoApplyStorage(
                 waitingFor = WaitReason.entries.firstOrNull { it.name == waitingFor },
                 triedNetwork = preferences[Keys.triedNetwork],
                 systemUiAtNextLock = preferences[Keys.systemUiAtNextLock] ?: false,
+                lockRetries = preferences[Keys.lockRetries] ?: 0,
             )
         }
         .distinctUntilChanged()
@@ -64,6 +65,7 @@ class DataStoreAutoApplyStorage(
             state.waitingFor?.let { preferences[Keys.waitingFor] = it.name }
             state.triedNetwork?.let { preferences[Keys.triedNetwork] = it }
             preferences[Keys.systemUiAtNextLock] = state.systemUiAtNextLock
+            preferences[Keys.lockRetries] = state.lockRetries
         }
     }
 
@@ -79,6 +81,7 @@ class DataStoreAutoApplyStorage(
         val waitingFor = stringPreferencesKey("auto_apply_waiting_for")
         val triedNetwork = longPreferencesKey("auto_apply_tried_network")
         val systemUiAtNextLock = booleanPreferencesKey("auto_apply_system_ui_at_next_lock")
+        val lockRetries = intPreferencesKey("auto_apply_lock_retries")
         val lastBoot = intPreferencesKey("auto_apply_last_boot")
     }
 }
