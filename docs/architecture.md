@@ -406,15 +406,25 @@ reachable through it.
 - Another app starts a run with a broadcast to `TriggerReceiver`: an apply
   (`io.github.barqallayl.burkan.action.APPLY`), a restart of the open apps that are behind
   (`…action.RESTART_OPEN_APPS`) or of every app (`…action.RESTART_ALL`). It is how Tasker and the like automate
-  the app. The receiver is exported and there is no setting: any app on the phone can send one, and it is acted
-  on. That was decided knowingly, so that automation needs nothing switched on. The runs are these three and
-  nothing else, they take no arguments, and none locks a phone in use. Going back to OpenGL is not offered this
-  way.
+  the app. The receiver is exported: any app on the phone can send one, and it is acted on. That was decided
+  knowingly, so that automation needs nothing switched on. The runs are these three and nothing else, they take
+  no arguments, and none locks a phone in use. Going back to OpenGL is not offered this way. Two things bound
+  it: Settings has a switch, "Let other apps start runs", on by default, that turns the broadcasts off; and a
+  broadcast for a run that was started from outside and ended less than a minute ago is passed over, so no app
+  can keep the phone's apps restarting. The wait is for the same run only: an apply followed by a restart of the
+  open apps is not held up.
+- The settings a full apply puts back afterwards (auto-rotation, the accessibility services, the two Edge
+  settings) are read by the app itself through the settings provider, not over the shell. adb's TLS does not say
+  who answered on the port, so what the shell says of them is not trusted with a write the app makes under its
+  own `WRITE_SECURE_SETTINGS`. The shell is asked only when the app's read gives nothing, never for the
+  accessibility services, and a value is written back by the app only if the setting could hold it.
 - Every run that ends is announced with a broadcast, `io.github.barqallayl.burkan.action.RUN_FINISHED`, so an
   automation can react to how it went. Its extras are the names the log uses: `kind` (`Light`, `Full`,
   `OpenApps`, `Revert`), `trigger` (`Manual`, `Boot`, `AtLock`, `External`), `result` (`Succeeded`,
   `AlreadyApplied`, `Postponed`, `Failed`, `Cancelled`) and, when it failed, `error`. It names no app and says
-  nothing of the phone, and reaches only receivers registered while their app runs.
+  nothing of the phone, and reaches only receivers registered while their app runs. It is sent to no app in
+  particular and needs no permission to hear, so any app that listens learns that Burkan is installed and when
+  it ran.
 - A Quick Settings tile, "Vulkan", says whether Vulkan has been applied since the phone started, and a tap
   applies it. Its state comes from the log, not from the phone: asking the phone needs a connection, too much
   for a tile redrawn whenever the shade opens. A run counts only if it began after the phone started, and going
