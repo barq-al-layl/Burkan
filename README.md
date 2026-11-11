@@ -60,6 +60,8 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 - If the phone restarts without Wi-Fi, Burkan waits and applies as soon as a trusted network connects. It keeps the phone awake only for the short time a run takes.
 - Optionally, *Use Shizuku* in Settings gets the shell from Shizuku instead of from Wireless Debugging, for a phone where Shizuku already starts itself after a restart, such as with a fork that has start on boot. Burkan then needs no pairing and no Wi-Fi of its own, and starts nothing: Shizuku has to be running. This is off by default.
 
+  After a restart, Shizuku has to be running before Burkan wakes, which is about half a minute after the first unlock. Shizuku hands its connection to an app only as the app starts, so a Shizuku that comes up later is not seen: the apply after the restart fails with "Shizuku is not running". Opening Burkan from that notification and tapping *Apply now* then does it.
+
 ### By hand
 - *Apply now* sets the system property and restarts System UI, the launcher and the keyboard on Vulkan.
 - *Restart all apps* closes and relaunches background apps and home screen widgets so they pick up Vulkan. It can restart every app, or only the 30 or 70 most recently used.

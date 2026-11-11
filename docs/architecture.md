@@ -330,8 +330,18 @@ A flow is a function that returns the list of steps, and a runner that executes 
   given two minutes for Shizuku to start itself, polling for its binder; every other run, the Setup steps and
   Home included, finds out at once that it is not running. Without Shizuku the run fails with its own error, not
   with the wait for Wi-Fi: `AutoApply` does not wait for Wi-Fi when Shizuku is the way to a shell.
+- **Shizuku has to be there before the app's process.** Shizuku 13.6 hands its binder to an app only when the
+  app's uid becomes active: its process starts, or it comes to the front. A server started while the app's process
+  already runs, as during the wait above, never reaches it, so the wait ends in "Shizuku is not running" (device
+  notes, section 16). Ways round it were tried and dropped: a process of the app's own started while waiting is not
+  seen, since the uid is already active, and Shizuku's app guards the binder it holds with
+  `INTERACT_ACROSS_USERS_FULL`. The wait is kept for a Shizuku that sends its binder to running apps when it starts,
+  as its source says it should. The README tells the user that Shizuku has to be up first.
 - **A lost shell is started again.** Shizuku restarting, or ending the shell, makes the next command fail; the
-  reconnection waits up to 30 seconds for Shizuku, and binds the shell afresh.
+  reconnection waits up to 30 seconds for Shizuku, and binds the shell afresh. For the reason above, a restarted
+  Shizuku is seen only if its binder reaches the app. One reconnection that fails ends the shell for the rest of
+  the run: `ReconnectingShellExecutor` fails every later command at once, so the settings go back from the app
+  without each waiting out another 30 seconds.
 - **Shizuku's own app is never force-stopped** by a run while Shizuku is the way to a shell: a stopped app gets
   no `BOOT_COMPLETED`, and its start on boot would not run. It is kept like an app the user excluded. The app is
   the package that defines `moe.shizuku.manager.permission.API_V23`, so a fork under another name is found too;

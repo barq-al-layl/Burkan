@@ -446,6 +446,20 @@ What follows for the app:
 - Every new connection raises the "Wireless debugging connected" notification, so connections are reused rather
   than opened per operation.
 
+**The lock delay, measured on Android 17 through Shizuku.** With the screen going off by its timeout (15 seconds)
+and System UI left for the lock, the app's watch caught the lock at each "Auto lock when screen turns off" tried:
+
+| Lock delay | Screen off | Locked | Run at the lock started | Run took |
+|---|---|---|---|---|
+| 5 seconds | 19:16:53 | 19:16:58 | 19:16:58 | 5.1 s |
+| 30 seconds | 19:22:24 | 19:22:54 | 19:22:54 | 5.0 s |
+| 5 minutes | 19:24:56 | 19:29:56 | 19:29:56 | 6.4 s |
+
+Each time, System UI restarting on the lock screen woke the screen for one to three seconds before it went dark
+again; the phone stayed locked throughout. The setting is `lock_screen_lock_after_timeout` in the secure table, in
+milliseconds. That the 5-minute lock was caught says One UI lets the app read it: when the app cannot, its watch
+lasts 65 seconds after the screen goes off.
+
 ---
 
 ## 12. After a reboot
@@ -581,8 +595,11 @@ checked by the maintainer, and which of the facts below each covered was not rec
 | A user service cannot start after Shizuku's server was killed and started again from adb while Shizuku's app kept running: Shizuku's starter logs "server binder not received" after 5 seconds and exits, and Burkan says its shell did not start in Shizuku | Measured, twice. Restarting Shizuku's app put it right at once. Not seen when Shizuku is started from its own app, which is how a user starts it |
 | Twenty applies in a row through Shizuku: each took 2.0 to 2.4 seconds, none stalled | Measured |
 | `io.github.barqallayl.burkan:shell` runs as `shell` during a run and is gone about 4 seconds after it | Measured |
-| Shizuku's server killed in the middle of a full apply: the stop step ends in "connection lost", each of the three settings is still put back by the app itself after a 30-second wait for a shell, and the run is logged as failed after 157 seconds | Measured. The three waits are time the run could save |
-| After a reboot, with Shizuku started from its app before `BOOT_COMPLETED` reached Burkan: Burkan's process got the binder 3 seconds after starting, its shell was up 3 seconds later, and the apply after the restart succeeded in 17 seconds. System UI, left for the lock, was restarted at the side key's lock through Shizuku in 7 seconds | Measured. Shizuku started only once Burkan was already waiting is not measured |
+| Shizuku's server killed in the middle of a full apply: the stop step ends in "connection lost", each of the three settings is still put back by the app itself after a 30-second wait for a shell, and the run is logged as failed after 157 seconds | Measured. Since one failed reconnection ends the shell for the run, the same run took 37 seconds: the stop step's 30-second wait, then the three settings in 2 to 8 milliseconds |
+| After a reboot, with Shizuku started from its app before `BOOT_COMPLETED` reached Burkan: Burkan's process got the binder 3 seconds after starting, its shell was up 3 seconds later, and the apply after the restart succeeded in 17 seconds. System UI, left for the lock, was restarted at the side key's lock through Shizuku in 7 seconds | Measured |
+| After a reboot, with Shizuku starting after Burkan's process (by its own start on boot 4 seconds later, or over USB 10 to 45 seconds later): the binder never reached Burkan, and the apply after the restart failed after its two-minute wait with "Shizuku is not running". A later broadcast that started a new process of Burkan's got the binder at once and applied | Measured on two reboots, with Shizuku 13.6.0.r1086. Its server logged "Uid … starts" for uids that became active and nothing for Burkan's, which was active throughout: Burkan's foreground service held it |
+| A process of Burkan's own, started every five seconds during that wait (a content provider in a process of its own, which ended itself), did not make Shizuku send the binder | Measured, then dropped. Shizuku's source on its master branch also sends on each new process, and to every app asking for its permission when it starts; this version did neither |
+| Shizuku's app guards its provider, which holds the binder, with `INTERACT_ACROSS_USERS_FULL`, so another app cannot ask it for the binder | Read from its manifest |
 | thedjchi's fork keeps Shizuku's API, so the same client works with it. Its start on boot waits for Wi-Fi, starts Shizuku over wireless debugging and has a watchdog. Burkan finds Shizuku's app as the package that defines `moe.shizuku.manager.permission.API_V23`, so the fork's package name does not matter | Expected — read from the fork's `manager/build.gradle` and README |
 | `bindUserService` with `daemon(false)` ends the service with the app's process, and `unbindUserService(…, remove = true)` has Shizuku call its `destroy` (transaction 16777115, written as 16777114 in AIDL) | Read from the library's bytecode, version 13.1.5 (`UserServiceArgs.daemon`, `unbindUserService(…, boolean)`), and its source |
 | A Binder transaction carries about 1 MB, which a `dumpsys` can exceed, so the shell service copies a command's output into two pipes whose write ends the app hands it, and returns only the exit code | Expected — Android's Binder limit. The 1 MB `dumpsys activity processes` check in `testing.md` is the measurement |

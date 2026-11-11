@@ -97,8 +97,8 @@ checks.
       needs no Wi-Fi of its own. Record how long Shizuku took to be there after the first unlock.
       On Android 17, with Shizuku started from its app right after the unlock, it was there 30 seconds before
       `BOOT_COMPLETED` reached Burkan, and the run went through it (device notes, section 16). Shizuku started
-      while the run already waits is still to try: a running Burkan did not get Shizuku's binder when the server
-      started again under it.
+      while the run already waits fails: on two reboots the run waited its two minutes and failed with "Shizuku
+      is not running". This is now documented as a limit rather than fixed (README, architecture).
 - [x] After a restart with Shizuku not starting: the run fails with "Shizuku is not running" after two minutes,
       and the notification opens the app. (reported in #6)
 - [x] Shizuku survives System UI's restart and the lock that follows (adbd restarts on every keyguard change,
@@ -334,6 +334,10 @@ checks.
       UI itself and all three surfaces ended on Vulkan.)
 - [ ] Locking with the screen-off timeout rather than the power button, and with a lock delay set: does the wait
       still catch the lock?
+      On Android 17, through Shizuku, with the screen timing out after 15 seconds: with "Auto lock when screen
+      turns off" at 5 seconds, 30 seconds and 5 minutes, the run at the lock started within a second of the phone
+      locking and restarted System UI each time (device notes, section 11). Through wireless debugging, the
+      power button and the lock set to None are still to try.
 - [ ] The foreground notification while waiting for the lock, and its Cancel.
 - [ ] Lock, then unlock within a few seconds: System UI is not restarted in front of the user, the log shows
       "System UI at lock · Left for the next lock", wireless debugging is off again, and the next lock restarts it.
