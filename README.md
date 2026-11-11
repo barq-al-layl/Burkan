@@ -178,7 +178,7 @@ More detail is in:
 <br>
 Burkan was built for the Snapdragon 8 Gen 2 for Galaxy and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) has the same platform and is treated as supported.
 <br><br>
-Other phones on Android 13 or newer should work too, but none has been verified. Wireless Debugging, the renderer property and the status check are standard Android, and Burkan asks the phone which home app, keyboard and wallpaper it uses. On other phones it shows a warning and lets you continue. What could go wrong there:
+Other phones on Android 13 or newer should work too, but none has been verified. Wireless Debugging, the renderer property and the status check are standard Android, and Burkan asks the phone which home app, keyboard and wallpaper it uses. On other phones it says it is tested on the S23 series, invites a report, and lets you carry on. What could go wrong there:
 <ul>
 <li>How well Vulkan works depends on the phone's graphics driver and its maker's Android version, and varies a lot between them. Burkan only turns it on. If something looks wrong, tap <i>Back to OpenGL</i> or restart the phone.</li>
 <li><i>Restart all apps</i> leaves a fixed list of Samsung apps running so that Wi-Fi calling and VoLTE keep working. On another phone it would restart that maker's equivalents, which can drop Wi-Fi calling or VoLTE. <i>Apply now</i> and the apply after a restart leave those apps alone.</li>

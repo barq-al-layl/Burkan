@@ -12,8 +12,9 @@ enum class SetupStep {
     DeveloperOptions,
     WirelessDebugging,
     Pair,
-    Connect,
-    Permission,
+
+    /** Connects, then has the app grant itself `WRITE_SECURE_SETTINGS`: the app's work, with nothing to decide. */
+    Finishing,
     Battery,
     Shizuku,
 }
@@ -25,18 +26,37 @@ fun stepsFor(backend: ShellBackend): List<SetupStep> = when (backend) {
         SetupStep.DeveloperOptions,
         SetupStep.WirelessDebugging,
         SetupStep.Pair,
-        SetupStep.Connect,
-        SetupStep.Permission,
+        SetupStep.Finishing,
         SetupStep.Battery,
     )
 
     ShellBackend.Shizuku -> listOf(
         SetupStep.Notifications,
         SetupStep.Shizuku,
-        SetupStep.Connect,
-        SetupStep.Permission,
+        SetupStep.Finishing,
         SetupStep.Battery,
     )
+}
+
+/**
+ * What the stored count of finished steps counts in. Version 1 had Connect and Permission as two steps; version 2 has
+ * them as one, [SetupStep.Finishing]. A count stored before there was a version is a version 1 count.
+ */
+const val SETUP_STEPS_VERSION = 2
+
+/**
+ * A count of finished steps from [version], in today's steps for [backend]. Someone who had connected but not yet
+ * granted the permission lands on Finishing, which does both; everyone further on keeps their place.
+ */
+fun stepsDoneNow(count: Int, version: Int, backend: ShellBackend): Int {
+    if (version >= SETUP_STEPS_VERSION) return count
+    // In version 1, Connect stood where Finishing stands now, and Permission right after it.
+    val connectAt = stepsFor(backend).indexOf(SetupStep.Finishing)
+    return when {
+        count <= connectAt -> count
+        count == connectAt + 1 -> connectAt
+        else -> count - 1
+    }
 }
 
 /**

@@ -7,6 +7,7 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import io.github.barqallayl.burkan.core.store.DeviceState
 import io.github.barqallayl.burkan.core.store.SettingsStore
 import io.github.barqallayl.burkan.core.storage.SettingsStorage
 import io.github.barqallayl.burkan.designsystem.AppStyle
@@ -21,10 +22,25 @@ import org.orbitmvi.orbit.viewmodel.orbitContainer
 
 /**
  * Both are null until read, so the first frame is never in the wrong theme or on the wrong screen; once the store
- * has them they are there from the first state. [isSetupComplete] chooses the start destination.
+ * has them they are there from the first state. [opening] chooses the start destination.
  */
 @Immutable
-data class AppState(val appearance: Appearance? = null, val isSetupComplete: Boolean? = null)
+data class AppState(val appearance: Appearance? = null, val opening: Opening? = null)
+
+/** Where the app opens: getting started, which ends after the First apply, or Home. */
+@Immutable
+data class Opening(
+    /** Welcome, Setup or the First apply: the screens a phone goes through before Home. */
+    val isGettingStarted: Boolean,
+    /** A fresh install that has not yet left Welcome. */
+    val showsWelcome: Boolean,
+)
+
+/** Where a phone in [this] state opens. Welcome is for a fresh install alone: not an update, not "Redo setup". */
+fun DeviceState.opening(): Opening = Opening(
+    isGettingStarted = !isSetupComplete || isFirstApplyPending,
+    showsWelcome = !isWelcomeSeen && !isSetupComplete && setupStepsDone == 0,
+)
 
 @Immutable
 data class Appearance(
@@ -46,10 +62,10 @@ class AppViewModel(
 ) : OrbitContainerHost<AppState, AppState, Nothing>, ViewModel() {
 
     override val container = orbitContainer<AppState, Nothing>(
-        AppState(store.settings.value?.appearance, store.device.value?.isSetupComplete),
+        AppState(store.settings.value?.appearance, store.device.value?.opening()),
     ) {
         combine(store.settings.filterNotNull(), store.device.filterNotNull()) { settings, device ->
-            AppState(settings.appearance, device.isSetupComplete)
+            AppState(settings.appearance, device.opening())
         }.collect { appState -> reduce { appState } }
     }
 }

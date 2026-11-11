@@ -19,6 +19,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.core.navigation.HomeRoute
 import io.github.barqallayl.burkan.core.navigation.LocalNavigator
 import io.github.barqallayl.burkan.core.navigation.SetupRoute
+import io.github.barqallayl.burkan.core.navigation.WelcomeRoute
 import io.github.barqallayl.burkan.core.navigation.appEntryProvider
 import io.github.barqallayl.burkan.core.navigation.rememberNavigator
 import io.github.barqallayl.burkan.core.navigation.oneUiTransition
@@ -49,7 +50,7 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
         val viewModel = metroViewModel<AppViewModel>()
         val state by viewModel.collectAsState()
         val appearance = state.appearance ?: return@CompositionLocalProvider
-        val isSetupComplete = state.isSetupComplete ?: return@CompositionLocalProvider
+        val opening = state.opening ?: return@CompositionLocalProvider
 
         val isDarkTheme = appearance.themeMode.isDark()
         // The system bars' icons are the activity's to colour, and it only knows the system's own theme.
@@ -67,8 +68,10 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
                 // A sheet or a dialog frosts the screens behind it for as long as it is open.
                 val backdrop = remember { GlassBackdrop() }
                 CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-                    Surface(modifier = Modifier.recordsRevealOrigin().glassBackdrop(backdrop)) {
-                        AppNavigation(isSetupComplete)
+                    Surface(modifier = Modifier
+                        .recordsRevealOrigin()
+                        .glassBackdrop(backdrop)) {
+                        AppNavigation(opening)
                     }
                 }
             }
@@ -84,14 +87,22 @@ private data class ThemeColours(
     val appStyle: AppStyle,
 )
 
-/** The one place that decides between setup and home. No screen navigates on finishing or losing setup. */
+/**
+ * The one place that decides between getting started and Home. No screen navigates on finishing or losing setup. While
+ * getting started, the back stack is the screens gone through: Welcome, the choice of connection, Setup.
+ */
 @Composable
-private fun AppNavigation(isSetupComplete: Boolean) {
+private fun AppNavigation(opening: Opening) {
     // Each style changes screen its own way.
     val style = LocalAppStyle.current
     val motion = burkanMotion
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val navigator = rememberNavigator(start = if (isSetupComplete) HomeRoute else SetupRoute)
+    val start = when {
+        !opening.isGettingStarted -> HomeRoute
+        opening.showsWelcome -> WelcomeRoute
+        else -> SetupRoute
+    }
+    val navigator = rememberNavigator(start = start, key = opening.isGettingStarted)
     CompositionLocalProvider(LocalNavigator provides navigator) {
         NavDisplay(
             backStack = navigator.entries,

@@ -62,7 +62,25 @@ All from `docs/device-notes.md`; read it for the detail and for which of these a
 
 ## Screens
 
-Six destinations. `App.kt` chooses the start: `SetupRoute` until setup is complete, `HomeRoute` after.
+Eight destinations. `App.kt` chooses the start: while getting started, `WelcomeRoute` on a fresh install and
+`SetupRoute` otherwise; `HomeRoute` once setup is complete and its First apply has been taken or put off. The back
+stack is kept for as long as getting started lasts, so Back goes from Setup to the choice of connection and to
+Welcome.
+
+### Welcome (`WelcomeRoute`)
+
+Shown once, on a fresh install: not after an update, and not after "Redo setup", which marks it seen. A phone drawn
+in the style's own colours, whose status bar, home-screen icons and keyboard redraw one after another in about a
+second and a half, then rest; with Android's animations removed it is drawn redrawn from the start. Under it, what
+Burkan does, that setup takes about two minutes and Developer options once, and a line when the phone is not on
+Wi-Fi, which informs and does not block. Get started goes on to the choice of connection when Shizuku's app is
+installed, and to Setup otherwise.
+
+### Connection (`ConnectionRoute`)
+
+Offered only when Shizuku's app is installed. Wireless debugging is chosen to begin with and marked recommended;
+Shizuku's row says that it has to be running before Burkan after every restart. Continue makes the choice through
+`ShellBackendSwitcher` and opens Setup.
 
 ### Setup (`SetupRoute`)
 
@@ -74,17 +92,20 @@ step carries its instructions and its action, and the ones still to come wait un
 | Notifications | Request `POST_NOTIFICATIONS` | Granted |
 | Developer options | Open About phone and explain how to unlock Developer options there (the Developer options screen cannot open while they are locked) | `development_settings_enabled` is 1 |
 | Wireless debugging | Open Developer options; ask the user to switch Wireless debugging on and tick "Always allow on this network" | `adb_wifi_enabled` is 1 |
-| Pair | On Android 17, ask for the nearby devices permission first if it is not held. Then start the pairing service and open Developer options; tell the user to tap "Pair device with pairing code" and type the code into Burkan's notification | Pairing succeeded |
-| Connect | Automatic | A shell command returns |
-| Permission | Automatic: the app grants itself `WRITE_SECURE_SETTINGS` over the connection | The permission is held |
-| Battery | Ask to be exempt from battery optimisation, with one sentence saying why | Exempt. It can also be skipped |
+| Pair | On Android 17, ask for the nearby devices permission first if it is not held. Then start the pairing service and open Developer options. Shown as two numbered actions: tap "Pair device with pairing code", then type the code into Burkan's notification | Pairing succeeded |
+| Finishing setup | Automatic: a shell command, then the app grants itself `WRITE_SECURE_SETTINGS` over the connection if it does not hold it | The command returned and the permission is held |
+| Battery | Ask to be exempt from battery optimisation, with one sentence saying why. Marked recommended | Exempt. It can also be skipped |
 
 - A step is looked at only once it is the current one. Nothing further down is checked, or done, ahead of time:
-  Connect connects when the user reaches it, and Permission grants when the user reaches that.
-- What passes the check is detected, never self-declared; but a step is finished only when the user taps Done.
-  A step the phone already satisfies shows that it does, and still waits.
+  Finishing setup connects and grants when the user reaches it.
+- What passes the check is detected, never self-declared. A step done in Settings is finished only when the user
+  taps Done, and one the phone already satisfies shows that it does and still waits. Notifications, Finishing setup
+  and Shizuku's permission end in a system dialog or the app's own work, so they show their tick for a moment and
+  move on by themselves.
 - How far the user has got is stored as a count of finished steps, with the phone's own state, which is never
-  backed up. Redoing setup puts it back to none.
+  backed up, and the version of the step list it counts in. A count from version 1, which had Connect and
+  Permission as two steps, is translated once: someone who had connected lands on Finishing setup. Redoing setup
+  puts the count back to none.
 - A failed step shows what failed and how to retry. Wrong code, pairing timed out, no Wi-Fi and "the pairing
   dialog was closed" are distinct messages.
 - On the two steps done in the Wireless debugging screen, a phone that is not on Wi-Fi is told so before it goes
@@ -93,8 +114,12 @@ step carries its instructions and its action, and the ones still to come wait un
 - A pairing the phone no longer accepts sends setup back to the Pair step, and the steps after it are gone
   through again. That holds once setup is complete as well: setup is then no longer complete, so the app leaves
   Home for Setup, and nothing is applied after a restart until it has been finished again.
-- If the device model is not SM-S911*, SM-S916* or SM-S918*, a notice at the top says the app is only tested on
-  the S23 family. It does not block.
+- If the device model is not SM-S911*, SM-S916* or SM-S918*, a notice at the top invites the owner to try it: it
+  says the app is tested on the S23 family and should work on this phone too, with a link to report a problem. It
+  does not block.
+- Once every step is done, setup is complete, and the apply after a restart is on, but the screen stays for the
+  First apply: Apply now, after saying that the screen locks once, or Later. Either one ends getting started and
+  Home opens. It is offered when setup is completed, and not again.
 
 ### Home (`HomeRoute`)
 
@@ -220,7 +245,8 @@ The code structure and conventions are in `CONTRIBUTING.md`. These are the parts
 
 | Feature | Holds |
 |---|---|
-| `setup` | The checklist screen and its step checks |
+| `welcome` | The Welcome screen and its drawing of a phone redrawing |
+| `setup` | The choice of connection, the checklist screen and its step checks, and the First apply |
 | `connection` | Key pair, the pairing notification service, pairing, connecting, enabling wireless debugging; the ADB client; the Shizuku client and its shell service; choosing between the two |
 | `apply` | The light and full flows, the output parsers, state capture and restore, the boot receiver and service |
 | `status` | Reading renderer state; the Home screen |
@@ -346,9 +372,9 @@ A flow is a function that returns the list of steps, and a runner that executes 
   no `BOOT_COMPLETED`, and its start on boot would not run. It is kept like an app the user excluded. The app is
   the package that defines `moe.shizuku.manager.permission.API_V23`, so a fork under another name is found too;
   Sui has no app, and nothing extra is kept.
-- **Setup has its own steps.** Notifications, Allow Shizuku (running, and Burkan allowed), Connect, Permission,
-  Battery: no Developer options, wireless debugging or pairing. Permission is still done, so that a value a full
-  apply changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
+- **Setup has its own steps.** Notifications, Allow Shizuku (running, and Burkan allowed), Finishing setup,
+  Battery: no Developer options, wireless debugging or pairing. The permission is still granted, so that a value a
+  full apply changes can be put back when the shell is gone. Changing the choice in Settings asks first, keeps the
   steps the two lists start with (the notifications) and marks setup incomplete, so that Setup comes back for the
   rest. The pairing is kept for the way back. Setup's own screen has a button under the checklist, "Use Shizuku
   instead" or, on Shizuku's steps, "Use wireless debugging instead", which does the same without asking: setup

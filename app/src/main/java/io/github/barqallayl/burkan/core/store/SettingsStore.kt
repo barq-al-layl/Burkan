@@ -28,9 +28,18 @@ data class UserSettings(
     val appearance: Appearance,
 )
 
-/** What the phone's own state file holds. */
+/**
+ * What the phone's own state file holds. [isWelcomeSeen] and [isFirstApplyPending] decide, with [isSetupComplete],
+ * which screen the app opens on.
+ */
 @Immutable
-data class DeviceState(val isPaired: Boolean, val setupStepsDone: Int, val isSetupComplete: Boolean)
+data class DeviceState(
+    val isPaired: Boolean,
+    val setupStepsDone: Int,
+    val isSetupComplete: Boolean,
+    val isWelcomeSeen: Boolean = true,
+    val isFirstApplyPending: Boolean = false,
+)
 
 /**
  * The settings, read when the process starts and kept current for as long as it lives. A screen takes what is here
@@ -58,6 +67,8 @@ class SettingsStore(
         deviceState.isPaired,
         deviceState.setupStepsDone,
         deviceState.isSetupComplete,
+        deviceState.isWelcomeSeen,
+        deviceState.isFirstApplyPending,
         ::DeviceState,
     ).stateIn(scope, SharingStarted.Eagerly, null)
 }

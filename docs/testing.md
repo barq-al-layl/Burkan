@@ -11,6 +11,18 @@ When you check one, tick it here and record what you saw in the device notes.
 
 ## Setup and connection
 
+- [x] A fresh install opens on Welcome, and the phone in it redraws once, top to bottom, then rests. With Shizuku's
+      app installed, Get started offers the choice of connection, and Back goes from it to Welcome. (Android 17,
+      One UI, dark, 11 Nov 2026.)
+- [x] Notifications and Finishing setup show their tick and move on by themselves; Developer options, Wireless
+      debugging and the battery step wait for Done. Pairing's two actions lead through pairing from the
+      notification. Setup ends on First apply, and Apply now opens Home on the run. (Same pass.)
+- [ ] First apply with System UI on OpenGL: the screen locks once, and Home shows System UI on Vulkan after the
+      unlock. Later opens Home with nothing applied.
+- [ ] Welcome with Android's animations removed: the phone is drawn redrawn, with no movement.
+- [ ] Choosing Shizuku on the choice of connection leads to Shizuku's steps.
+- [ ] An update from a version with Connect and Permission, part way through setup, lands on the right step.
+- [ ] On a phone outside the S23 family, Setup shows the invitation, and Report a problem opens the issue form.
 - [x] A fresh install on a Samsung phone opens in the One UI style, in blue.
 - [x] A step is looked at only once it is the current one, and waits for Done: notifications already allowed,
       Developer options already on and wireless debugging already on each showed their tick and stayed put.

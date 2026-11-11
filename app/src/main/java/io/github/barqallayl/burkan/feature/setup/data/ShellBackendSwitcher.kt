@@ -24,6 +24,12 @@ class ShellBackendSwitcher(
             ShellBackend.Shizuku -> ShellBackend.WirelessDebugging
             ShellBackend.WirelessDebugging -> ShellBackend.Shizuku
         }
+        choose(target)
+    }
+
+    /** Makes [target] the connection, as [switch] does; choosing the one already in use changes nothing. */
+    suspend fun choose(target: ShellBackend) {
+        if (settings.shellBackend.first() == target) return
         settings.setShellBackend(target)
         deviceState.setSetupStepsDone(minOf(deviceState.setupStepsDone.first(), SHARED_STEPS))
         deviceState.setSetupComplete(false)

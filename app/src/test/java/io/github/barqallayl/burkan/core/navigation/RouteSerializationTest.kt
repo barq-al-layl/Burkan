@@ -13,6 +13,8 @@ class RouteSerializationTest {
 
     private val routes: List<Route> =
         listOf(
+            WelcomeRoute,
+            ConnectionRoute,
             SetupRoute,
             HomeRoute,
             SettingsRoute,

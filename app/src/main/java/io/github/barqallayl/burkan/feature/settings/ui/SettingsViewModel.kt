@@ -120,10 +120,11 @@ class SettingsViewModel(
 
     fun setPaletteStyle(style: PaletteStyles) = intent { settings.setPaletteStyle(style) }
 
-    /** Forgets the pairing and starts setup from its first step; `App.kt` then shows Setup. */
+    /** Forgets the pairing and starts setup from its first step; `App.kt` then shows Setup, not Welcome. */
     fun confirmRedoSetup() = intent {
         reduce { state.copy(dialog = null) }
         autoApply.stopWaiting()
+        deviceState.setWelcomeSeen(true)
         deviceState.setPaired(false)
         deviceState.setSetupStepsDone(0)
         deviceState.setSetupComplete(false)

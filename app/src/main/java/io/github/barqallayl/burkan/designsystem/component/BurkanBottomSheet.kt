@@ -193,7 +193,10 @@ fun <T> BurkanChoiceList(
     }
 }
 
-/** A segment that is one option of a single choice: its label, then a radio button. The chosen one is filled. */
+/**
+ * A segment that is one option of a single choice: its label, then a radio button. The chosen one is filled.
+ * [content] goes under the label and its supporting line, for what the option carries besides, such as a pill.
+ */
 @Composable
 fun BurkanSegmentChoice(
     index: Int,
@@ -205,6 +208,7 @@ fun BurkanSegmentChoice(
     supporting: String? = null,
     leading: (@Composable () -> Unit)? = null,
     pressMorph: Boolean = true,
+    content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     BurkanSegmentItem(
         index = index,
@@ -229,6 +233,7 @@ fun BurkanSegmentChoice(
         onClick = onClick,
         leading = leading,
         pressMorph = pressMorph,
+        content = content,
         // The row is the control; the button only shows its state, in the row's own colour.
         trailing = {
             val color = LocalContentColor.current

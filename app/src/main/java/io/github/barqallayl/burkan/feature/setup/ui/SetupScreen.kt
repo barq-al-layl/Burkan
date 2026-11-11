@@ -19,8 +19,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +68,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.InfoCircle
+import com.composables.icons.tabler.outline.Devices
 import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
@@ -100,7 +98,6 @@ import io.github.barqallayl.burkan.designsystem.component.Tone
 import io.github.barqallayl.burkan.designsystem.component.glassSource
 import io.github.barqallayl.burkan.designsystem.component.listInset
 import io.github.barqallayl.burkan.designsystem.component.listTop
-import io.github.barqallayl.burkan.designsystem.component.noticeColors
 import io.github.barqallayl.burkan.designsystem.component.oneUiScrollFade
 import io.github.barqallayl.burkan.designsystem.component.readableWidth
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
@@ -121,6 +118,11 @@ import io.github.barqallayl.burkan.feature.setup.model.SetupError
 import io.github.barqallayl.burkan.feature.setup.model.SetupStep
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
+import io.github.barqallayl.burkan.feature.settings.ui.openIfPossible
+import io.github.barqallayl.burkan.feature.settings.model.About
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.layout.offset
 
 @Composable
 fun SetupScreen() {
@@ -161,6 +163,8 @@ fun SetupScreen() {
         onDone = viewModel::finishStep,
         onSkipBattery = viewModel::skipBattery,
         onSwitchBackend = viewModel::switchShellBackend,
+        onApplyFirst = viewModel::applyFirst,
+        onSkipFirstApply = viewModel::skipFirstApply,
     )
 }
 
@@ -193,8 +197,9 @@ private fun SetupContent(
     onDone: () -> Unit,
     onSkipBattery: () -> Unit,
     onSwitchBackend: () -> Unit,
+    onApplyFirst: () -> Unit,
+    onSkipFirstApply: () -> Unit,
 ) {
-    val motion = burkanMotion
     val appBar = rememberBurkanAppBar()
     val scrollState = rememberScrollState()
     Scaffold(
@@ -204,29 +209,6 @@ private fun SetupContent(
                 appBar = appBar,
                 contentScroll = { scrollState.value },
                 title = { Text(stringResource(R.string.setup_title)) },
-                actions = {
-                    // The count rolls up to the next number as a step is finished.
-                    AnimatedContent(
-                        targetState = state.current,
-                        transitionSpec = {
-                            (slideInVertically(motion.move()) { it / 2 } + fadeIn(motion.appear())) togetherWith
-                                (slideOutVertically(motion.move()) { -it / 2 } + fadeOut(motion.vanish()))
-                        },
-                        label = "setup progress",
-                    ) { current ->
-                        if (current != null) {
-                            BurkanPill(
-                                stringResource(
-                                    R.string.setup_progress,
-                                    state.steps.indexOf(current) + 1,
-                                    state.steps.size,
-                                ),
-                                modifier = Modifier.padding(end = ScreenMargin),
-                                tone = Tone.Good,
-                            )
-                        }
-                    }
-                },
             )
         },
     ) { innerPadding ->
@@ -248,7 +230,7 @@ private fun SetupContent(
                 .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            if (state.isUntestedModel) UntestedModelNotice()
+            if (state.isUntestedModel) OtherModelNotice()
             if (done == null) {
                 Box(
                     Modifier
@@ -314,9 +296,13 @@ private fun SetupContent(
                         }
                     }
                 }
-                // The way to a shell is a choice, and setup does not reach Settings, so it can be made, and made
-                // again, here.
-                BurkanTextButton(
+                // Every step done: what is left is to apply, now or later.
+                if (state.current == null && state.isFirstApplyPending) {
+                    FirstApply(onApply = onApplyFirst, onLater = onSkipFirstApply)
+                }
+                // The connection is a choice, and setup does not reach Settings, so it can be made, and made again,
+                // here, for as long as there are steps to go.
+                if (state.current != null) BurkanTextButton(
                     onClick = onSwitchBackend,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {
@@ -331,7 +317,7 @@ private fun SetupContent(
                     )
                 }
                 // What the other way is, for someone who has not met it.
-                if (state.backend != ShellBackend.Shizuku) {
+                if (state.current != null && state.backend != ShellBackend.Shizuku) {
                     Text(
                         stringResource(R.string.setup_use_shizuku_text),
                         style = MaterialTheme.typography.bodySmall,
@@ -414,22 +400,73 @@ private fun DoneItem(finished: List<SetupStep>, count: Int) {
     )
 }
 
+/**
+ * For a phone outside the S23 family: an invitation to try it and say how it went, in the screen's own quiet colours,
+ * not a warning. Owners of other phones are who the report link is for.
+ */
 @Composable
-private fun UntestedModelNotice() {
-    val colors = noticeColors
+private fun OtherModelNotice() {
+    val uriHandler = LocalUriHandler.current
+    BurkanSegment(index = 0, count = 1) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                Tabler.Outline.Devices,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.setup_other_model),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                BurkanTextButton(
+                    onClick = { uriHandler.openIfPossible(About.REPORT_URL) },
+                    // Level with the text above it, not with the button's own padding.
+                    modifier = Modifier.offset(x = (-12).dp),
+                ) {
+                    Text(stringResource(R.string.setup_report_problem))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The end of setup: Burkan applies by itself from the next restart, and can apply now. Said before the tap, since
+ * applying restarts System UI and locks the screen once.
+ */
+@Composable
+private fun FirstApply(onApply: () -> Unit, onLater: () -> Unit) {
     BurkanSegment(
         index = 0,
         count = 1,
-        containerColor = colors.container,
-        contentColor = colors.content,
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Tabler.Outline.InfoCircle, contentDescription = null)
-            Text(stringResource(R.string.setup_untested_model))
+            Text(
+                stringResource(R.string.setup_first_apply_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(stringResource(R.string.setup_first_apply_text), style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BurkanButton(onClick = onApply) { Text(stringResource(R.string.setup_first_apply_action)) }
+                // One UI does not put a flat button beside a contained one.
+                if (LocalAppStyle.current == AppStyle.OneUi) {
+                    BurkanTonalButton(onClick = onLater) { Text(stringResource(R.string.setup_first_apply_later)) }
+                } else {
+                    BurkanTextButton(onClick = onLater) { Text(stringResource(R.string.setup_first_apply_later)) }
+                }
+            }
         }
     }
 }
@@ -491,7 +528,7 @@ private fun StepItem(
                     exit = fadeOut(motion.vanish()),
                 ) {
                     Box(modifier = Modifier.heightIn(min = STEP_NUMBER_SIZE), contentAlignment = Alignment.Center) {
-                        BurkanPill(stringResource(R.string.setup_optional))
+                        BurkanPill(stringResource(R.string.setup_recommended))
                     }
                 }
             }
@@ -550,7 +587,7 @@ private fun CurrentStepDetail(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
-            Text(stringResource(step.text(state.backend)))
+            step.text(state.backend)?.let { Text(stringResource(it)) }
             // Said before the user goes to Settings and finds the switch greyed out.
             AnimatedVisibility(
                 visible = state.isWifiMissing,
@@ -574,18 +611,10 @@ private fun CurrentStepDetail(
         ) { detail ->
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (detail) {
-                    StepDetail.Met -> Met(step, onDone)
+                    StepDetail.Met -> Met(step, onDone.takeUnless { step.movesOnByItself })
                     is StepDetail.Pairing -> PairDetail(detail.status, onAction)
                     is StepDetail.Failed -> FailureWithRetry(detail.error, onAction)
-                    StepDetail.Working -> Progress(
-                        stringResource(
-                            if (step == SetupStep.Connect) {
-                                R.string.setup_connect_in_progress
-                            } else {
-                                R.string.setup_permission_in_progress
-                            },
-                        ),
-                    )
+                    StepDetail.Working -> Progress(stringResource(R.string.setup_finishing_in_progress))
 
                     StepDetail.Action -> if (step == SetupStep.Battery) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -625,34 +654,78 @@ private sealed interface StepDetail {
 private fun SetupState.detail(step: SetupStep): StepDetail = when {
     isCurrentMet -> StepDetail.Met
     step == SetupStep.Pair -> StepDetail.Pairing(pairing)
-    step == SetupStep.Connect || step == SetupStep.Permission -> failure?.let(StepDetail::Failed) ?: StepDetail.Working
+    step == SetupStep.Finishing -> failure?.let(StepDetail::Failed) ?: StepDetail.Working
     else -> StepDetail.Action
 }
 
-/** What the check found, in words and with a tick, and the button that finishes the step. */
+/**
+ * What the check found, in words and with a tick, and the button that finishes the step. A step that moves on by
+ * itself has no button: [onDone] is null, and the tick shows for the moment before the next step opens.
+ */
 @Composable
-private fun Met(step: SetupStep, onDone: () -> Unit) {
+private fun Met(step: SetupStep, onDone: (() -> Unit)?) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Tabler.Outline.Check, contentDescription = null)
         Text(stringResource(step.met), style = emphasizedBody)
     }
-    BurkanButton(onClick = onDone) { Text(stringResource(R.string.setup_done_action)) }
+    if (onDone != null) BurkanButton(onClick = onDone) { Text(stringResource(R.string.setup_done_action)) }
 }
 
+/** The steps that end in a system dialog or in the app's own work: they move on by themselves once done. */
+private val SetupStep.movesOnByItself: Boolean
+    get() = this == SetupStep.Notifications || this == SetupStep.Finishing || this == SetupStep.Shizuku
+
+/**
+ * Pairing is two things to do, one after the other, and the user does both outside the app: open the pairing dialog in
+ * Wireless debugging, then type its code into the notification. Each is its own line, and the one to do now has the
+ * button or the wait under it. A pairing that failed says why and starts again from the first.
+ */
 @Composable
 private fun PairDetail(pairing: PairingStatus, onAction: () -> Unit) {
-    when (pairing) {
-        PairingStatus.Pairing, PairingStatus.Paired -> Progress(stringResource(R.string.setup_pair_in_progress))
-        is PairingStatus.Failed -> FailureWithRetry(pairing.error, onAction)
-        PairingStatus.WaitingForCode -> {
-            Text(stringResource(R.string.setup_pair_waiting))
-            BurkanButton(onClick = onAction) {
-                Text(stringResource(R.string.setup_wireless_debugging_action))
+    if (pairing is PairingStatus.Failed) {
+        FailureWithRetry(pairing.error, onAction)
+        return
+    }
+    val opened = pairing != PairingStatus.Idle
+    PairAction(number = 1, text = stringResource(R.string.setup_pair_open_text), isDone = opened) {
+        if (!opened) {
+            BurkanButton(onClick = onAction) { Text(stringResource(R.string.setup_pair_open_action)) }
+        }
+    }
+    PairAction(number = 2, text = stringResource(R.string.setup_pair_type_text), isDone = false) {
+        when (pairing) {
+            PairingStatus.WaitingForCode -> {
+                Progress(stringResource(R.string.setup_pair_waiting))
+                // Back in the app with the dialog closed: it is opened again from here.
+                BurkanTonalButton(onClick = onAction) { Text(stringResource(R.string.setup_pair_open_action)) }
+            }
+
+            PairingStatus.Pairing, PairingStatus.Paired -> Progress(stringResource(R.string.setup_pair_in_progress))
+            else -> Unit
+        }
+    }
+}
+
+/** One of pairing's two actions: its number, or a tick once done, beside what to do, and under it what it offers. */
+@Composable
+private fun PairAction(number: Int, text: String, isDone: Boolean, content: @Composable ColumnScope.() -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+            if (isDone) {
+                Icon(Tabler.Outline.Check, contentDescription = stringResource(R.string.setup_step_done))
+            } else {
+                Text(
+                    number.toString(),
+                    style = emphasis(
+                        MaterialTheme.typography.labelLarge,
+                        MaterialTheme.typography.labelLargeEmphasized,
+                    ),
+                )
             }
         }
-
-        PairingStatus.Idle -> BurkanButton(onClick = onAction) {
-            Text(stringResource(R.string.setup_pair_action))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(text)
+            content()
         }
     }
 }
@@ -692,22 +765,20 @@ private val SetupStep.title: Int
         SetupStep.DeveloperOptions -> R.string.setup_developer_options_title
         SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_title
         SetupStep.Pair -> R.string.setup_pair_title
-        SetupStep.Connect -> R.string.setup_connect_title
-        SetupStep.Permission -> R.string.setup_permission_title
+        SetupStep.Finishing -> R.string.setup_finishing_title
         SetupStep.Battery -> R.string.setup_battery_title
         SetupStep.Shizuku -> R.string.setup_shizuku_title
     }
 
-/** What a step asks, which for Connect and Permission is told differently when Shizuku is the way to a shell. */
-private fun SetupStep.text(backend: ShellBackend): Int = when (this) {
+/** What a step asks, which for Finishing is told differently when Shizuku is the connection. */
+private fun SetupStep.text(backend: ShellBackend): Int? = when (this) {
     SetupStep.Notifications -> R.string.setup_notifications_text
     SetupStep.DeveloperOptions -> R.string.setup_developer_options_text
     SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_text
-    SetupStep.Pair -> R.string.setup_pair_text
-    SetupStep.Connect ->
-        if (backend == ShellBackend.Shizuku) R.string.setup_connect_shizuku_text else R.string.setup_connect_text
-    SetupStep.Permission ->
-        if (backend == ShellBackend.Shizuku) R.string.setup_permission_shizuku_text else R.string.setup_permission_text
+    // Pairing's two actions carry its instructions.
+    SetupStep.Pair -> null
+    SetupStep.Finishing ->
+        if (backend == ShellBackend.Shizuku) R.string.setup_finishing_shizuku_text else R.string.setup_finishing_text
     SetupStep.Battery -> R.string.setup_battery_text
     SetupStep.Shizuku -> R.string.setup_shizuku_text
 }
@@ -719,13 +790,12 @@ private val SetupStep.met: Int
         SetupStep.DeveloperOptions -> R.string.setup_developer_options_met
         SetupStep.WirelessDebugging -> R.string.setup_wireless_debugging_met
         SetupStep.Pair -> R.string.setup_pair_met
-        SetupStep.Connect -> R.string.setup_connect_met
-        SetupStep.Permission -> R.string.setup_permission_met
+        SetupStep.Finishing -> R.string.setup_finishing_met
         SetupStep.Battery -> R.string.setup_battery_met
         SetupStep.Shizuku -> R.string.setup_shizuku_met
     }
 
-/** The single action of a step that has one button; Pair, Connect, Permission and Battery build their own. */
+/** The single action of a step that has one button; Pair, Finishing and Battery build their own. */
 private fun SetupStep.action(state: SetupState): Int = when (this) {
     SetupStep.Notifications -> R.string.setup_notifications_action
     SetupStep.DeveloperOptions -> R.string.setup_developer_options_action
@@ -759,7 +829,15 @@ private fun sample(
 
 @Composable
 private fun SetupPreviewContent(state: SetupState) {
-    SetupContent(state = state, onAction = {}, onDone = {}, onSkipBattery = {}, onSwitchBackend = {})
+    SetupContent(
+        state = state,
+        onAction = {},
+        onDone = {},
+        onSkipBattery = {},
+        onSwitchBackend = {},
+        onApplyFirst = {},
+        onSkipFirstApply = {},
+    )
 }
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
@@ -780,7 +858,7 @@ private fun SetupNotificationsMetPreview() = SetupPreviewContent(sample(SetupSte
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupConnectMetPreview() = SetupPreviewContent(sample(SetupStep.Connect, isMet = true))
+private fun SetupFinishingMetPreview() = SetupPreviewContent(sample(SetupStep.Finishing, isMet = true))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -858,22 +936,22 @@ private fun SetupPairTimedOutPreview() =
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupConnectingPreview() =
-    SetupPreviewContent(sample(SetupStep.Connect, isConnecting = true))
+private fun SetupFinishingPreview() =
+    SetupPreviewContent(sample(SetupStep.Finishing, isConnecting = true))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupConnectNoWifiPreview() =
-    SetupPreviewContent(sample(SetupStep.Connect, failure = ConnectionError.NoWifi))
+private fun SetupFinishingNoWifiPreview() =
+    SetupPreviewContent(sample(SetupStep.Finishing, failure = ConnectionError.NoWifi))
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupConnectRefusedPreview() =
+private fun SetupFinishingRefusedPreview() =
     SetupPreviewContent(
         sample(
-            SetupStep.Connect,
+            SetupStep.Finishing,
             failure = ConnectionError.WirelessDebuggingRefused,
         ),
     )
@@ -881,8 +959,32 @@ private fun SetupConnectRefusedPreview() =
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
 @Composable
-private fun SetupPermissionFailedPreview() =
-    SetupPreviewContent(sample(SetupStep.Permission, failure = SetupError.GrantFailed))
+private fun SetupGrantFailedPreview() =
+    SetupPreviewContent(sample(SetupStep.Finishing, failure = SetupError.GrantFailed))
+
+@PreviewWrapper(BurkanPreviewWrapper::class)
+@BurkanPreview
+@Composable
+private fun SetupFirstApplyPreview() =
+    SetupPreviewContent(
+        SetupState(
+            done = SetupStep.entries.filter { it != SetupStep.Shizuku }.toSet(),
+            isFirstApplyPending = true,
+        ),
+    )
+
+@BurkanPreview
+@Composable
+private fun SetupFirstApplyOneUiDarkPreview() {
+    BurkanPreviewTheme(themeMode = ThemeMode.Dark, appStyle = AppStyle.OneUi) {
+        SetupPreviewContent(
+            SetupState(
+                done = SetupStep.entries.filter { it != SetupStep.Shizuku }.toSet(),
+                isFirstApplyPending = true,
+            ),
+        )
+    }
+}
 
 @PreviewWrapper(BurkanPreviewWrapper::class)
 @BurkanPreview
@@ -926,8 +1028,8 @@ private fun SetupBatteryLargeTextPreview() {
 
 @BurkanPreview
 @Composable
-private fun SetupConnectTealPreview() {
+private fun SetupFinishingTealPreview() {
     BurkanPreviewTheme(seedColor = SeedColors.Teal) {
-        SetupPreviewContent(sample(SetupStep.Connect))
+        SetupPreviewContent(sample(SetupStep.Finishing))
     }
 }

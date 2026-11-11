@@ -35,12 +35,13 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No Navigator provided") }
 
 /**
- * A [Navigator] whose back stack survives configuration changes and process death. A different [start] replaces the
- * whole back stack.
+ * A [Navigator] whose back stack survives configuration changes and process death. A different [key] replaces the
+ * whole back stack with one holding [start]; a different [start] under the same key changes nothing, so that leaving
+ * Welcome, which makes Setup the place to start, does not take Welcome out from under the Back gesture.
  */
 @Composable
-fun rememberNavigator(start: Route): Navigator {
-    val backStack = rememberSerializable(start, serializer = NavBackStackSerializer(Route.serializer())) {
+fun rememberNavigator(start: Route, key: Any = start): Navigator {
+    val backStack = rememberSerializable(key, serializer = NavBackStackSerializer(Route.serializer())) {
         NavBackStack(start)
     }
     return remember(backStack) { Navigator(backStack) }

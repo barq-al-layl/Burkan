@@ -7,6 +7,8 @@ import io.github.barqallayl.burkan.core.shell.ShellCommands
 import io.github.barqallayl.burkan.core.storage.FakeDeviceStateStorage
 import io.github.barqallayl.burkan.core.storage.FakeSettingsStorage
 import io.github.barqallayl.burkan.core.store.SettingsStore
+import io.github.barqallayl.burkan.feature.apply.FakeApplyLauncher
+import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.connection.PairingLauncher
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeAdbDiscovery
@@ -45,6 +47,7 @@ class SetupViewModelTest {
     private val discovery = FakeAdbDiscovery()
     private val pairing = PairingRepository(FakeAdbClient(), discovery, deviceState)
     private val launcher = FakePairingLauncher()
+    private val applyLauncher = FakeApplyLauncher()
     private val shell = FakeShellExecutor()
     private val shellAccess = FakeShellAccess(shell)
     private val ownPackage = PackageName.known("io.github.barqallayl.burkan")
@@ -61,14 +64,15 @@ class SetupViewModelTest {
         discovery,
         shizuku,
         ShellBackendSwitcher(settings, deviceState),
+        applyLauncher,
         ownPackage,
     )
 
-    /** Everything up to pairing finished by the user, so the current step is Connect. */
+    /** Everything up to pairing finished by the user, so the current step is Finishing. */
     private fun readyToConnect() {
         wirelessDebugging.on = true
         deviceState.isPaired.value = true
-        deviceState.setupStepsDone.value = SetupStep.Connect.ordinal
+        deviceState.setupStepsDone.value = SetupStep.Finishing.ordinal
         // pm grant succeeding gives the app the permission.
         shell.beforeEach = { if (it == grant) wirelessDebugging.permitted = true }
     }
@@ -88,19 +92,37 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `a step the phone already satisfies waits for the user to say it is done`() = runTest {
-        checks.notifications = true
-        // Further down the list, and not looked at until its turn.
+    fun `a step done in Settings waits for the user to say it is done`() = runTest {
+        deviceState.setupStepsDone.value = SetupStep.DeveloperOptions.ordinal
         checks.developerOptions = true
+        // Further down the list, and not looked at until its turn.
+        wirelessDebugging.on = true
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
 
             val met = awaitState { it.isCurrentMet }
-            assertEquals(SetupStep.Notifications, met.current)
+            assertEquals(SetupStep.DeveloperOptions, met.current)
+            assertEquals(1, deviceState.setupStepsDone.value, "not finished without Done")
 
             containerHost.finishStep()
-            awaitState { it.current == SetupStep.DeveloperOptions && it.isCurrentMet }
+            awaitState { it.current == SetupStep.WirelessDebugging && it.isCurrentMet }
+            assertEquals(2, deviceState.setupStepsDone.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `notifications, once allowed, move on by themselves`() = runTest {
+        checks.notifications = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            awaitState { it.current == SetupStep.Notifications && it.isCurrentMet }
+            awaitState { it.current == SetupStep.DeveloperOptions }
             assertEquals(1, deviceState.setupStepsDone.value)
 
             creating.cancel()
@@ -231,20 +253,19 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `it connects on reaching the connect step, and grants the permission on reaching that one`() = runTest {
+    fun `finishing setup connects and grants the permission by itself, then moves on`() = runTest {
         readyToConnect()
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
 
-            val state = awaitState { it.current == SetupStep.Connect && it.isCurrentMet }
+            val state = awaitState { it.current == SetupStep.Finishing && it.isCurrentMet }
             assertNull(state.failure)
             assertFalse(state.isConnecting)
-            assertEquals(listOf("echo ok"), shell.lines)
-
-            containerHost.finishStep()
-            awaitState { it.current == SetupStep.Permission && it.isCurrentMet }
             assertEquals(listOf("echo ok", grant.line), shell.lines)
+
+            awaitState { it.current == SetupStep.Battery }
+            assertEquals(SetupStep.Battery.ordinal, deviceState.setupStepsDone.value)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()
@@ -261,15 +282,15 @@ class SetupViewModelTest {
 
             val failed = awaitState { it.failure != null }
             assertEquals(ConnectionError.NoWifi, failed.failure)
-            assertEquals(SetupStep.Connect, failed.current)
+            assertEquals(SetupStep.Finishing, failed.current)
 
             // Returning to the app does not retry by itself.
             containerHost.refresh().join()
             assertEquals(1, shellAccess.runs)
 
             shellAccess.failure = null
-            containerHost.onAction(SetupStep.Connect)
-            awaitState { it.current == SetupStep.Connect && it.isCurrentMet }
+            containerHost.onAction(SetupStep.Finishing)
+            awaitState { it.current == SetupStep.Finishing && it.isCurrentMet }
             assertEquals(2, shellAccess.runs)
 
             creating.cancel()
@@ -278,9 +299,8 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `a grant that does not take leaves the permission step failed`() = runTest {
+    fun `a grant that does not take leaves finishing setup failed`() = runTest {
         readyToConnect()
-        deviceState.setupStepsDone.value = SetupStep.Permission.ordinal
         shell.beforeEach = {}
         shell.reply(grant, stderr = "Security exception\n", exitCode = 255)
 
@@ -289,7 +309,7 @@ class SetupViewModelTest {
 
             val failed = awaitState { it.failure != null }
             assertEquals(SetupError.GrantFailed, failed.failure)
-            assertEquals(SetupStep.Permission, failed.current)
+            assertEquals(SetupStep.Finishing, failed.current)
             assertFalse(failed.isCurrentMet)
 
             creating.cancel()
@@ -308,8 +328,66 @@ class SetupViewModelTest {
 
             containerHost.skipBattery()
 
-            awaitState { it.done != null && it.current == null }
+            awaitState { it.done != null && it.current == null && it.isFirstApplyPending }
             assertTrue(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the First apply runs Apply now and ends getting started`() = runTest {
+        deviceState.setupStepsDone.value = stepsFor(ShellBackend.WirelessDebugging).size
+        deviceState.isPaired.value = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.isFirstApplyPending }
+
+            containerHost.applyFirst().join()
+
+            assertEquals(listOf(ApplyKind.Light), applyLauncher.started)
+            assertFalse(deviceState.isFirstApplyPending.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the First apply can be put off, and is then not offered again`() = runTest {
+        deviceState.setupStepsDone.value = stepsFor(ShellBackend.WirelessDebugging).size
+        deviceState.isPaired.value = true
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            awaitState { it.isFirstApplyPending }
+
+            containerHost.skipFirstApply().join()
+            containerHost.refresh().join()
+
+            assertTrue(applyLauncher.started.isEmpty())
+            assertFalse(deviceState.isFirstApplyPending.value)
+            assertTrue(deviceState.isSetupComplete.value)
+
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `progress counted in the old steps lands on finishing setup, or keeps its place`() = runTest {
+        // Version 1 had Connect at 4 and Permission at 5: someone who had connected now finishes setup.
+        readyToConnect()
+        deviceState.setupStepsVersion.value = 1
+        deviceState.setupStepsDone.value = 5
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            awaitState { it.current == SetupStep.Finishing }
+            assertEquals(2, deviceState.setupStepsVersion.value)
 
             creating.cancel()
             cancelAndIgnoreRemainingItems()
