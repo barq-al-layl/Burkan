@@ -46,11 +46,15 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] With wireless debugging off, open Home and force-stop Burkan from Settings within ten seconds, while the
       connection is still kept: wireless debugging stays on until Burkan is opened again, and is off once that
       connection has closed. (It used to stay on until the next restart. Covered by tests only.)
+      On Android 17, force-stopped with `am force-stop` in the middle of Restart all apps instead: wireless
+      debugging was off about five seconds after Burkan was opened again (device notes, section 12).
 - [ ] `settings get global adb_allowed_connection_time` on the S23: with Developer options' "Disable adb
       authorization timeout" off, does Burkan's entry under Paired devices lapse after that long without a
       connection, and does the next run then send setup back to Pair? Home now warns while the timeout is on;
       check that the notice shows, that the switch in Developer options takes it away, and that Android lets the
       app read the key at all (if not, the notice never shows).
+      On the S23 with Android 17 the key read 0 over adb: the timeout was switched off, so the lapse could not be
+      tried there.
 - [x] On Android 17, Start pairing asks for the nearby devices permission first, and allowing it goes on to
       Developer options. Pairing, Connect and Home then bring up no "choose a device" picker. (Device notes,
       section 15.)
@@ -85,11 +89,16 @@ checks.
       (reported in #6)
 - [x] `ps -A` shows `io.github.barqallayl.burkan:shell` as `shell` while a run is on and for about ten seconds
       after it, and not once it is over. (reported in #6)
+      On Android 17 it was gone about four seconds after the run.
 - [ ] A command that outlives its timeout is killed in Shizuku's process and the run reports it timed out.
 - [ ] A command Shizuku cannot run fails at once with "Shizuku could not run a command", with no 30-second wait
       for a new shell.
 - [ ] After a restart, with Shizuku starting itself: the run waits for it (up to two minutes), applies Vulkan, and
       needs no Wi-Fi of its own. Record how long Shizuku took to be there after the first unlock.
+      On Android 17, with Shizuku started from its app right after the unlock, it was there 30 seconds before
+      `BOOT_COMPLETED` reached Burkan, and the run went through it (device notes, section 16). Shizuku started
+      while the run already waits is still to try: a running Burkan did not get Shizuku's binder when the server
+      started again under it.
 - [x] After a restart with Shizuku not starting: the run fails with "Shizuku is not running" after two minutes,
       and the notification opens the app. (reported in #6)
 - [x] Shizuku survives System UI's restart and the lock that follows (adbd restarts on every keyguard change,
@@ -104,6 +113,7 @@ checks.
       `dumpsys package <app> | grep stopped` shows `stopped=false` afterwards, and with Sui nothing extra is kept.
 - [ ] `adb logcat` shows "Burkan's shell in Shizuku is up, as uid …" when the shell starts: 2000 when Shizuku
       was started over adb, 0 with root.
+      2000 seen on Android 17, with Shizuku started over adb; root not tried.
 
 ## Applying and status
 
@@ -131,6 +141,9 @@ checks.
       is still listed by `dumpsys alarm` afterwards, and rings. (Seen on an Android 14 emulator only: `stop-app`
       kept Clock's alarm where `force-stop` lost it. Device notes, section 2.) Also whether the apps it stops keep
       their notifications, and whether accessibility services still need putting back.
+      On Android 17: Clock, stopped on its own with `stop-app`, kept its alarm, and so did every app with alarms
+      that a full apply stopped; all open apps but the live wallpaper and `system` ended on Vulkan. Whether the
+      alarm rings, and the notifications, are still to check.
 - [ ] The confirmation before Restart all apps reads true to what happens: every app closed, and those that were
       open or show a widget opened again.
 - [x] What `pm list packages` exits with on a phone with Secure Folder. (0, with an error about the other user
@@ -145,6 +158,8 @@ checks.
       measured (device notes, section 4).
 - [ ] Force-stop Burkan from Settings in the middle of Restart all apps, then open it again: the same settings
       are put back as Home opens.
+      On Android 17 the kept settings were put back and cleared, but none had been changed on that phone, so
+      the values themselves showed nothing.
 - [ ] Opening Home with wireless debugging off refreshes the status, and wireless debugging is off again after.
 - [x] In One UI, a run shows as a list of steps in place of the surfaces, each ticked as it ends, and Done puts
       the surfaces back.
