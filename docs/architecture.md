@@ -144,6 +144,15 @@ The status, and the two actions. The two styles lay it out differently; what it 
   Setup. *Waiting for the lock* is shown, calm rather than amber, when the run after a restart left System UI for
   the next lock and System UI is the one thing still on OpenGL; with anything else on OpenGL too, it is *Partly
   applied*. The headline and its note are read out by TalkBack once, together, when either changes.
+- **The drawn phone** heads the status card in both styles: Welcome's phone, its status bar, home screen and
+  keyboard standing for System UI, the launcher and the keyboard, each in the accent when it is on Vulkan, in grey on
+  OpenGL, and as an outline when it is not known or not drawn yet. New apps have no part: they are the list's first
+  row. Waiting for the lock puts a padlock in the status bar. While the status is read and during a run the parts
+  are outlines, and a line passes slowly down the phone, over and over, as the card's progress indicator. When a run
+  the user watched ends, the line passes once more and the parts take their new colours as it reaches them, as on
+  Welcome; opening or coming back to Home shows the phone as it is, at once. With Android's animations removed, and
+  in previews, nothing moves. The drawing says nothing to TalkBack: the headline and the rows say it all in words.
+  It is `PhoneDrawing` in `designsystem/component`, which Welcome draws with too.
 - **When the status cannot be read**, the status card says why under the headline, with Try again (or Allow, where
   a permission is missing) beneath it; nothing else on the screen repeats the reason. The rows say "Unknown", and
   Apply now and Restart all apps are unavailable until the phone can be asked.

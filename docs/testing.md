@@ -370,6 +370,12 @@ checks.
 - [ ] With a filter on, the Log's count reads "2 of 5 runs"; "Not finished" holds cancelled runs and those left for
       the lock.
 
+- [ ] Home's drawn phone: each part in the accent or grey as the rows below say, outlines with a slow repeating
+      line while the status is read or a run is under way, and one redraw when a watched run ends, not when Home
+      only opens; with Android's animations removed, nothing moves.
+- [ ] After a restart that left System UI for the lock, the drawn phone's status bar carries the padlock.
+- [ ] Welcome's phone redraws exactly as it did before it moved onto the shared drawing.
+
 ## The lock screen, the launcher and the screens
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has

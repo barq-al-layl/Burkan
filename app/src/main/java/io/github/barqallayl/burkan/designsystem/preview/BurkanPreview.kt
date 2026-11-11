@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.designsystem.preview
 
 import io.github.barqallayl.burkan.core.ui.LocalToday
+import io.github.barqallayl.burkan.designsystem.component.LocalStillDrawings
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -54,6 +55,8 @@ fun BurkanPreviewTheme(
     CompositionLocalProvider(
         LocalCurrentYear provides PREVIEW_YEAR,
         LocalToday provides PREVIEW_TODAY,
+        // A screenshot is of how a drawing ends; one that keeps moving would never let it be taken.
+        LocalStillDrawings provides true,
         LocalDensity provides Density(density.density, density.fontScale * fontScale),
         LocalGlassBlurs provides false,
     ) {

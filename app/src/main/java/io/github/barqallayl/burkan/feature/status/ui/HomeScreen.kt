@@ -39,7 +39,6 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -652,8 +651,6 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
     val status = state.status
     val failed = status as? StatusState.Failed
     val run = state.run as? ApplyRunState.Running
-    val headline = state.headline
-    val busy = run != null || (headline == null && failed == null)
     BurkanSegment(index = 0, count = 1) {
         Column(
             modifier = Modifier
@@ -663,37 +660,10 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // The answer first, large enough to read at a glance: a badge in the answer's tone, then the words.
-            val tone = if (busy) Tone.Neutral else headline?.tone ?: Tone.Neutral
-            if (busy) {
-                Box(
-                    modifier = Modifier
-                        .size(BADGE_SIZE)
-                        .background(tone.colors.container, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Material's loading indicator is for a wait of a few seconds, which reading the status and
-                    // the light apply are. Restarting every app takes most of a minute: a progress indicator's.
-                    if (run?.kind == ApplyKind.Full) {
-                        CircularWavyProgressIndicator(
-                            modifier = Modifier.size(BADGE_ICON_SIZE),
-                            color = tone.colors.content,
-                            trackColor = tone.colors.content.copy(alpha = TRACK_ALPHA),
-                        )
-                    } else {
-                        LoadingIndicator(
-                            modifier = Modifier.size(BADGE_ICON_SIZE),
-                            color = tone.colors.content,
-                        )
-                    }
-                }
-            } else {
-                BurkanIconBadge(
-                    headline?.icon ?: failed?.error.failureIcon(),
-                    tone = tone,
-                    size = BADGE_SIZE,
-                )
-            }
+            // The phone first, each part in what it draws with: the answer at a glance, before the words.
+            HomePhone(state, Modifier
+                .fillMaxWidth()
+                .height(PHONE_HEIGHT))
             // The answer changes by itself, as the phone is read and as a run goes on. The headline and its note are
             // one thing to TalkBack, read out once when either changes, without taking over from what is being read.
             Column(
@@ -784,9 +754,6 @@ private const val STALE_ALPHA = 0.7f
 /** False once the open apps have been read and none is behind: there is then nothing to warn of. */
 private val HomeState.mayHaveAppsBehind: Boolean get() = behind?.isEmpty() != true
 
-/** The track of the progress indicator, as a share of the indicator's own colour. */
-private const val TRACK_ALPHA = 0.16f
-
 /** A group's label, with the gap above it that parts the group from the one before. */
 @Composable
 private fun SectionLabel(text: Int) {
@@ -849,6 +816,10 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     .padding(top = 28.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                HomePhone(state, Modifier
+                    .padding(bottom = 16.dp)
+                    .fillMaxWidth()
+                    .height(PHONE_HEIGHT))
                 // The headline and its note are one thing to TalkBack, read out once when either changes.
                 Column(
                     modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -1179,9 +1150,6 @@ private fun AppError.failureTitle(): Int = when (type()) {
 private fun AppError.retryLabel(): Int =
     if (type() == AppErrorType.LocalNetworkDenied) R.string.home_allow else R.string.home_retry
 
-private fun AppError?.failureIcon(): ImageVector =
-    if (this?.type() == AppErrorType.NoWifi) Tabler.Outline.WifiOff else Tabler.Outline.QuestionMark
-
 /**
  * One UI's own colours for a state: green for what is as it should be, orange for what needs attention. They are
  * fixed, whatever accent the user has chosen, so a state never reads as a mere highlight.
@@ -1454,22 +1422,9 @@ private fun ColumnScope.SlidingNotice(visible: Boolean, content: @Composable () 
     }
 }
 
-private val BADGE_SIZE = 72.dp
-private val BADGE_ICON_SIZE = 40.dp
-
 /** After a manual light apply, apps that were already open are still on OpenGL; the status must not hide that. */
 private fun RunLogEntry?.isManualLightApply(): Boolean =
     this != null && kind == ApplyKind.Light && trigger == RunTrigger.Manual && result == RunResult.Succeeded
-
-// An icon and words for each: never colour alone.
-private val Headline.icon: ImageVector
-    get() = when (this) {
-        Headline.VulkanActive -> Tabler.Outline.Check
-        Headline.NotApplied -> Tabler.Outline.X
-        Headline.PartlyApplied -> Tabler.Outline.AlertTriangle
-        Headline.WaitingForLock -> Tabler.Outline.Lock
-        Headline.Unknown -> Tabler.Outline.QuestionMark
-    }
 
 private val Headline.tone: Tone
     get() = when (this) {
