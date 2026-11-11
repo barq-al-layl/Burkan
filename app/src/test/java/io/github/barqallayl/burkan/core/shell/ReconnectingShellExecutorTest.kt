@@ -66,6 +66,32 @@ class ReconnectingShellExecutorTest {
     }
 
     @Test
+    fun `once reconnecting has failed, later commands fail at once without trying again`() = runTest {
+        // A step lost its shell and was not sent again; Shizuku, say, has stopped.
+        reconnectSucceeds = false
+        shell.failOnce(ShellCommands.crash(ShellCommands.SystemUi), ShellError.ConnectionLost)
+        executor.run(ShellCommands.crash(ShellCommands.SystemUi))
+
+        val first = ShellCommands.putSetting(SettingKey.AutoRotation, "1")
+        val second = ShellCommands.putSetting(SettingKey.EdgeEnabled, "1")
+        assertEquals(ShellError.NotConnected.left(), executor.run(first))
+        assertEquals(ShellError.NotConnected.left(), executor.run(second))
+
+        assertEquals(1, reconnects, "the second command does not wait out another reconnection")
+        assertEquals(1, shell.lines.size, "neither was sent")
+    }
+
+    @Test
+    fun `a lost connection that comes back leaves the next one free to reconnect`() = runTest {
+        shell.failOnce(ShellCommands.getRenderer(), ShellError.ConnectionLost)
+        executor.run(ShellCommands.getRenderer())
+        shell.failOnce(ShellCommands.getRenderer(), ShellError.ConnectionLost)
+
+        assertEquals(ok, executor.run(ShellCommands.getRenderer()))
+        assertEquals(2, reconnects)
+    }
+
+    @Test
     fun `a command the shell could not run is not sent again, and nothing reconnects`() = runTest {
         shell.failOnce(ShellCommands.getRenderer(), ShellError.Failed)
 
