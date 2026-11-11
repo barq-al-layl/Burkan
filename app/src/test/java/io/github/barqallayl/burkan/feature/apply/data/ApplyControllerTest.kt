@@ -4,6 +4,7 @@ import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.ShellBackend
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.STOP_ALL_PREFIX
@@ -101,6 +102,24 @@ class ApplyControllerTest {
             entry.steps.map { it.kind },
         )
         assertEquals(ApplyRunState.Idle, controller.state.value)
+    }
+
+    @Test
+    fun `a fault of the app's own fails the run instead of taking the app down`() = runTest {
+        shell.beforeEach = { command ->
+            if (command.line.startsWith("setprop")) throw IllegalStateException("a bug")
+        }
+
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        assertEquals(RunResult.Failed, outcome?.result)
+        assertEquals(UnexpectedError, outcome?.error)
+        val entry = log.runs.value.single()
+        assertEquals(RunResult.Failed, entry.result)
+        assertEquals(AppErrorType.Unexpected, entry.error)
+        // The next run is not locked out.
+        shell.beforeEach = {}
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Light, RunTrigger.Manual)?.result)
     }
 
     @Test

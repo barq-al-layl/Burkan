@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.status.ui
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
+import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -10,6 +11,8 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.UnexpectedError
+import kotlinx.coroutines.CancellationException
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.store.SettingsStore
@@ -186,8 +189,15 @@ class HomeViewModel(
     fun refresh(): Job = intent {
         if (state.run is ApplyRunState.Running || state.isRefreshing) return@intent
         reduce { state.copy(isRefreshing = true) }
-        val status =
+        val status = try {
             statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Shown as a failed read, with its way to try again: left to fly, no later read would ever start.
+            Logger.e(e) { "Reading the status failed unexpectedly" }
+            StatusState.Failed(UnexpectedError)
+        }
         // The open apps are asked about once the status is on the screen: it is the slower of the two questions.
         val loaded = status is StatusState.Loaded
         val pairingCanLapse = statusRepository.pairingCanLapse()

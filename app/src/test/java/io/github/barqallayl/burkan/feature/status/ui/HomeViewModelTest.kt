@@ -5,6 +5,7 @@ import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.feature.settings.data.FakeInstalledApps
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
@@ -132,6 +133,26 @@ class HomeViewModelTest {
             containerHost.refresh()
 
             assertEquals(notApplied, awaitState { !it.isRefreshing && it.status != StatusState.Loading }.status)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `a read that throws shows as failed, and the next one still runs`() = runTest {
+        shell.beforeEach = { throw IllegalStateException("a bug") }
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.refresh()
+            assertEquals(
+                StatusState.Failed(UnexpectedError),
+                awaitState { !it.isRefreshing && it.status != StatusState.Loading }.status,
+            )
+
+            shell.beforeEach = {}
+            containerHost.refresh()
+            assertEquals(notApplied, awaitState { !it.isRefreshing && it.status == notApplied }.status)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

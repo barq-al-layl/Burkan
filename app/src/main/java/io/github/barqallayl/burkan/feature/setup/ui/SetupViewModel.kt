@@ -3,6 +3,10 @@ package io.github.barqallayl.burkan.feature.setup.ui
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import arrow.core.flatten
+import arrow.core.left
+import co.touchlab.kermit.Logger
+import io.github.barqallayl.burkan.core.model.UnexpectedError
+import kotlinx.coroutines.CancellationException
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
@@ -245,19 +249,28 @@ class SetupViewModel(
     private fun runStep(step: SetupStep): Job = intent {
         if (!connecting.compareAndSet(false, true)) return@intent
         reduce { state.copy(isConnecting = true, failure = null) }
-        val result = shellAccess.withShell { shell ->
-            either {
-                if (step == SetupStep.Connect) {
-                    val echo = shell.run(ShellCommands.echoOk()).bind()
-                    ensure(echo.exitCode == 0) { ConnectionError.ConnectFailed }
-                    connected = true
-                } else {
-                    val grant = shell.run(ShellCommands.grantWriteSecureSettings(ownPackage)).bind()
-                    ensure(grant.exitCode == 0 && wirelessDebugging.canSwitch()) { SetupError.GrantFailed }
+        val result = try {
+            shellAccess.withShell { shell ->
+                either {
+                    if (step == SetupStep.Connect) {
+                        val echo = shell.run(ShellCommands.echoOk()).bind()
+                        ensure(echo.exitCode == 0) { ConnectionError.ConnectFailed }
+                        connected = true
+                    } else {
+                        val grant = shell.run(ShellCommands.grantWriteSecureSettings(ownPackage)).bind()
+                        ensure(grant.exitCode == 0 && wirelessDebugging.canSwitch()) { SetupError.GrantFailed }
+                    }
                 }
-            }
-        }.flatten()
-        connecting.set(false)
+            }.flatten()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Said on the step, where the user can try again: left to fly, the step would never run again.
+            Logger.e(e) { "The setup step failed unexpectedly" }
+            UnexpectedError.left()
+        } finally {
+            connecting.set(false)
+        }
         reduce { state.copy(isConnecting = false, failure = result.leftOrNull()) }
         if (result.isRight()) refresh()
     }

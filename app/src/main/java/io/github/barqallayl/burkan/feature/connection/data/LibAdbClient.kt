@@ -52,9 +52,9 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     override suspend fun pair(host: String, port: Int, code: String): Either<PairingError, Unit> =
         withContext(Dispatchers.IO) {
-            // Loading, or on first use generating, the key is too slow for the main thread.
-            val manager = manager()
             try {
+                // Loading, or on first use generating, the key is too slow for the main thread.
+                val manager = manager()
                 runInterruptible { manager.pair(host, port, code) }
                 Unit.right()
             } catch (e: CancellationException) {
@@ -66,8 +66,8 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
 
     override suspend fun connect(host: String, port: Int): Either<ConnectionError, Unit> =
         withContext(Dispatchers.IO) {
-            val manager = manager()
             try {
+                val manager = manager()
                 // The manager refuses to connect while it holds a connection, so drop any stale one first.
                 manager.disconnect()
                 if (runInterruptible { manager.connect(host, port) }) {
@@ -83,6 +83,11 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
                 ConnectionError.NotAuthorised.left()
             } catch (e: IOException) {
                 Logger.w(e) { "Connecting to $host:$port failed" }
+                ConnectionError.ConnectFailed.left()
+            } catch (e: RuntimeException) {
+                // libadb and the TLS provider under it have more ways to fail than they declare. None of them is a
+                // reason to take the app down: to the caller it is a connection that was not made.
+                Logger.w(e) { "Connecting to $host:$port failed unexpectedly" }
                 ConnectionError.ConnectFailed.left()
             }
         }

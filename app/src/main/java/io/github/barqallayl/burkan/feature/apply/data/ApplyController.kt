@@ -5,6 +5,8 @@ import arrow.core.Either
 import arrow.core.flatten
 import arrow.core.raise.either
 import arrow.core.raise.ensure
+import co.touchlab.kermit.Logger
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
@@ -276,6 +278,13 @@ class ApplyController(
         } catch (e: CancellationException) {
             result = RunResult.Cancelled
             throw e
+        } catch (e: Exception) {
+            // A fault of the app's own. The run is logged as failed, which it did, and the service lives to put
+            // back what the run had changed; thrown on, it would be logged as cancelled and take the app down.
+            Logger.e(e) { "The run failed unexpectedly" }
+            runError = UnexpectedError
+            result = RunResult.Failed
+            return RunOutcome(result, runError, status)
         } finally {
             withContext(NonCancellable) {
                 // Home shows what the run read, so nothing needs the connection now: close it and put the switch back.
