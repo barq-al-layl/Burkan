@@ -1122,7 +1122,12 @@ private fun StatusMark(icon: ImageVector, tone: Tone, size: Dp) {
         BurkanIconBadge(icon, tone = Tone.Neutral, size = size)
         return
     }
-    Box(modifier = Modifier.size(size).background(fill, CircleShape), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(fill, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(size * MARK_GLYPH_SHARE), tint = MarkGlyph)
     }
 }
@@ -1152,7 +1157,13 @@ private fun Surfaces(state: HomeState, onRetry: () -> Unit, onShowBehind: () -> 
             SurfaceRow(1, Tabler.Outline.Stack2, R.string.home_row_system_ui, renderers?.systemUi)
             SurfaceRow(2, Tabler.Outline.Home, R.string.home_row_launcher, renderers?.launcher)
             SurfaceRow(3, Tabler.Outline.Keyboard, R.string.home_row_keyboard, renderers?.keyboard)
-            OpenAppsRow(4, renderers?.newApps, state.behind, state.isCheckingBehind, onShowBehind.takeUnless { running })
+            OpenAppsRow(
+                4,
+                renderers?.newApps,
+                state.behind,
+                state.isCheckingBehind,
+                onShowBehind.takeUnless { running },
+            )
         }
         if (failed != null) {
             BurkanSegment(index = 0, count = 1, modifier = Modifier.matchParentSize()) {

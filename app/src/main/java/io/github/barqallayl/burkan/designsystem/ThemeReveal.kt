@@ -2,7 +2,6 @@ package io.github.barqallayl.burkan.designsystem
 
 import android.app.Activity
 import android.content.ContextWrapper
-import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
@@ -52,6 +51,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -204,9 +204,11 @@ fun <T> ThemeReveal(target: T, content: @Composable (applied: T) -> Unit) {
         }
     }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .onGloballyPositioned { coordinates = it }) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coordinates = it },
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -310,7 +312,7 @@ private suspend fun pictureOf(view: View, coordinates: LayoutCoordinates?, layer
 
 private suspend fun copyFromWindow(window: Window, bounds: Rect): ImageBitmap? =
     suspendCancellableCoroutine { continuation ->
-        val bitmap = Bitmap.createBitmap(bounds.width.toInt(), bounds.height.toInt(), Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(bounds.width.toInt(), bounds.height.toInt())
         val source = android.graphics.Rect(
             bounds.left.toInt(),
             bounds.top.toInt(),
