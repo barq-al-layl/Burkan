@@ -2,7 +2,7 @@ package io.github.barqallayl.burkan.feature.log.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.stringPreferencesKey
 import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.AppScope
@@ -58,7 +58,7 @@ class DataStoreRunLogStorage(private val dataStore: DataStore<Preferences>) : Ru
     override val unreadable: Flow<Boolean> = read.map { it.unreadable }.distinctUntilChanged()
 
     override suspend fun add(entry: RunLogEntry) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             val runs = listOf(entry.toStored()) + storedRuns(preferences[KEY])
             preferences[KEY] = json.encodeToString(runs.take(RunLogStorage.CAPACITY))
         }

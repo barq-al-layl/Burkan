@@ -16,6 +16,8 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.shell.OutputTooLargeException
+import io.github.barqallayl.burkan.core.shell.ShellProtocolDecoder
 import io.github.barqallayl.burkan.core.shell.ShellCommand
 import io.github.barqallayl.burkan.core.shell.ShellError
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
@@ -35,6 +37,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import java.io.IOException
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.seconds
@@ -251,6 +254,10 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
             Logger.w(e) { "Burkan's shell in Shizuku went away" }
             service = null
             ShellError.ConnectionLost.left()
+        } catch (_: OutputTooLargeException) {
+            // The shell is given up on with it, as it is still writing: the next command starts another.
+            service = null
+            ShellError.Failed.left()
         } catch (e: IOException) {
             // A pipe that failed under a read or a close: the output is not whole, so the command is not trusted.
             Logger.w(e) { "Reading a command's output from Burkan's shell in Shizuku failed" }
@@ -269,8 +276,19 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         }
     }
 
+    /** Everything written to the pipe, up to [ShellProtocolDecoder.MAX_OUTPUT]: past that the read is given up. */
     private fun ParcelFileDescriptor.readText(): String =
-        ParcelFileDescriptor.AutoCloseInputStream(this).use { it.readBytes().toString(Charsets.UTF_8) }
+        ParcelFileDescriptor.AutoCloseInputStream(this).use { input ->
+            val text = ByteArrayOutputStream()
+            val buffer = ByteArray(PIPE_BUFFER)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                text.write(buffer, 0, count)
+                if (text.size() > ShellProtocolDecoder.MAX_OUTPUT) throw OutputTooLargeException()
+            }
+            text.toString(Charsets.UTF_8)
+        }
 
     /** One pipe for a command's output and one for its errors. The first is closed if the second cannot be made. */
     private fun pipes(): Pair<Array<ParcelFileDescriptor>, Array<ParcelFileDescriptor>> {
@@ -295,6 +313,7 @@ class RikkaShizukuClient(private val application: Application) : ShizukuClient {
         const val REQUEST_CODE = 1
         const val READ = 0
         const val WRITE = 1
+        const val PIPE_BUFFER = 64 * 1024
         val BIND_TIMEOUT = 10.seconds
     }
 }

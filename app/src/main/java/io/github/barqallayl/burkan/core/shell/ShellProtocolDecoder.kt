@@ -40,6 +40,7 @@ class ShellProtocolDecoder {
                 ID_EXIT -> exitCode = if (length > 0) pending[dataStart].toInt() and 0xFF else 0
                 // Window-size and stdin packets only ever go to the device.
             }
+            if (stdout.size() + stderr.size() > MAX_OUTPUT) throw OutputTooLargeException()
             offset = dataStart + length
         }
         pending.copyInto(pending, destinationOffset = 0, startIndex = offset, endIndex = pendingSize)
@@ -66,6 +67,12 @@ class ShellProtocolDecoder {
         const val ID_STDERR = 2
         const val ID_EXIT = 3
         const val HEADER_SIZE = 5
+
+        /**
+         * The most output a command may give. The largest the app asks for, `dumpsys` of every process, is a few
+         * megabytes; past this something else is answering, and it is not held in memory to find out what.
+         */
+        const val MAX_OUTPUT = 16 * 1024 * 1024
         private const val INITIAL_CAPACITY = 64 * 1024
 
         /** The most adb carries in one message, so a shell packet inside one is never longer. */

@@ -25,7 +25,8 @@ data class LogSource(val appVersion: String, val model: String, val androidRelea
 /**
  * The log as the text of a `.log` file: a header saying where it came from, then each run as a line followed by its
  * steps, one to a line, every line starting with the moment or with a mark in the same column. It holds what the
- * screen shows and no more: no key, and none of the user's apps by name.
+ * screen shows and no more: no key, and no list of the user's apps. A command that failed is quoted by the first
+ * line of what it said, and that line can name the one app it was about.
  */
 fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt: Instant, zone: ZoneId): String =
     buildString {

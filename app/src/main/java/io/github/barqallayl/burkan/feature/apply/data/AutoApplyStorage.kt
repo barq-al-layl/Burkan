@@ -3,7 +3,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -59,7 +59,7 @@ class DataStoreAutoApplyStorage(
         .distinctUntilChanged()
 
     override suspend fun set(state: AutoApplyState) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             preferences.remove(Keys.waitingFor)
             preferences.remove(Keys.triedNetwork)
             state.waitingFor?.let { preferences[Keys.waitingFor] = it.name }
@@ -74,7 +74,7 @@ class DataStoreAutoApplyStorage(
         .first()[Keys.lastBoot]
 
     override suspend fun setLastBoot(count: Int) {
-        dataStore.edit { it[Keys.lastBoot] = count }
+        dataStore.editOrLog { it[Keys.lastBoot] = count }
     }
 
     private object Keys {

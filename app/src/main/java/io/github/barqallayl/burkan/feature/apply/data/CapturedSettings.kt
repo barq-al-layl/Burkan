@@ -2,7 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -120,7 +120,7 @@ class DataStoreCapturedSettingsStorage(
     override suspend fun keptAt(): Instant? = preferences()[KEPT_AT]?.let(Instant::fromEpochMilliseconds)
 
     override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             RestoredSetting.entries.forEach { setting ->
                 val value = values[setting]
                 if (value == null) preferences.remove(key(setting)) else preferences[key(setting)] = value

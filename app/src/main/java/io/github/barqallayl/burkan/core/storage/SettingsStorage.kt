@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -144,7 +143,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override suspend fun setAllowExternalTriggers(enabled: Boolean) = write(Keys.allowExternalTriggers, enabled)
 
     override suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             preferences[Keys.userExclusions] = change(preferences.userExclusions()).map { it.value }.toSet()
         }
     }
@@ -156,7 +155,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         preferences.map(transform).distinctUntilChanged()
 
     private suspend fun <T> write(key: Preferences.Key<T>, value: T) {
-        dataStore.edit { it[key] = value }
+        dataStore.editOrLog { it[key] = value }
     }
 
     private inline fun <reified E : Enum<E>> Preferences.enumValue(key: Preferences.Key<String>): E? =

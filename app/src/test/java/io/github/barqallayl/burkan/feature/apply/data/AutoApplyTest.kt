@@ -91,6 +91,10 @@ class AutoApplyTest {
 
     @Test
     fun `the watch for the lock lasts as long as the phone takes to lock, within limits`() {
+        // And a phone that gives no boot count is told apart by the minute it started.
+        val startedAt = 1_800_000_000_000L
+        assertEquals(bootMinute(startedAt + 5_000, 5_000), bootMinute(startedAt + 3_600_000, 3_600_000))
+        assertTrue(bootMinute(startedAt + 120_000, 0) > bootMinute(startedAt, 0))
         assertEquals(SHORTEST_LOCK_WAIT, lockWait(0.seconds))
         assertEquals(SHORTEST_LOCK_WAIT, lockWait(5.seconds))
         assertEquals(35.seconds, lockWait(30.seconds))

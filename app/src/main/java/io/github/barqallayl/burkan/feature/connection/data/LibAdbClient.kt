@@ -11,6 +11,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.ShellStream
 import io.github.barqallayl.burkan.core.shell.ShellStreamOpener
+import io.github.barqallayl.burkan.core.shell.StreamRefusedException
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.connection.model.PairingError
 import io.github.muntashirakon.adb.AbsAdbConnectionManager
@@ -110,6 +111,9 @@ class LibAdbClient(private val keyStore: AdbKeyStore) : AdbClient {
         // libadb reports a connection that went away in more ways than one; to the caller they all mean not connected.
         val stream = try {
             manager.openStream(destination)
+        } catch (e: ConnectException) {
+            // Not a connection that went away: the daemon is there and said no to this stream.
+            throw StreamRefusedException(e)
         } catch (e: IllegalStateException) {
             throw IOException(e)
         } catch (e: InterruptedException) {

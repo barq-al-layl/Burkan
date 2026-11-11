@@ -62,7 +62,14 @@ class ApplyTileService(
     }
 
     override fun onClick() {
-        scope.launch { trigger.onTile() }
+        // From a locked phone the tile asks for the unlock first. A run started with nobody watching restarts
+        // System UI only under a locked phone: without this, whoever holds the phone could do that from its lock
+        // screen.
+        if (isSecure && isLocked) {
+            unlockAndRun { scope.launch { trigger.onTile() } }
+        } else {
+            scope.launch { trigger.onTile() }
+        }
     }
 
     override fun onDestroy() {

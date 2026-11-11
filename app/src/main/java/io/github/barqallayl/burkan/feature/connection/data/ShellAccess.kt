@@ -88,6 +88,17 @@ class AdbShellAccess(
     private var connection: OpenConnection? = null
     private var closing: Job? = null
 
+    init {
+        // What the app switched on is the app's to switch off, and the flag that says so outlives the process. But
+        // wireless debugging found off was switched off by someone since, and if it is on the next time, that was
+        // not the app: the flag is dropped, so the user's own switch is left alone.
+        scope.launch {
+            mutex.withLock {
+                if (connection == null && !wirelessDebugging.isOn()) deviceState.setSwitchedOnWirelessDebugging(false)
+            }
+        }
+    }
+
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,

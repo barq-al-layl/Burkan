@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.seconds
 
 /** The notifications a run's end can leave behind. */
@@ -71,10 +73,18 @@ class AutoApply(
     val state: Flow<AutoApplyState> = storage.state
 
     /**
+     * Held while the state is read, decided on and written back. The broadcasts come in on other threads than the
+     * service's, and two of them deciding at once from the same reading would each undo the other's change.
+     */
+    private val changing = Mutex()
+
+    /**
      * `BOOT_COMPLETED` arrived. After a restart, whatever the previous boot was waiting for is forgotten and the
      * apply starts. The same boot count as last time means the phone did not restart: see [resumeThisBoot].
      */
-    suspend fun onBoot() {
+    suspend fun onBoot() = changing.withLock { booted() }
+
+    private suspend fun booted() {
         val boot = bootCount.current()
         if (boot != null && boot == storage.lastBoot()) {
             resumeThisBoot()
@@ -83,7 +93,7 @@ class AutoApply(
         if (boot != null) storage.setLastBoot(boot)
         // A restart switches wireless debugging off, so whatever the app had switched on is off already.
         deviceState.setSwitchedOnWirelessDebugging(false)
-        stopWaiting()
+        forget()
         if (!isEnabled()) return
         if (needsWifi() && !wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
             waitFor(WaitReason.Wifi, triedNetwork = null)
@@ -93,10 +103,12 @@ class AutoApply(
     }
 
     /** A Wi-Fi network came up while waiting. [network] is its handle, or null when the system did not say. */
-    suspend fun onWifiAvailable(network: Long?) {
+    suspend fun onWifiAvailable(network: Long?) = changing.withLock { wifiCameUp(network) }
+
+    private suspend fun wifiCameUp(network: Long?) {
         val current = storage.state.first()
         if (current.waitingFor == null || !isEnabled()) {
-            stopWaiting()
+            forget()
             return
         }
         // The network the last attempt failed on would fail the same way again. The watch is used up by having said
@@ -111,12 +123,14 @@ class AutoApply(
      * may have been the one already tried. Started again for as long as something is waited for, and stopped for
      * good otherwise.
      */
-    suspend fun onWifiWatchDue() {
+    suspend fun onWifiWatchDue() = changing.withLock {
         if (storage.state.first().waitingFor != null && isEnabled()) wifiWatch.start() else wifiWatch.stop()
     }
 
     /** A run has ended. Decides what the automatic apply waits for next, and what the user is told. */
-    suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) {
+    suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) = changing.withLock { runEnded(trigger, outcome) }
+
+    private suspend fun runEnded(trigger: RunTrigger, outcome: RunOutcome) {
         val tried = storage.state.first().triedNetwork
         // The apply after a restart works unseen, so it says when it is done. While System UI is still left for
         // the lock, the service's own notification says that, and this waits for the run at the lock.
@@ -131,7 +145,7 @@ class AutoApply(
             // Restarting the open apps applies nothing: System UI is still left for the lock, or the apply after a
             // restart still waits for Wi-Fi, as before it.
             done && outcome.appsOnly -> Unit
-            done -> stopWaiting()
+            done -> forget()
             // At the lock adbd has just restarted, and the first try can come too soon for it: the run could not
             // connect, or lost its connection. System UI stays left for the lock, and it is tried again, a few
             // times and no more.
@@ -146,10 +160,10 @@ class AutoApply(
                 alerts.showFailure(outcome.error)
             }
             outcome.result == RunResult.Failed -> {
-                stopWaiting()
+                forget()
                 alerts.showFailure(outcome.error)
             }
-            else -> stopWaiting()
+            else -> forget()
         }
     }
 
@@ -187,12 +201,14 @@ class AutoApply(
     suspend fun isWaitingForLock(): Boolean = storage.state.first().systemUiAtNextLock
 
     /** The user cancelled the wait for the lock: System UI stays as it is until they apply. */
-    suspend fun cancelSystemUiAtLock() {
+    suspend fun cancelSystemUiAtLock() = changing.withLock {
         storage.set(storage.state.first().copy(systemUiAtNextLock = false))
     }
 
     /** Stops waiting: the user turned the automatic apply off, or setup starts again. */
-    suspend fun stopWaiting() {
+    suspend fun stopWaiting() = changing.withLock { forget() }
+
+    private suspend fun forget() {
         wifiWatch.stop()
         storage.set(AutoApplyState())
     }

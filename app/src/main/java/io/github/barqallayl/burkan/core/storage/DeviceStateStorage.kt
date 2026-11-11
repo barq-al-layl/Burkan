@@ -3,7 +3,6 @@ package io.github.barqallayl.burkan.core.storage
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -66,7 +65,7 @@ class DataStoreDeviceStateStorage(
     override suspend fun setPaired(paired: Boolean) = write(Keys.paired, paired)
 
     override suspend fun setSetupStepsDone(count: Int) {
-        dataStore.edit { it[Keys.setupStepsDone] = count }
+        dataStore.editOrLog { it[Keys.setupStepsDone] = count }
     }
 
     override suspend fun setSetupComplete(complete: Boolean) = write(Keys.setupComplete, complete)
@@ -78,7 +77,7 @@ class DataStoreDeviceStateStorage(
         preferences.map { it[key] ?: false }.distinctUntilChanged()
 
     private suspend fun write(key: Preferences.Key<Boolean>, value: Boolean) {
-        dataStore.edit { it[key] = value }
+        dataStore.editOrLog { it[key] = value }
     }
 
     private object Keys {

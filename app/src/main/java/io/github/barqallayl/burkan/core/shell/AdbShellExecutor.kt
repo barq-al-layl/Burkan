@@ -25,9 +25,18 @@ interface ShellStream : Closeable {
 
 /** Opens streams on a live adb connection. */
 fun interface ShellStreamOpener {
-    /** Throws [IOException] when there is no connection to open it on. */
+    /**
+     * Throws [IOException] when there is no connection to open it on, and [StreamRefusedException] when there is
+     * one and the daemon refused the stream.
+     */
     fun open(destination: String): ShellStream
 }
+
+/** The daemon answered and would not open the stream. Connecting again would get the same answer. */
+class StreamRefusedException(cause: Throwable? = null) : IOException("The daemon refused the stream", cause)
+
+/** A command said more than [ShellProtocolDecoder.MAX_OUTPUT]: more than any the app sends has reason to. */
+class OutputTooLargeException : IOException("The command's output is too large")
 
 /**
  * Runs commands through adb's `shell,v2` service, which reports the exit code and keeps stderr apart.
@@ -48,6 +57,8 @@ class AdbShellExecutor(
             withTimeout(command.timeout) { runInterruptible { streams.open("shell,v2,raw:${command.line}") } }
         } catch (_: TimeoutCancellationException) {
             return@withContext ShellError.TimedOut.left()
+        } catch (_: StreamRefusedException) {
+            return@withContext ShellError.Failed.left()
         } catch (_: IOException) {
             // libadb reports being interrupted as an IOException as well.
             ensureActive()
@@ -64,6 +75,9 @@ class AdbShellExecutor(
         try {
             runInterruptible { readUntilExit(stream, decoder) }
             decoder.result()?.right() ?: ShellError.ConnectionLost.left()
+        } catch (_: OutputTooLargeException) {
+            // Not for sending again: it would say as much the second time.
+            ShellError.Failed.left()
         } catch (_: IOException) {
             // The daemon may close the stream right after the exit packet; the result is complete by then.
             val error = if (timedOut.get()) ShellError.TimedOut else ShellError.ConnectionLost
