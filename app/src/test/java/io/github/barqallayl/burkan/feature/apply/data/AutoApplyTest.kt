@@ -114,6 +114,42 @@ class AutoApplyTest {
         }
 
     @Test
+    fun `BOOT_COMPLETED with wireless debugging still on leaves it the app's to switch off`() = runTest {
+        // Seen on a Galaxy S23: the app force-stopped mid-run, before it had kept a boot count, and opened again.
+        wirelessDebugging.on = true
+        deviceState.switchedOnWirelessDebugging.value = true
+
+        autoApply.onBoot()
+
+        assertTrue(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
+    fun `a run that ends keeps the boot, so BOOT_COMPLETED later in it is not a restart`() = runTest {
+        // Installed and set up, then a run: the app has not seen this boot's BOOT_COMPLETED.
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        // A force-stop, and the app opened again.
+        autoApply.onBoot()
+
+        assertEquals(0, launcher.automaticStarts)
+        assertEquals(1, storage.lastBoot)
+    }
+
+    @Test
+    fun `a run that ends leaves a boot already kept alone`() = runTest {
+        autoApply.onBoot()
+        bootCount.count = 2
+
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        // Only BOOT_COMPLETED says the phone restarted; a run in between must not hide that.
+        assertEquals(1, storage.lastBoot)
+        autoApply.onBoot()
+        assertEquals(2, launcher.automaticStarts)
+    }
+
+    @Test
     fun `BOOT_COMPLETED again in the same boot is not a restart, and applies nothing`() = runTest {
         autoApply.onBoot()
         assertEquals(1, launcher.automaticStarts)

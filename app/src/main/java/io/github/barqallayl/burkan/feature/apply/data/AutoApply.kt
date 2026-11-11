@@ -81,6 +81,9 @@ class AutoApply(
     /**
      * `BOOT_COMPLETED` arrived. After a restart, whatever the previous boot was waiting for is forgotten and the
      * apply starts. The same boot count as last time means the phone did not restart: see [resumeThisBoot].
+     *
+     * Android also sends it when an app that was force-stopped is opened again. Until the first one after an install
+     * there is no boot count to compare with, so [runEnded] keeps this boot's as well.
      */
     suspend fun onBoot() = changing.withLock { booted() }
 
@@ -91,8 +94,10 @@ class AutoApply(
             return
         }
         if (boot != null) storage.setLastBoot(boot)
-        // A restart switches wireless debugging off, so whatever the app had switched on is off already.
-        deviceState.setSwitchedOnWirelessDebugging(false)
+        // A restart switches wireless debugging off, so whatever the app had switched on is off already. Still on,
+        // this was no restart after all (on a Galaxy S23, a force-stop with no boot count kept yet), and what the app
+        // switched on is still its own to switch off.
+        if (!wirelessDebugging.isOn()) deviceState.setSwitchedOnWirelessDebugging(false)
         forget()
         if (!isEnabled()) return
         if (needsWifi() && !wirelessDebugging.isOn() && !wirelessDebugging.isWifiConnected()) {
@@ -128,9 +133,13 @@ class AutoApply(
     }
 
     /** A run has ended. Decides what the automatic apply waits for next, and what the user is told. */
-    suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) = changing.withLock { runEnded(trigger, outcome) }
+    suspend fun onRunFinished(trigger: RunTrigger, outcome: RunOutcome) =
+        changing.withLock { runEnded(trigger, outcome) }
 
     private suspend fun runEnded(trigger: RunTrigger, outcome: RunOutcome) {
+        // A run in a boot whose BOOT_COMPLETED the app never saw, the first after an install: keep the boot now, so
+        // that one sent later in it, after a force-stop, is not taken for a restart.
+        if (storage.lastBoot() == null) bootCount.current()?.let { storage.setLastBoot(it) }
         val tried = storage.state.first().triedNetwork
         // The apply after a restart works unseen, so it says when it is done. While System UI is still left for
         // the lock, the service's own notification says that, and this waits for the run at the lock.
@@ -245,7 +254,7 @@ class AutoApply(
     private fun AppError?.isPassing(): Boolean = when (this?.type()) {
         AppErrorType.DaemonNotFound, AppErrorType.ConnectFailed, AppErrorType.ConnectionLost,
         AppErrorType.CommandTimedOut,
-        -> true
+            -> true
 
         else -> false
     }
