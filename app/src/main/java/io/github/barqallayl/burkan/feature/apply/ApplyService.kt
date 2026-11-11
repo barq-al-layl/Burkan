@@ -64,6 +64,12 @@ class ApplyService(
     private var run: Job? = null
     private var lockWait: Job? = null
 
+    /** True while the run at the lock is under way, inside [lockWait]. Only the main thread touches it. */
+    private var runningAtLock = false
+
+    /** A run asked for while the run at the lock was under way: started once that one has ended. */
+    private var queued: (() -> Unit)? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -96,11 +102,20 @@ class ApplyService(
                     ?.takeIf { it.isUnattended }
                 val only = intent?.getStringArrayExtra(EXTRA_PACKAGES)
                     ?.mapNotNullTo(mutableSetOf(), PackageName::parse)
-                start(kind, if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual, scope, only)
-                // A run started by hand replaces the wait for the lock; it restarts System UI itself. The wait ends
-                // only once the run is under way: cancelled, it ends at once, on this thread, and stops the service
-                // if nothing else is running then, which takes the run that was about to start down with it.
-                lockWait?.cancel()
+                val trigger = if (automatic) RunTrigger.Boot else unattended ?: RunTrigger.Manual
+                if (runningAtLock) {
+                    // The run at the lock is half way through restarting System UI. Started now, this one would
+                    // find the app busy and be dropped, and ending the wait would cancel the run it lives in. It
+                    // takes its turn instead.
+                    queued = { start(kind, trigger, scope, only) }
+                } else {
+                    start(kind, trigger, scope, only)
+                    // A run started by hand replaces the wait for the lock; it restarts System UI itself. The wait
+                    // ends only once the run is under way: cancelled, it ends at once, on this thread, and stops
+                    // the service if nothing else is running then, which takes the run that was about to start
+                    // down with it.
+                    lockWait?.cancel()
+                }
             }
         }
         // A cancelled run is still restoring settings until it completes; it stops the service itself then.
@@ -130,18 +145,26 @@ class ApplyService(
     private fun awaitLock() {
         lockWait = scope.launch {
             notifications.update(notifications.waitingForLock())
-            autoApply.restartSystemUiAtLocks {
+            autoApply.restartSystemUiAtLocks(goOn = { queued == null }) {
                 // The screen is off: keep the CPU awake for the run.
                 val wakeLock = getSystemService(PowerManager::class.java)
                     .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
                 wakeLock.acquire(RUN_WAKE_LOCK_TIMEOUT.inWholeMilliseconds)
+                runningAtLock = true
                 try {
                     execute(ApplyKind.Light, RunTrigger.AtLock)
                 } finally {
+                    runningAtLock = false
                     if (wakeLock.isHeld) wakeLock.release()
                     // Shown again in case the phone was unlocked first and the wait starts over.
                     notifications.update(notifications.waitingForLock())
                 }
+            }
+            // The run that was waiting its turn. It takes the wait's place: once it has ended, it waits for the
+            // lock again itself if System UI is still left for then.
+            queued?.let { next ->
+                queued = null
+                next()
             }
         }.also { it.invokeOnCompletion { stopIfIdle() } }
     }
@@ -166,6 +189,7 @@ class ApplyService(
     }
 
     private fun cancel() {
+        queued = null
         run?.cancel()
         lockWait?.let { wait ->
             wait.cancel()
@@ -215,6 +239,12 @@ class ApplyService(
 
         /** Waits for the next lock to restart System UI, when a run after a restart left it for then. */
         const val ACTION_AWAIT_LOCK = "io.github.barqallayl.burkan.action.AWAIT_LOCK"
+
+        /** The button on the notice that the apply is done: restart the open apps it left behind. */
+        const val ACTION_RESTART_BEHIND = "io.github.barqallayl.burkan.action.RESTART_BEHIND"
+
+        /** The button on the notice that a run could not start from the background: start it. */
+        const val ACTION_START_REQUESTED = "io.github.barqallayl.burkan.action.START_REQUESTED"
 
         private const val WAKE_LOCK_TAG = "Burkan:apply"
         private val RUN_WAKE_LOCK_TIMEOUT = 2.minutes
@@ -267,7 +297,11 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
             val restart = PendingIntent.getForegroundService(
                 application,
                 0,
-                Intent(application, ApplyService::class.java).putExtra(ApplyService.EXTRA_KIND, ApplyKind.OpenApps.name),
+                // An action of its own. Extras do not tell two intents apart, so without one this button and the
+                // one in showNotStarted would be the same PendingIntent, each doing what the other last said.
+                Intent(application, ApplyService::class.java)
+                    .setAction(ApplyService.ACTION_RESTART_BEHIND)
+                    .putExtra(ApplyService.EXTRA_KIND, ApplyKind.OpenApps.name),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             builder.setContentText(text)
@@ -357,6 +391,7 @@ class ApplyNotifications(private val application: Application) : RunAlerts {
             application,
             0,
             Intent(application, ApplyService::class.java)
+                .setAction(ApplyService.ACTION_START_REQUESTED)
                 .putExtra(ApplyService.EXTRA_KIND, kind.name)
                 .putExtra(ApplyService.EXTRA_TRIGGER, RunTrigger.External.name),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -422,7 +457,12 @@ class ServiceApplyLauncher(private val application: Application) : ApplyLauncher
             Intent(application, ApplyService::class.java)
                 .putExtra(ApplyService.EXTRA_KIND, kind.name)
                 .putExtra(ApplyService.EXTRA_SCOPE, scope.name)
-                .apply { if (only != null) putExtra(ApplyService.EXTRA_PACKAGES, only.map { it.value }.toTypedArray()) },
+                .apply {
+                    if (only != null) putExtra(
+                        ApplyService.EXTRA_PACKAGES,
+                        only.map { it.value }.toTypedArray(),
+                    )
+                },
         )
     }
 
