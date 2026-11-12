@@ -625,3 +625,26 @@ checked by the maintainer, and which of the facts below each covered was not rec
 | Shizuku's permission dialog is shown by Shizuku's app over Burkan; after "deny and don't ask again" it is not shown again, and the permission is given in Shizuku's list of apps | Expected, not checked |
 | A shell from Shizuku raises no "Wireless debugging connected" notification, and needs no Wi-Fi, mDNS or `ACCESS_LOCAL_NETWORK` of Burkan's | Expected, not checked |
 | Shizuku started with root, or Sui, runs the shell as root (uid 0) instead of `shell` (uid 2000). Burkan runs the same fixed commands either way and logs the uid when the shell starts | Expected, not checked: only a Shizuku running as `shell` has been tried |
+
+---
+
+## 17. Secure Folder
+
+Measured on the S23 (Android 17, One UI 9), 12 Nov 2026.
+
+Secure Folder is user 150, of type `android.os.usertype.profile.PRIVATE`, flagged `SECURE_FOLDER`. Its app,
+`com.samsung.knox.securefolder`, is installed in both users: the screen that holds Secure Folder's apps runs in user
+150, and a process of its own runs in user 0.
+
+| What | Result |
+|---|---|
+| The shell and user 150 | `pm` and `am crash` refuse it (sections 2 and 3), but `dumpsys gfxinfo <pid>` reads the renderer of a user-150 process by its pid |
+| Secure Folder open, with My Files in it | `am get-started-user-state 150` says `RUNNING_UNLOCKED`; about 40 `u150_` processes run, Secure Folder's screen and My Files among them, all on `Skia (OpenGL)` while the phone was on OpenGL |
+| An apply | Restarts no process of user 150: the shell may not stop or crash that user's apps. Whether the open apps check counts them was not checked |
+| Secure Folder locked by hand (its own lock, not the phone's) | The system stops the whole user (`stopProfileRegardlessOfParent`, then `stopPackagesOfStoppedUser`): every `u150_` process ends, and user 150 is back in quiet mode, "not started" |
+| Secure Folder unlocked again after an apply, and My Files opened | Both came up on `Skia (Vulkan)`: the renderer property is phone-wide, and a process started after the apply reads it |
+| The user-0 process of Secure Folder's app | Not restarted by the apply here; Android ended it as idle, and it came back on `Skia (Vulkan)`. A full apply that restarts user 0's apps would restart it like any other |
+
+So locking Secure Folder once after an apply brings it and its apps to Vulkan, and the app does not need to do it.
+`am stop-user 150` would do the same as the lock, but was not tried: whether the shell may stop that user is
+unknown, and the lock needs no permission.

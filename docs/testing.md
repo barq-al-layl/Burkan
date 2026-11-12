@@ -175,6 +175,8 @@ checks.
       open or show a widget opened again.
 - [x] What `pm list packages` exits with on a phone with Secure Folder. (0, with an error about the other user
       printed besides the list. Device notes, section 13.)
+- [x] After an apply, locking Secure Folder and unlocking it again brings its screen and its apps up on Vulkan.
+      (Android 17, 12 Nov 2026, My Files. Device notes, section 17.)
 - [x] During a full apply, with other apps relaunched over Burkan, the run carries on to the restore steps and
       the log records it.
 - [x] Cancel from Home stops the run and the settings are put back.

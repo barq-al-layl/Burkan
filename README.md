@@ -206,6 +206,12 @@ No. Burkan switches Wireless Debugging on only for the few seconds a run takes, 
 The Home screen shows what each surface renders with, read from <code>dumpsys gfxinfo</code>. You can also check for yourself by turning on <b>GPUWatch</b> in Developer options and opening any app.
 </details>
 
+<details>
+<summary><b>Why are the apps in Secure Folder still on OpenGL?</b></summary>
+<br>
+Secure Folder is a separate user on the phone, and Android does not let Burkan restart its apps. Apps already open in it keep the renderer they started with. After an apply, lock Secure Folder once, from its own lock button or its Quick Settings tile. Locking closes Secure Folder and every app in it, and when you unlock it they start again on Vulkan.
+</details>
+
 ## Acknowledgements
 
 - Inspired by the research and scripts in [s23-vulkan-support](https://github.com/Ameen-Sha-Cheerangan/s23-vulkan-support).
