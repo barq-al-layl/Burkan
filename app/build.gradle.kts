@@ -126,12 +126,14 @@ tasks.withType<KotlinCompile>().configureEach {
 
 // A failed assertion prints the value of each part of its expression, where it said only "Expected value to be true".
 // Test code only: the plugin rewrites each call into code that builds that message, which has no place in the app.
-// Test compilations are the ones whose names end in "Test" (debugUnitTest and the like); the plugin's own TESTS
-// filter looks for one named "test", which an Android app does not have. The list is the kotlin.test functions the
-// suite calls that take a message last, which is what the plugin needs; a new one gets the diagram once it is here.
+// The JVM tests are the compilations whose names end in "UnitTest" (debugUnitTest and the like); the plugin's own
+// TESTS filter looks for one named "test", which an Android app does not have. Not "Test" alone: that also takes
+// debugAndroidTest, whose classpath then asks for the plugin's runtime with no version, and lint, which resolves that
+// classpath, fails. The list is the kotlin.test functions the suite calls that take a message last, which is what the
+// plugin needs; a new one gets the diagram once it is here.
 // PowerAssertTest fails if the plugin stops being applied.
 powerAssert {
-    compilationFilter = PowerAssertCompilationFilter { it.name.endsWith("Test") }
+    compilationFilter = PowerAssertCompilationFilter { it.name.endsWith("UnitTest") }
     functions = listOf(
         "kotlin.assert",
         "kotlin.test.assertEquals",
