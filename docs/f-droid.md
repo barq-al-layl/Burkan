@@ -102,12 +102,25 @@ the four signed APKs of `7d3ae74`, built on a Mac and by `release.yml` on GitHub
 byte, all four, so they do not depend on the machine that builds them. None has yet been through F-Droid's own
 build server; if one of the three does not reproduce there, look at its native libraries first.
 
-### What 1.1.1 brings that F-Droid has not built yet
+### What 1.2.0 brings that F-Droid has not built yet
 
-F-Droid's bot has added 1.1.1 to the recipe, at commit `8f278e5` with NDK r28c as before, and made it the
-current version; on 23 October 2026 the package page still offered 1.1.0 alone. Each of these builds on a Mac and
-has not yet been through F-Droid's build server. If the build fails, or its APK differs from the published one,
-look here first.
+1.2.0 is version code 4: the first release with an APK for each processor, so the recipe needs the change by hand
+described above. Each of these builds on a Mac and on GitHub, and has not yet been through F-Droid's build server.
+If a build fails, or its APK differs from the published one, look here first.
+
+- **Three APKs instead of one**, with codes 41, 42 and 43, as above.
+- **Shizuku's client libraries**, `dev.rikka.shizuku:api` and `provider` 13.1.5, from Maven Central. They add one
+  permission, `moe.shizuku.manager.permission.API_V23`, which F-Droid lists on the app's page: it lets Burkan ask
+  Shizuku, when the user has chosen Shizuku, for a shell.
+- **Gradle 9.9.1 and the Android Gradle plugin 9.5.1**, with the new distribution's checksum pinned in
+  `gradle/wrapper/gradle-wrapper.properties`.
+- **Conscrypt 2.9.0 and BouncyCastle 1.87.** Conscrypt's native library is stripped with the same NDK r28c.
+- **kotlinx.serialization 1.13.0.**
+
+### What 1.1.1 brought
+
+F-Droid's bot added 1.1.1 to the recipe, at commit `8f278e5` with NDK r28c as before, and F-Droid has published
+it: by 12 November 2026 its API offered 1.1.1 as the suggested version. What it brought that 1.1.0 had not:
 
 - **Android 17's second minor SDK.** The app compiles against SDK 37 minor 2 (`release(37) { minorApiLevel = 2 }`
   in `app/build.gradle.kts`), so the build server has to install that platform; 1.1.0 needed only platform 37.

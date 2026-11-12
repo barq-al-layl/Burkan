@@ -83,7 +83,11 @@ One UI cannot be tested without the device.
 | Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-core`, shown in the app's own list |
 | Tests | JUnit 4, `kotlin-test` with the power-assert plugin, `kotlinx-coroutines-test`, `orbit-test` |
 
-Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpdate` refreshes them.
+Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpdate` refreshes them. Dependabot
+(`.github/dependabot.yml`) also proposes updates every Monday, for the libraries, the Gradle wrapper and the
+actions in the workflows, once a release is a week old. It leaves the pinned versions alone and moves Kotlin and
+Metro together. Two of its pull requests need a hand before they pass: a new libadb needs its checksums recorded
+again, and a new Gradle needs `distributionSha256Sum` to change with it; both are described under "Build" below.
 
 Metro is a compiler plugin tied to the Kotlin version: move Kotlin first, then Metro.
 

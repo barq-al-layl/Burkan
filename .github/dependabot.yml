@@ -1,0 +1,46 @@
+# Dependabot opens a pull request when a library, Gradle or an action has a newer release. Each one is checked by
+# check.yml like any other pull request, and is merged by hand. The rules it has to follow are in CONTRIBUTING.md,
+# under "The stack" and "Build".
+version: 2
+
+registries:
+  # libadb-android and its SPAKE2 library are published only there; see settings.gradle.kts.
+  jitpack:
+    type: maven-repository
+    url: https://jitpack.io
+
+updates:
+  # gradle/libs.versions.toml, and the Gradle wrapper.
+  - package-ecosystem: gradle
+    directory: /
+    registries:
+      - jitpack
+    schedule:
+      interval: weekly
+      day: monday
+    # A release a week old has had time to be withdrawn if it was broken. Security updates are not held back.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    ignore:
+      # Pinned in gradle/libs.versions.toml, with the reason beside each.
+      - dependency-name: "com.mikepenz.aboutlibraries.plugin*"
+      - dependency-name: "io.github.sergio-sastre.ComposablePreviewScanner*"
+    groups:
+      # The compiler, its plugins and Metro, a compiler plugin, move together, or the build breaks.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "dev.zacsweers.metro*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"

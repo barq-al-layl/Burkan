@@ -58,7 +58,8 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 - Restarts System UI at the next screen lock, so the phone never locks in front of you.
 - Turns Wireless Debugging back off afterwards, if Burkan was the one that turned it on.
 - If the phone restarts without Wi-Fi, Burkan waits and applies as soon as a trusted network connects. It keeps the phone awake only for the short time a run takes.
-- Optionally, *Use Shizuku* in Settings gets the shell from Shizuku instead of from Wireless Debugging, for a phone where Shizuku already starts itself after a restart, such as with a fork that has start on boot. Burkan then needs no pairing and no Wi-Fi of its own, and starts nothing: Shizuku has to be running. This is off by default.
+- Works with USB debugging off. Android then stops the Wireless Debugging daemon, and stops it again at every lock and unlock, though the switch still shows it on. Burkan starts it again by switching Wireless Debugging off and on.
+- Can connect through Shizuku instead of Wireless Debugging, on a phone where Shizuku already starts itself after a restart, such as with a fork that has start on boot. Setup offers the choice when Shizuku is installed, and *Connection* in Settings changes it later. With Shizuku, Burkan needs no pairing and no Wi-Fi of its own, and starts nothing: Shizuku has to be running.
 
   After a restart, Shizuku has to be running before Burkan wakes, which is about half a minute after the first unlock. Shizuku hands its connection to an app only as the app starts, so a Shizuku that comes up later is not seen: the apply after the restart fails with "Shizuku is not running". Opening Burkan from that notification and tapping *Apply now* then does it.
 
@@ -96,21 +97,23 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 
 | Source | Channel | Status |
 | :--- | :--- | :--- |
-| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.1`) |
-| [**F-Droid**](https://f-droid.org/packages/io.github.barqallayl.burkan/) | F-Droid Repository | Stable (`v1.1.0`), `v1.1.1` on its way |
+| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.2.0`) |
+| [**F-Droid**](https://f-droid.org/packages/io.github.barqallayl.burkan/) | F-Droid Repository | Stable (`v1.1.1`), `v1.2.0` on its way |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
+
+Each GitHub release has four APKs: one for each processor (`arm64-v8a`, `armeabi-v7a`, `x86_64`) and a `universal` one that runs on all three. Every Galaxy S23 takes `arm64-v8a`. In Obtainium, set *Filter APKs by regular expression* to `arm64-v8a` so it picks that one.
 
 F-Droid builds Burkan from source, checks that its build matches the APK on GitHub, and ships that APK. Both are signed with the same key, so you can switch between them without uninstalling.
 
 ## Quick setup
 
 > [!NOTE]
-> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi. Tested on One UI 8.5 (Android 16) and One UI 9 (Android 17). Other Android 13+ phones should work but are not verified; see the [FAQ](#faq) for the risks.
+> You need a Samsung Galaxy S23, S23+, or S23 Ultra on Android 13 or newer, connected to Wi-Fi unless you use Shizuku. Tested on One UI 8.5 (Android 16) and One UI 9 (Android 17). Other Android 13+ phones should work but are not verified; see the [FAQ](#faq) for the risks.
 
 Setup takes under two minutes and is done once.
 
 1. Download the APK from [Releases](https://github.com/barq-al-layl/Burkan/releases/latest) and install it. Every Galaxy S23 takes `Burkan-<version>-arm64-v8a.apk`; the `universal` one works on any phone.
-2. Follow the guide. Burkan walks you through allowing notifications and turning on *Developer options* and *Wireless debugging*, one step at a time.
+2. Follow the guide. Burkan walks you through allowing notifications and turning on *Developer options* and *Wireless debugging*, one step at a time. If Shizuku is installed, it first asks how Burkan should connect. With Shizuku you start Shizuku and allow Burkan in it instead of turning on Wireless debugging, and there is nothing to pair, so skip step 3.
 3. Tap *Pair device with pairing code* in Developer options, pull down the notification shade, and type the 6-digit code into Burkan's prompt there.
 4. Burkan then grants itself the secure settings permission and asks to be exempt from battery optimization, so runs after a restart are not cut short. From then on it applies Vulkan after each restart.
 
@@ -161,7 +164,10 @@ Requires JDK 25 and Android SDK Platform 37.
 # Verify UI screenshot baselines with Roborazzi
 ./gradlew :app:verifyRoborazziDebug
 
-# Assemble release APK
+# Run Android lint, as CI does
+./gradlew :app:lintDebug
+
+# Assemble the release APKs, one for each processor and a universal one
 ./gradlew :app:assembleRelease
 ```
 
@@ -191,7 +197,7 @@ If you try it on another phone, a report of how it went, with the shared run log
 <details>
 <summary><b>Why does Burkan need Wi-Fi?</b></summary>
 <br>
-Android only runs the Wireless Debugging daemon while the phone is on a Wi-Fi network. Once it is running, Burkan connects to it on the phone itself to run the renderer command. The Wi-Fi network is what lets Android turn the daemon on; the commands never travel over it.
+Android only runs the Wireless Debugging daemon while the phone is on a Wi-Fi network. Once it is running, Burkan connects to it on the phone itself to run the renderer command. The Wi-Fi network is what lets Android turn the daemon on; the commands never travel over it. With Shizuku as the connection, Burkan needs no Wi-Fi, because Shizuku provides the shell.
 </details>
 
 <details>
