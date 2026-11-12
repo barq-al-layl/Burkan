@@ -494,11 +494,12 @@ Metro, one graph:
   comment why it is dropped.
 - **Opt-ins go in `compilerOptions.optIn`** at module level, not as `@OptIn` scattered through the source.
 - **Context parameters are not used.**
-- **A release is one task.** Raise `versionName` and `versionCode`, add the changelog as
-  `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, commit on `main`, then run
+- **A release is one task.** Raise `versionName` and `versionCode`, add the changelog under each processor's
+  version code (`fastlane/metadata/android/en-US/changelogs/<versionCode>1.txt`, `…2.txt` and `…3.txt`, the same
+  text in each), commit on `main`, then run
   `./gradlew :app:githubRelease`. It checks that the tree is clean, the changelog and the signing key are there
   and the version is not out already; then it tags the commit `v<versionName>`, builds the signed release, pushes
-  the branch and the tag, and publishes the APK on GitHub with that changelog. `./gradlew :app:checkRelease`
+  the branch and the tag, and publishes the APKs on GitHub with that changelog. `./gradlew :app:checkRelease`
   runs the checks alone and changes nothing. F-Droid takes a new version from the same tag, so never push a
   `v…` tag for anything that is not a release.
 - **Or push the tag, and GitHub releases it.** Make the signed tag yourself
@@ -507,8 +508,8 @@ Metro, one graph:
   screenshots and lint, and runs the same `:app:githubRelease`, which on GitHub Actions makes and pushes no tag.
   Its key and passwords are the secrets of the repository's `release` environment: `RELEASE_KEYSTORE` (the
   keystore file in base64), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Started by
-  hand from the Actions tab, the workflow builds the signed APK of `main` and keeps it as an artifact, publishing
-  nothing.
+  hand from the Actions tab, the workflow builds the signed APKs of `main` and keeps them as an artifact,
+  publishing nothing.
 - **Every push to `main` and every pull request is checked** by `.github/workflows/check.yml`: the unit tests,
   the screenshots, a debug build and lint. When it fails, the run keeps the reports and the screenshot
   comparisons.
@@ -516,8 +517,10 @@ Metro, one graph:
   build strips its dependencies' native libraries with it, and F-Droid ships a release only if its own build
   comes out identical. Install that version from Android Studio's SDK Manager; `checkRelease` says when it is
   missing. When it changes, the `ndk` line in F-Droid's recipe changes with it.
-- **The APK carries 64-bit ARM code only.** Running it on an x86 emulator needs the `abiFilters` line taken out
-  for that build.
+- **A release is four APKs**, one for each processor (`armeabi-v7a`, `arm64-v8a`, `x86_64`) and a universal one
+  with all three, published as `Burkan-<versionName>-<processor>.apk` and `Burkan-<versionName>-universal.apk`.
+  Each has its own version code: the version's times ten, plus 1, 2 or 3 for its processor and 0 for the
+  universal APK, which is set in `app/build.gradle.kts` beside the splits.
 - Release builds are minified and resource-shrunk. Keep rules that a library needs go in
   `app/src/main/keepRules/`, as `.keep` files; resources that are only read by name at run time are kept in
   `res/raw/keep.xml`.

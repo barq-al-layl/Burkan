@@ -109,7 +109,7 @@ F-Droid builds Burkan from source, checks that its build matches the APK on GitH
 
 Setup takes under two minutes and is done once.
 
-1. Download the APK from [Releases](https://github.com/barq-al-layl/Burkan/releases/latest) and install it.
+1. Download the APK from [Releases](https://github.com/barq-al-layl/Burkan/releases/latest) and install it. Every Galaxy S23 takes `Burkan-<version>-arm64-v8a.apk`; the `universal` one works on any phone.
 2. Follow the guide. Burkan walks you through allowing notifications and turning on *Developer options* and *Wireless debugging*, one step at a time.
 3. Tap *Pair device with pairing code* in Developer options, pull down the notification shade, and type the 6-digit code into Burkan's prompt there.
 4. Burkan then grants itself the secure settings permission and asks to be exempt from battery optimization, so runs after a restart are not cut short. From then on it applies Vulkan after each restart.
