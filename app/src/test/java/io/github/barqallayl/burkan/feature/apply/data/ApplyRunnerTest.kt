@@ -339,6 +339,26 @@ class ApplyRunnerTest {
     }
 
     @Test
+    fun `a full apply whose settings cannot be kept sends nothing and fails its first step`() = runTest {
+        val plan = fullPlan()
+        kept.failWrites = true
+
+        runner.run(plan) { records += it }
+
+        assertEquals(emptyList(), shell.lines, "nothing changed, so nothing to put back either")
+        assertEquals(listOf(StepRecord(plan.steps.first().kind, ApplyError.SettingsNotKept)), records)
+    }
+
+    @Test
+    fun `a run with nothing to keep goes ahead whether or not anything could be kept`() = runTest {
+        kept.failWrites = true
+
+        runner.run(keyboardOnly) { records += it }
+
+        assertEquals(listOf(StepRecord(StepKind.RestartKeyboard)), records)
+    }
+
+    @Test
     fun `a run cancelled part way lets go of what it kept once the settings are back`() = runTest {
         val plan = fullPlan()
         val stopAll = plan.steps.single { it.kind is StepKind.StopApps }.command

@@ -205,13 +205,18 @@ class FakeCapturedSettingsStorage(
     var kept: Map<RestoredSetting, String> = emptyMap(),
     var keptAt: Instant? = null,
 ) : CapturedSettingsStorage {
+    /** Every write fails and leaves what was kept as it was, as a full disk would. */
+    var failWrites = false
+
     override suspend fun get(): Map<RestoredSetting, String> = kept
 
     override suspend fun keptAt(): Instant? = keptAt
 
-    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
+    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?): Boolean {
+        if (failWrites) return false
         kept = values
         keptAt = at.takeIf { values.isNotEmpty() }
+        return true
     }
 }
 

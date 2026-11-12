@@ -47,6 +47,7 @@ enum class AppErrorType(@StringRes val resource: Int, @StringRes val logResource
     SystemUiNotOnVulkan(R.string.error_system_ui_not_on_vulkan),
     SystemUiStillOnVulkan(R.string.error_system_ui_still_on_vulkan),
     KeyboardNotRestored(R.string.error_keyboard_not_restored),
+    SettingsNotKept(R.string.error_settings_not_kept, R.string.log_error_settings_not_kept),
     AppsNotListed(R.string.error_apps_not_listed),
     LicencesUnreadable(R.string.error_licences_unreadable),
     Unexpected(R.string.error_unexpected),
@@ -80,6 +81,7 @@ fun AppError.type(): AppErrorType = when (this) {
     ApplyError.SystemUiNotOnVulkan -> AppErrorType.SystemUiNotOnVulkan
     ApplyError.SystemUiStillOnVulkan -> AppErrorType.SystemUiStillOnVulkan
     ApplyError.KeyboardNotRestored -> AppErrorType.KeyboardNotRestored
+    ApplyError.SettingsNotKept -> AppErrorType.SettingsNotKept
     SettingsError.AppsNotListed -> AppErrorType.AppsNotListed
     SettingsError.LicencesUnreadable -> AppErrorType.LicencesUnreadable
     else -> AppErrorType.Unexpected

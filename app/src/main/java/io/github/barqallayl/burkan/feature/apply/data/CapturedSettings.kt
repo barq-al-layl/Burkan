@@ -43,13 +43,20 @@ class CapturedSettings(
     private val clock: Clock,
 ) {
 
-    /** Called before a run changes anything, so that what it captured outlives the run's process. */
-    suspend fun keep(values: Map<RestoredSetting, String>) {
-        if (values.isNotEmpty()) storage.set(values, at = clock.now())
-    }
+    /**
+     * Called before a run changes anything, so that what it captured outlives the run's process. False when the
+     * values could not be kept: the run must then change nothing, as nothing would put them back if its process died.
+     */
+    suspend fun keep(values: Map<RestoredSetting, String>): Boolean =
+        values.isEmpty() || storage.set(values, at = clock.now())
 
-    /** Every value is back where it was, so none is kept any longer. */
-    suspend fun letGo() = storage.set(emptyMap())
+    /**
+     * Every value is back where it was, so none is kept any longer. A write that fails here costs only a needless
+     * write later, of values the phone already holds.
+     */
+    suspend fun letGo() {
+        storage.set(emptyMap())
+    }
 
     /** What the phone holds for [setting] now, read by the app itself. */
     fun read(setting: RestoredSetting): SettingRead = settings.get(setting.key)
@@ -92,14 +99,17 @@ class CapturedSettings(
     }
 }
 
-/** Where [CapturedSettings] keeps the values, and when it kept them. Setting none removes them all. */
+/**
+ * Where [CapturedSettings] keeps the values, and when it kept them. Setting none removes them all. [set] is false when
+ * the values could not be written.
+ */
 interface CapturedSettingsStorage {
     suspend fun get(): Map<RestoredSetting, String>
 
     /** When the values were kept. Null when none are, or when they were kept by a version that did not say. */
     suspend fun keptAt(): Instant?
 
-    suspend fun set(values: Map<RestoredSetting, String>, at: Instant? = null)
+    suspend fun set(values: Map<RestoredSetting, String>, at: Instant? = null): Boolean
 }
 
 /** Kept with the device state, which is not backed up: the values belong to this phone, and one names its apps. */
@@ -119,7 +129,7 @@ class DataStoreCapturedSettingsStorage(
 
     override suspend fun keptAt(): Instant? = preferences()[KEPT_AT]?.let(Instant::fromEpochMilliseconds)
 
-    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
+    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?): Boolean =
         dataStore.editOrLog { preferences ->
             RestoredSetting.entries.forEach { setting ->
                 val value = values[setting]
@@ -131,7 +141,6 @@ class DataStoreCapturedSettingsStorage(
                 preferences[KEPT_AT] = at.toEpochMilliseconds()
             }
         }
-    }
 
     private suspend fun preferences(): Preferences = dataStore.data
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }

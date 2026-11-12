@@ -215,6 +215,7 @@
     <string name="error_system_ui_not_on_vulkan">System UI came back, but not on Vulkan.</string>
     <string name="error_system_ui_still_on_vulkan">System UI came back, but still on Vulkan.</string>
     <string name="error_keyboard_not_restored">The default keyboard changed and could not be put back. Choose it again in Keyboard settings.</string>
+    <string name="error_settings_not_kept">The phone’s settings could not be saved first, so nothing was changed. Try again, and free up storage if it keeps failing.</string>
     <string name="error_apps_not_listed">Android did not answer when asked for the installed apps.</string>
     <string name="error_licences_unreadable">The list of libraries built into Burkan could not be read. The source code lists them too.</string>
     <string name="error_unexpected">Something went wrong.</string>
@@ -234,6 +235,7 @@
     <string name="log_error_grant_failed">Burkan could not give itself the permission it needs.</string>
     <string name="log_error_recent_apps_unknown">Android did not say which apps were used recently, so nothing was restarted.</string>
     <string name="log_error_system_ui_restarted_recently">Skipped: System UI had restarted less than a minute before.</string>
+    <string name="log_error_settings_not_kept">The phone’s settings could not be saved first, so nothing was changed.</string>
 
     <string name="pairing_channel_name">Pairing</string>
     <string name="pairing_channel_description">Where you type the pairing code from Wireless debugging.</string>

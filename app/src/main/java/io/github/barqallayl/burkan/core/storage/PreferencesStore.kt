@@ -18,13 +18,16 @@ import java.io.IOException
  * Writes to the store, and when the phone cannot write, storage being full for one, says so in the log and goes on.
  * What is kept here is the app's memory of what it did: losing a line of it is better than a run that throws while
  * it is putting the phone's settings back.
+ *
+ * True when it was written. A caller that must not go on without the write, as a full apply must not change the
+ * phone's settings before they are kept, checks it.
  */
-suspend fun DataStore<Preferences>.editOrLog(transform: suspend (MutablePreferences) -> Unit) {
-    try {
-        edit(transform)
-    } catch (e: IOException) {
-        Logger.w(e) { "A write to the app's preferences failed" }
-    }
+suspend fun DataStore<Preferences>.editOrLog(transform: suspend (MutablePreferences) -> Unit): Boolean = try {
+    edit(transform)
+    true
+} catch (e: IOException) {
+    Logger.w(e) { "A write to the app's preferences failed" }
+    false
 }
 
 /**

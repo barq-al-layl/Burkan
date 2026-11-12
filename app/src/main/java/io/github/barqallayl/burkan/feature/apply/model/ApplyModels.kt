@@ -100,6 +100,12 @@ sealed interface ApplyError : AppError {
 
     /** Restarting the keyboard changed the default keyboard, and it could not be put back. */
     data object KeyboardNotRestored : ApplyError
+
+    /**
+     * The settings a full apply has to put back could not be kept before it changed anything, so it changed nothing:
+     * had its process died, nothing would have put them back.
+     */
+    data object SettingsNotKept : ApplyError
 }
 
 /** What the automatic apply after a restart is waiting for before it can connect. */
