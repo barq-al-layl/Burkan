@@ -97,8 +97,10 @@ VercodeOperation:
 `versionCode` in `app/build.gradle.kts`, so later releases need nothing by hand again. Each entry builds all four
 APKs and keeps its own; the split APKs do not depend on one another, so each is the same as the one published.
 
-The native libraries for 32-bit ARM and x86_64 are stripped by the same NDK as 64-bit ARM's, but no build of them
-has yet been compared with F-Droid's. If one of the three does not reproduce, look there first.
+The native libraries for 32-bit ARM and x86_64 are stripped by the same NDK as 64-bit ARM's. On 12 November 2026
+the four signed APKs of `7d3ae74`, built on a Mac and by `release.yml` on GitHub's Ubuntu, were identical byte for
+byte, all four, so they do not depend on the machine that builds them. None has yet been through F-Droid's own
+build server; if one of the three does not reproduce there, look at its native libraries first.
 
 ### What 1.1.1 brings that F-Droid has not built yet
 
