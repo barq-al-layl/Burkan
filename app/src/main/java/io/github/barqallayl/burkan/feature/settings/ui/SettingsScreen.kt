@@ -395,7 +395,6 @@ private fun AboutItems(version: String, actions: SettingsActions) {
         index = 1,
         count = ABOUT_ITEMS,
         headline = stringResource(R.string.settings_source),
-        supporting = stringResource(R.string.settings_source_text),
         onClick = actions.onOpenSource,
         leading = { Icon(Tabler.Outline.BrandGithub, contentDescription = null) },
         trailing = { Chevron() },
