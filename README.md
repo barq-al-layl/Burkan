@@ -96,8 +96,8 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 
 | Source | Channel | Status |
 | :--- | :--- | :--- |
-| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.1.1`) |
-| [**F-Droid**](https://f-droid.org/packages/io.github.barqallayl.burkan/) | F-Droid Repository | Stable (`v1.1.0`), `v1.1.1` on its way |
+| [**GitHub Releases**](https://github.com/barq-al-layl/Burkan/releases/latest) | APK (Direct Download) | Stable (`v1.2.0`) |
+| [**F-Droid**](https://f-droid.org/packages/io.github.barqallayl.burkan/) | F-Droid Repository | Stable (`v1.1.1`), `v1.2.0` on its way |
 | [**Obtainium**](https://github.com/ImranR98/Obtainium) | Add Repo URL | Auto-update supported |
 
 F-Droid builds Burkan from source, checks that its build matches the APK on GitHub, and ships that APK. Both are signed with the same key, so you can switch between them without uninstalling.

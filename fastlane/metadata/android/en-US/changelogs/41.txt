@@ -1,0 +1,8 @@
+* Shizuku as a second way to connect, with no pairing and no Wi-Fi needed
+* A shorter setup, a reworked Home, Settings and Log, a new icon, and fewer words everywhere
+* Works with USB debugging off: Burkan starts wireless debugging again when the phone stops it
+* An APK for each processor: 64-bit ARM, 32-bit ARM and x86_64, plus a universal one
+* Runs fail cleanly instead of hanging, and settings are put back more safely
+
+New contributors
+* @alba4k added Shizuku support in #6
