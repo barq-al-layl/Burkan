@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/poster.png" alt="Burkan: Vulkan on your Galaxy S23, back after every restart. No root, no computer, no internet, open source." width="100%" />
+<img src="docs/images/poster.png" alt="Burkan: Restart your Galaxy S23. Vulkan comes back on its own. No root, no computer, no internet, open source." width="100%" />
 
 # Burkan
 
