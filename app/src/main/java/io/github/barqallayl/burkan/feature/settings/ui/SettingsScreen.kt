@@ -24,7 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -187,7 +187,7 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                LoadingIndicator()
+                BurkanLoadingIndicator()
             }
             return@Scaffold
         }

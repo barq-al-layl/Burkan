@@ -68,7 +68,7 @@ class LogExportTest {
                        The phone took too long to answer.
 
             [2026-10-01 08:02:00 +00:00] | Apply | After restart | Failed | 4 s
-                [FAIL] The phone was not on Wi-Fi, which wireless debugging needs.
+                [FAIL] The phone was not on Wi-Fi, which Wireless debugging needs.
 
             """.trimIndent(),
             // Durations keep their number and unit together with a no-break space.

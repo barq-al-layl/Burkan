@@ -96,6 +96,9 @@ sealed interface HomeSideEffect {
     data object OpenSettings : HomeSideEffect
     data object OpenExclusions : HomeSideEffect
     data object OpenDeveloperOptions : HomeSideEffect
+
+    /** Android's keyboard picker, where the default keyboard is chosen. */
+    data object ChooseKeyboard : HomeSideEffect
 }
 
 @Inject
@@ -320,6 +323,15 @@ class HomeViewModel(
     }
 
     fun openDeveloperOptions() = intent { postSideEffect(HomeSideEffect.OpenDeveloperOptions) }
+
+    /**
+     * The run left another keyboard as the default and could not put it back: the user chooses theirs again in
+     * Android's picker. Choosing is the last thing the run asks of them, so its steps make way for the status too.
+     */
+    fun chooseKeyboard() = intent {
+        if (state.run == ApplyRunState.Idle) reduce { state.copy(runSteps = emptyList(), finishedRun = null) }
+        postSideEffect(HomeSideEffect.ChooseKeyboard)
+    }
 
     /**
      * Shows what the finished run read at its end. Only when it read nothing (it failed before it could) does Home

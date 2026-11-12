@@ -402,6 +402,15 @@ Metro, one graph:
   licences screen.
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
+- **Say it in fewer words.** If a word can go, it goes. In particular:
+  - The voice is calm and exact: no contractions, no "we", and no "your" where the screen already says whose.
+  - A row's subtitle is a phrase of three to six words, not a sentence, with no full stop.
+  - An error says what happened, then what to do, in two short sentences at most.
+  - A dialog's text says only what follows from the choice and what it costs; its title already names the action.
+  - One word for one thing: "turn on" and "turn off", never "switch"; **Wireless debugging** with a capital, as the
+    setting is named; "restart", not "close and reopen", unless the difference matters.
+  - To send the user to a setting, give a button that opens it, rather than a path in words. Where no button can
+    go, as in the Log, name the screen, not every step to it.
 - Use `start`/`end`, never `left`/`right`.
 - **Icons are Tabler outline**, in both styles and in the top bars too. Do not hand-roll a vector the set has.
   Anything that points — back, a chevron, an arrow — is `Icons.AutoMirrored.Outlined.*`.

@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -195,7 +195,7 @@ private fun LogContent(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                LoadingIndicator()
+                BurkanLoadingIndicator()
             }
 
             runs.isEmpty() && state.isUnreadable -> BurkanMessage(

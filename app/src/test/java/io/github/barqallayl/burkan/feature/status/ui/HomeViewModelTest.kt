@@ -340,6 +340,27 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `choosing the keyboard after a run puts the run away and opens the picker`() = runTest {
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            this@runTest.runCurrent()
+
+            controller.run(ApplyKind.Light, RunTrigger.Manual)
+            awaitState { it.finishedRun != null }
+
+            containerHost.chooseKeyboard()
+
+            val dismissed = awaitState { it.runSteps.isEmpty() }
+            assertEquals(null, dismissed.finishedRun)
+            assertEquals(HomeSideEffect.ChooseKeyboard, (awaitItem() as Item.SideEffectItem).value)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `resuming soon after a read shows it as it is, and later reads again`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()

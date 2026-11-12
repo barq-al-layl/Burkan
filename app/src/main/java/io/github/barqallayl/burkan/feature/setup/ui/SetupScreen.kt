@@ -34,7 +34,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
@@ -251,7 +251,7 @@ private fun SetupContent(
                         .padding(vertical = 96.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    LoadingIndicator()
+                    BurkanLoadingIndicator()
                 }
             } else {
                 // The steps are one group, the checklist the user works down. What is done shrinks to one quiet row,
@@ -731,7 +731,7 @@ private fun Progress(label: String) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LoadingIndicator(modifier = Modifier.size(40.dp))
+        BurkanLoadingIndicator(modifier = Modifier.size(40.dp))
         Text(label)
     }
 }

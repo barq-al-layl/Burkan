@@ -1,5 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Checkbox
@@ -48,7 +49,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -229,6 +230,8 @@ fun HomeScreen() {
             HomeSideEffect.OpenSettings -> navigator.push(SettingsRoute)
             HomeSideEffect.OpenExclusions -> navigator.push(ExclusionsRoute)
             HomeSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())
+            HomeSideEffect.ChooseKeyboard ->
+                context.getSystemService(InputMethodManager::class.java).showInputMethodPicker()
         }
     }
     HomeContent(
@@ -261,6 +264,7 @@ fun HomeScreen() {
             onOpenLog = viewModel::openLog,
             onOpenSettings = viewModel::openSettings,
             onOpenDeveloperOptions = viewModel::openDeveloperOptions,
+            onChooseKeyboard = viewModel::chooseKeyboard,
         ),
     )
 }
@@ -287,6 +291,7 @@ private class HomeActions(
     val onOpenLog: () -> Unit = {},
     val onOpenSettings: () -> Unit = {},
     val onOpenDeveloperOptions: () -> Unit = {},
+    val onChooseKeyboard: () -> Unit = {},
 )
 
 @Composable
@@ -788,7 +793,7 @@ private fun statusNote(state: HomeState): String {
 private fun RetryButton(failed: StatusState.Failed, refreshing: Boolean, onRetry: () -> Unit, filled: Boolean) {
     val content: @Composable () -> Unit = {
         if (refreshing) {
-            LoadingIndicator(modifier = Modifier.size(24.dp))
+            BurkanLoadingIndicator(modifier = Modifier.size(24.dp), tinted = true)
         } else {
             Text(stringResource(failed.error.retryLabel()))
         }
@@ -911,7 +916,13 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                 SummaryAction(
                     action = when {
                         run != null -> SummaryActions.Cancel
-                        state.runSteps.isNotEmpty() -> SummaryActions.Done
+                        state.runSteps.isNotEmpty() ->
+                            if (state.finishedRun?.failureReason == AppErrorType.KeyboardNotRestored) {
+                                SummaryActions.ChooseKeyboard
+                            } else {
+                                SummaryActions.Done
+                            }
+
                         state.status is StatusState.Failed -> SummaryActions.Retry
                         else -> SummaryActions.Apply
                     },
@@ -932,10 +943,10 @@ private const val GLOW_REACH = 0.5f
 private const val GLOW_FLATNESS = 0.3f
 
 /**
- * What the summary card's buttons do: start a run, stop it, put away a run that has ended, or try the phone again when
- * it could not be asked.
+ * What the summary card's buttons do: start a run, stop it, put away a run that has ended, choose the keyboard again
+ * when a run could not put it back, or try the phone again when it could not be asked.
  */
-private enum class SummaryActions { Apply, Cancel, Done, Retry }
+private enum class SummaryActions { Apply, Cancel, Done, ChooseKeyboard, Retry }
 
 /**
  * The summary card's buttons. At rest they are the main action (see MainAction), in the accent when there is
@@ -973,6 +984,14 @@ private fun SummaryAction(
                 Text(stringResource(R.string.home_done), style = style)
             }
 
+            // In place of Done: choosing it is the one thing left to do, and puts the run away as Done would.
+            SummaryActions.ChooseKeyboard -> Button(
+                onClick = { if (live) actions.onChooseKeyboard() },
+                modifier = shape,
+            ) {
+                Text(stringResource(R.string.home_choose_keyboard), style = style)
+            }
+
             SummaryActions.Retry -> {
                 val failed = state.status as? StatusState.Failed
                 Button(
@@ -981,7 +1000,7 @@ private fun SummaryAction(
                     modifier = shape,
                 ) {
                     if (state.isRefreshing) {
-                        LoadingIndicator(modifier = Modifier.size(24.dp))
+                        BurkanLoadingIndicator(modifier = Modifier.size(24.dp), tinted = true)
                     } else {
                         Text(stringResource(failed?.error?.retryLabel() ?: R.string.home_retry), style = style)
                     }
@@ -1161,7 +1180,7 @@ private fun ChecklistRow(phase: RunPhase, mark: StepMarks) {
             label = "step mark",
         ) { shown ->
             when (shown) {
-                StepMarks.Working -> LoadingIndicator(modifier = Modifier.size(24.dp))
+                StepMarks.Working -> BurkanLoadingIndicator(modifier = Modifier.size(24.dp))
                 StepMarks.Done -> Icon(Tabler.Outline.Check, contentDescription = null, tint = statusGreenText)
                 StepMarks.Failed -> Icon(
                     Tabler.Outline.AlertTriangle,
