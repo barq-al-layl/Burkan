@@ -43,11 +43,12 @@ release needs here:
 
 1. **A higher `versionCode`**, and the new `versionName`, in `app/build.gradle.kts`. A tag whose `versionCode` is
    not higher than the last one is not picked up.
-2. **A changelog**, as `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. F-Droid shows it with the
-   version.
+2. **A changelog** for each processor's version code, as
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>1.txt`, `…2.txt` and `…3.txt`, the same text in each.
+   F-Droid shows each APK's with that APK.
 3. **The release itself, with `./gradlew :app:githubRelease`** from a clean `main`. It tags `v<versionName>` and
-   publishes the APK under the name the recipe's `Binaries` expects. F-Droid compares its own build with that
-   APK, so neither the tag nor the APK may change after the release.
+   publishes the APKs under the names the recipe's `binary` lines expect. F-Droid compares its own builds with
+   those APKs, so neither the tag nor an APK may change after the release.
 4. **Watching the build.** Once the bot has picked up the tag, the version shows on
    <https://monitor.f-droid.org/builds>, with its log if the build fails, and it reaches the package page when
    its build cycle is published. The bot's runs are on the same site, which is where to look if a tag has not
@@ -56,6 +57,48 @@ release needs here:
 The recipe needs a change by hand only when the build itself must change: another JDK, another NDK, a new step
 before the build. That is a merge request to fdroiddata, changing the new version's build entry once the bot has
 added it.
+
+### The first release with an APK for each processor needs the recipe changed by hand
+
+From the release after 1.1.1, version code 4, a release is an APK for each processor, each with its own version
+code: the version's times ten, plus 1 for `armeabi-v7a`, 2 for `arm64-v8a` and 3 for `x86_64` (41, 42 and 43).
+The universal APK, code 40, is for GitHub only. The recipe knows one APK per version, so its bot would add a single
+entry with code 4, which matches no APK the build makes. Once the tag is pushed, a merge request to fdroiddata
+replaces the bot's entry, if it has made one, with three, and tells the bot how to make three for every later
+version:
+
+```yaml
+Builds:
+  - versionName: <the new version>
+    versionCode: 41
+    commit: <the full hash its tag points at>
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-25-jdk-headless
+      - update-alternatives --auto java
+    gradle:
+      - yes
+    binary: https://github.com/barq-al-layl/Burkan/releases/download/v%v/Burkan-%v-armeabi-v7a.apk
+    output: build/outputs/apk/release/app-armeabi-v7a-release-unsigned.apk
+    prebuild: sed -i -e '/foojay/d' ../settings.gradle.kts
+    ndk: r28c
+
+  # The same twice more: versionCode 42 with arm64-v8a, and 43 with x86_64, in binary and output.
+
+VercodeOperation:
+  - 10 * %c + 1
+  - 10 * %c + 2
+  - 10 * %c + 3
+```
+
+`Binaries` goes, since each build names its own `binary`, and `CurrentVersionCode` becomes 43. With
+`VercodeOperation` the bot copies the last three entries for each new tag, computing their codes from the
+`versionCode` in `app/build.gradle.kts`, so later releases need nothing by hand again. Each entry builds all four
+APKs and keeps its own; the split APKs do not depend on one another, so each is the same as the one published.
+
+The native libraries for 32-bit ARM and x86_64 are stripped by the same NDK as 64-bit ARM's, but no build of them
+has yet been compared with F-Droid's. If one of the three does not reproduce, look there first.
 
 ### What 1.1.1 brings that F-Droid has not built yet
 
@@ -104,7 +147,8 @@ platform 37 and the Gradle version the wrapper names. Its scanner removes the si
 - `ndk`: installs the NDK the release was built with, so native libraries are stripped the same way.
 - `Binaries` and `AllowedAPKSigningKeys`: where the APK of each release is published, and the fingerprint of
   the certificate it must be signed with. Together they ask for the reproducible build. The task
-  `:app:githubRelease` publishes each APK under the name `Binaries` expects.
+  `:app:githubRelease` publishes each APK under the name `Binaries` expects. From version code 4 each build's own
+  `binary` takes the place of `Binaries`, as above.
 - `AutoUpdateMode` and `UpdateCheckMode`: a new version is picked up from a tag shaped like `v1.2.3`, with the
   version name and code read from `app/build.gradle.kts` at that tag.
 
@@ -129,4 +173,5 @@ answered by 1.1.0.
   removes the three, and `app/build/outputs/logs/manifest-merger-release-report.txt` is where to look if they
   come back.
 - **A smaller APK.** About 7 MB of the 15 MB of 1.0.0 is native code for processors no Galaxy S23 has (x86,
-  x86_64 and 32-bit ARM). The build is limited to 64-bit ARM from 1.1.0.
+  x86_64 and 32-bit ARM). The build was limited to 64-bit ARM in 1.1.0; from version code 4 each processor has its
+  own APK, so each stays about that size.

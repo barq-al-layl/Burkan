@@ -1,3 +1,4 @@
+import com.android.build.api.variant.FilterConfiguration
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
@@ -33,6 +34,12 @@ val keystoreProperties: Properties? = rootProject.file("keystore.properties").ta
     .takeIf { values -> values.values.all { !it.isNullOrEmpty() } }
     ?.let { values -> Properties().apply { values.forEach { (key, value) -> setProperty(key, value) } } }
 
+// One APK for each processor, so that a phone downloads only its own native code, and a universal APK with all of
+// them for whoever does not know which they have. An APK's version code is the version's, times ten, plus the digit
+// its processor has here: version code 4 gives 41, 42 and 43, and 40 for the universal APK, which is the lowest so
+// that a phone's own APK always installs over it. F-Droid builds the three and finds each by its version code.
+val abiDigits = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+
 android {
     namespace = "io.github.barqallayl.burkan"
     compileSdk {
@@ -51,9 +58,21 @@ android {
         targetSdk = 37
         versionCode = 3
         versionName = "1.1.1"
-        // Every phone the app is for is 64-bit ARM. The libraries' copies for other processors were half the APK.
-        ndk {
-            abiFilters += "arm64-v8a"
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include(*abiDigits.keys.toTypedArray())
+            isUniversalApk = true
+        }
+    }
+    // The splits choose what each processor's APK holds; the universal APK would take every processor the libraries
+    // bring, 32-bit x86 too, which no phone of this decade has.
+    packaging {
+        jniLibs {
+            excludes += "lib/x86/**"
         }
     }
 
@@ -103,6 +122,15 @@ android {
             all {
                 it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
             }
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier
+            output.versionCode.set(output.versionCode.get()!! * 10 + (abiDigits[abi] ?: 0))
         }
     }
 }
@@ -243,7 +271,7 @@ dependencies {
 }
 
 // Releasing. `./gradlew :app:githubRelease` tags the commit that is checked out as v<versionName>, builds the
-// release from it, pushes the branch and the tag, and publishes a GitHub release with the APK and the version's
+// release from it, pushes the branch and the tag, and publishes a GitHub release with the APKs and the version's
 // changelog. F-Droid picks a new version up from the same tag, so a tag is a release: nothing here runs without
 // being asked to. `:app:checkRelease` is the first half alone: it says what stands in the way and changes nothing.
 //
@@ -258,8 +286,9 @@ abstract class ReleaseTask : DefaultTask() {
     @get:Input
     abstract val versionName: Property<String>
 
+    /** Each processor's APK and its version code. */
     @get:Input
-    abstract val versionCode: Property<Int>
+    abstract val abiVersionCodes: MapProperty<String, Int>
 
     @get:Internal
     abstract val repository: DirectoryProperty
@@ -271,9 +300,15 @@ abstract class ReleaseTask : DefaultTask() {
     @get:Internal
     val tag: String get() = "v${versionName.get()}"
 
+    /**
+     * The version's changelog under each processor's version code, which is where F-Droid looks for it. They say the
+     * same, and the GitHub release takes the first.
+     */
     @get:Internal
-    val changelog: File
-        get() = repository.file("fastlane/metadata/android/en-US/changelogs/${versionCode.get()}.txt").get().asFile
+    val changelogs: List<File>
+        get() = abiVersionCodes.get().values.sorted().map { code ->
+            repository.file("fastlane/metadata/android/en-US/changelogs/$code.txt").get().asFile
+        }
 
     /** What the command printed, or null when it failed. */
     protected fun output(vararg command: String): String? {
@@ -315,7 +350,13 @@ abstract class CheckRelease : ReleaseTask() {
             if (!sdk.dir("ndk/${ndkVersion.get()}").get().asFile.isDirectory) {
                 add("NDK ${ndkVersion.get()} is not installed, so the APK would not match the one F-Droid builds.")
             }
-            if (!changelog.exists()) add("There is no changelog for version code ${versionCode.get()}: ${changelog.path}")
+            val missing = changelogs.filterNot { it.exists() }
+            if (missing.isNotEmpty()) {
+                add("There is no changelog for version code ${missing.joinToString { it.nameWithoutExtension }}.")
+            } else if (changelogs.map { it.readText() }.distinct().size > 1) {
+                val names = changelogs.joinToString { it.name }
+                add("The changelogs $names differ, though they are for the same version.")
+            }
             if (output("git", "status", "--porcelain") != "") add("There are changes that are not committed.")
             if (output("gh", "auth", "status") == null) add("The GitHub CLI is not installed or not signed in.")
             val head = output("git", "rev-parse", "HEAD")
@@ -348,16 +389,23 @@ abstract class CheckRelease : ReleaseTask() {
 }
 
 abstract class GithubRelease : ReleaseTask() {
-    @get:InputFile
-    abstract val apk: RegularFileProperty
+    /** Where the release build leaves its APKs, as app-<processor>-release.apk and app-universal-release.apk. */
+    @get:InputDirectory
+    abstract val apks: DirectoryProperty
 
-    @get:OutputFile
-    abstract val namedApk: RegularFileProperty
+    @get:OutputDirectory
+    abstract val namedApks: DirectoryProperty
 
     @TaskAction
     fun release() {
         val name = "Burkan ${versionName.get()}"
-        apk.get().asFile.copyTo(namedApk.get().asFile, overwrite = true)
+        val named = namedApks.get().asFile.apply { deleteRecursively() }
+        // Under the names F-Droid's recipe looks for: Burkan-<version>-<processor>.apk.
+        val published = (abiVersionCodes.get().keys + "universal").map { abi ->
+            val apk = apks.file("app-$abi-release.apk").get().asFile
+            if (!apk.exists()) throw GradleException("The release build made no APK for $abi: ${apk.path}")
+            apk.copyTo(named.resolve("Burkan-${versionName.get()}-$abi.apk"))
+        }
         // On GitHub Actions the tag was pushed by hand, and is what started the run.
         if (!onCi.get()) {
             if (output("git", "rev-parse", "--quiet", "--verify", "refs/tags/$tag") == null) {
@@ -366,21 +414,21 @@ abstract class GithubRelease : ReleaseTask() {
             run("git", "push", "origin", "main", tag)
         }
         run(
-            "gh", "release", "create", tag, namedApk.get().asFile.path,
-            "--verify-tag", "--title", name, "--notes-file", changelog.path,
+            "gh", "release", "create", tag, *published.map { it.path }.toTypedArray(),
+            "--verify-tag", "--title", name, "--notes-file", changelogs.first().path,
         )
     }
 }
 
 val releaseVersionName = android.defaultConfig.versionName!!
-val releaseVersionCode = android.defaultConfig.versionCode!!
+val releaseAbiVersionCodes = abiDigits.mapValues { (_, digit) -> android.defaultConfig.versionCode!! * 10 + digit }
 val releaseOnCi = providers.environmentVariable("GITHUB_ACTIONS").map { it == "true" }.orElse(false)
 
 val checkRelease = tasks.register<CheckRelease>("checkRelease") {
     group = "release"
     description = "Says what stands in the way of releasing this commit. Changes nothing."
     versionName = releaseVersionName
-    versionCode = releaseVersionCode
+    abiVersionCodes = releaseAbiVersionCodes
     repository = rootProject.layout.projectDirectory
     onCi = releaseOnCi
     hasReleaseKey = keystoreProperties != null
@@ -398,10 +446,10 @@ tasks.register<GithubRelease>("githubRelease") {
     description = "Tags this commit, builds the release, pushes both and publishes it on GitHub with its changelog."
     dependsOn(checkRelease, "assembleRelease")
     versionName = releaseVersionName
-    versionCode = releaseVersionCode
+    abiVersionCodes = releaseAbiVersionCodes
     repository = rootProject.layout.projectDirectory
     onCi = releaseOnCi
-    apk = layout.buildDirectory.file("outputs/apk/release/app-release.apk")
-    namedApk = layout.buildDirectory.file("release/Burkan-$releaseVersionName.apk")
+    apks = layout.buildDirectory.dir("outputs/apk/release")
+    namedApks = layout.buildDirectory.dir("release")
     outputs.upToDateWhen { false }
 }

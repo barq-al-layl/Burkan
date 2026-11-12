@@ -2,8 +2,9 @@
 # its changelog is written: this checks the tag, runs the checks, builds the APK signed with the release key, and
 # publishes it on GitHub with the changelog, through the same `:app:githubRelease` that works from a computer.
 #
-# Started by hand instead, it builds the signed APK of the commit chosen and keeps it as an artifact, publishing
-# nothing: to compare it with one built elsewhere, as F-Droid does with every release.
+# Started by hand instead, it builds the signed APKs of the commit chosen, one for each processor and a universal
+# one, and keeps them as an artifact, publishing nothing: to compare them with ones built elsewhere, as F-Droid does
+# with every release.
 #
 # The key is in the secrets of the `release` environment, which only main and the version tags may use.
 name: Release
@@ -84,5 +85,5 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         with:
           name: app-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/app-*-release.apk
           retention-days: 7
