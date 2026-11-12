@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Burkan" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- The light or dark platform theme: values-night has the dark one, so nothing starts light in dark mode. -->
+    <style name="Base.Theme.Burkan" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+        The window and the splash screen take the screen's own colour, so the launch fades into the first screen
+        instead of flashing a colour of the platform's.
+    -->
+    <style name="Theme.Burkan" parent="Base.Theme.Burkan">
+        <item name="android:windowBackground">@color/screen</item>
+        <item name="android:windowSplashScreenBackground">@color/screen</item>
+    </style>
 </resources>

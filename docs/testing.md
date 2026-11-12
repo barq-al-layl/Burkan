@@ -319,6 +319,10 @@ checks.
       the exclusions list, the licences and the log open. Its APK is 7.7 MB and declares none of the phone or
       storage permissions. (S23, 11 Oct 2026. Restart all apps, the crash screen, a restart of the phone and
       pairing were not tried with this build.)
+- [x] A release builds four APKs, one for each processor and a universal one, each signed with the release key
+      and carrying only its own native code, with version codes 31, 32, 33 and 30 at version code 3. The four
+      built on a Mac and by `release.yml` are identical byte for byte. (Commit `7d3ae74`, 12 Nov 2026.)
+- [x] The `arm64-v8a` APK installs over the 1.1.1 release on an S23 and the app works as before. (12 Nov 2026.)
 - [x] After a restart of the phone, with the build of 10 October that first carried the fixes to the wait for
       Wi-Fi: the automatic apply succeeded, and System UI was restarted at the next lock. (From the app's own
       log on an S23: 10 Oct 2026, 10:49 and 10:50.)

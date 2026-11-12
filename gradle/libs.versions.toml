@@ -7,7 +7,7 @@ activityCompose = "1.13.0"
 agp = "9.5.1"
 arrow = "2.3.0.1"
 # The version libadb-android brings for bcprov; bcpkix must match it.
-bouncycastle = "1.86"
+bouncycastle = "1.87"
 # 0.10.0 changed ComposablePreview.invoke, and Roborazzi's preview-scanner support (1.78.0) still calls the 0.9 one.
 # @pin
 composablePreviewScanner = "0.9.3"
@@ -20,7 +20,7 @@ junit = "4.13.2"
 kermit = "2.2.0"
 kotlin = "2.4.21"
 kotlinxCoroutines = "1.11.0"
-kotlinxSerialization = "1.12.0"
+kotlinxSerialization = "1.13.0"
 ksafe = "3.3.0"
 libadb = "3.1.1"
 lifecycle = "2.11.0"
@@ -30,7 +30,7 @@ metro = "1.5.2"
 navigation3 = "1.3.0-alpha04"
 orbit = "12.0.1"
 robolectric = "4.17"
-roborazzi = "1.78.0"
+roborazzi = "1.79.0"
 shizuku = "13.1.5"
 tablerIcons = "2.2.1"
 versionCatalogUpdate = "1.1.2"
@@ -61,8 +61,8 @@ haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-powerAssert-runtime = { module = "org.jetbrains.kotlin:kotlin-power-assert-runtime", version.ref = "kotlin" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 ksafe = { module = "eu.anifantakis:ksafe", version.ref = "ksafe" }
@@ -85,8 +85,8 @@ tabler-icons-outline = { module = "com.composables:icons-tabler-outline-cmp", ve
 aboutLibraries-android = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibrariesPlugin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-powerAssert = { id = "org.jetbrains.kotlin.plugin.power-assert", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 versionCatalogUpdate = { id = "nl.littlerobots.version-catalog-update", version.ref = "versionCatalogUpdate" }

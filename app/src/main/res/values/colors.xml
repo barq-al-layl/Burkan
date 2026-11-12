@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- The screen behind the cards, as One UI draws it: light grey here, black in values-night. -->
+    <color name="screen">#FFF2F2F6</color>
+</resources>
