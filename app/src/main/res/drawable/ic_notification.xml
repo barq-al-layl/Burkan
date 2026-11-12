@@ -1,44 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tabler "plug-connected" (MIT), as a notification icon. -->
+<!--
+    The launcher icon's volcano and drop, cut for 24 dp: the status bar, notifications and the Quick Settings tile.
+    The crater is a little deeper and the drop sits a little higher than in the launcher icon, so both still show at
+    this size. The same-colour stroke only rounds the corners.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5Z"
-        android:strokeWidth="2"
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3.09,20.13 Q6.65,16.76 8.83,10.23 L9.94,10.23 A2.25,2.25 0 0 0 14.06,10.23 L15.17,10.23 Q17.35,16.76 20.91,20.13 Z"
+        android:strokeWidth="1.39"
         android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5Z"
-        android:strokeWidth="2"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M3 21l2.5 -2.5"
-        android:strokeWidth="2"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M18.5 5.5l2.5 -2.5"
-        android:strokeWidth="2"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M10 11l-2 2"
-        android:strokeWidth="2"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M13 14l-2 2"
-        android:strokeWidth="2"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3.18 C12.73,4.58 13.54,5.65 13.54,6.5 A1.54,1.54 0 0 1 10.46,6.5 C10.46,5.65 11.27,4.58 12,3.18 Z" />
 </vector>
