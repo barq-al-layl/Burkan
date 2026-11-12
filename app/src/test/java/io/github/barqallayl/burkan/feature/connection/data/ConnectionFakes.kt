@@ -68,7 +68,10 @@ class FakeAdbDiscovery : AdbDiscovery {
     }
 }
 
-/** A switch that holds what is written, unless the system "refuses" by resetting it. */
+/**
+ * A switch that holds what is written, unless the system "refuses" by resetting it. [onSwitchedOn] runs on each
+ * write that leaves it on, as adbd starting when the switch is written.
+ */
 class FakeWirelessDebugging(
     var on: Boolean = false,
     var permitted: Boolean = true,
@@ -77,6 +80,7 @@ class FakeWirelessDebugging(
     var forgetsPairings: Boolean = false,
 ) : WirelessDebugging {
     val writes = mutableListOf<Boolean>()
+    var onSwitchedOn: () -> Unit = {}
 
     /** Whether the phone is on Wi-Fi; setting it is a network coming up or going, which [wifiConnected] tells of. */
     var wifi: Boolean
@@ -93,6 +97,7 @@ class FakeWirelessDebugging(
         if (!permitted) return false
         writes += on
         this.on = on && !systemRefuses
+        if (this.on) onSwitchedOn()
         return true
     }
 

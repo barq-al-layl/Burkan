@@ -388,9 +388,12 @@ checks.
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has
       finished and Home shows System UI on Vulkan.
-- [ ] With the USB cable unplugged (with it, locking does not restart adbd), the run reconnects after the lock
-      screen restarted adbd: the log shows the System UI step as succeeded.
-- [ ] mDNS reports the new port after adbd restarts, rather than the old one, within the 30 seconds.
+- [x] With the USB cable unplugged (with it, locking does not restart adbd), the run reconnects after the lock
+      screen restarted adbd: the log shows the System UI step as succeeded. (Android 17, 12 Nov 2026)
+- [x] mDNS reports the new port after adbd restarts, rather than the old one, within the 30 seconds. (Android 17,
+      12 Nov 2026: about a second after the restart)
+- [x] With USB debugging off and wireless debugging on, Apply connects, and reconnects under the lock screen, by
+      turning wireless debugging off and on; the log shows it as succeeded. (Android 17, 12 Nov 2026, #2)
 - [ ] Apply now twice within a minute: the second run leaves System UI alone and says why.
 - [x] Reboot: the launcher and keyboard switch at once, and the phone is not locked.
 - [ ] After the reboot, Home says System UI switches at the next lock.

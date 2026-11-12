@@ -434,6 +434,22 @@ All measured.
 - **With a USB cable plugged in, locking did not restart adbd** (measured after a reboot, the same day). The
   restarts above were seen with wireless debugging alone. So whether the app's reconnection works on the phone is
   still open: it has to be tried with the cable unplugged.
+- **With USB debugging off, adbd stops and stays down.** Switching USB debugging off (`adb_enabled` 0) sets the USB
+  functions to `mtp` alone, and adbd exits at once. Every lock and unlock after that resets them again, to
+  `sec_charging` or `mtp`, never with `adb`, and stops an adbd started meanwhile. Nothing starts it again but writing
+  `adb_wifi_enabled`: off, then on 0.9 seconds later, started adbd within 0.1 seconds and its TLS port 0.6 seconds
+  after that. All the while `adb_wifi_enabled` reads 1. (Measured on the S23, Android 17, cable unplugged, from
+  logcat: `AdbService`, `UsbDeviceManager` and `adbd`.)
+  So the restart "about one second later" above holds only while USB debugging is on. Before this was handled,
+  Apply and Back to OpenGL failed at "Restart System UI" after 31 seconds, with System UI already on the right
+  renderer (#2). The app now turns wireless debugging off and on once when a search finds nothing behind a switch
+  that is on, both when it connects and when it reconnects.
+- **Turning the switch off and on works under the lock screen.** In an Apply with USB debugging off, the lock from
+  `am crash` stopped adbd; 7 seconds later (the 1-second pause and the 5-second search that found nothing) the app
+  wrote the switch off and, a second later, on; adbd started at once, the run connected a second after that, found
+  System UI on Vulkan and succeeded in 14 seconds, all before the phone was unlocked. Unlocking stopped adbd again,
+  and the next run started the same way: about 7 seconds before it connected, which the user sees as the "Wireless
+  debugging connected" notification coming late. (Measured on the S23, Android 17, cable unplugged.)
 
 So `am crash com.android.systemui` cuts the connection that sent it: the lock screen appears, adbd restarts, and
 anything the run still had to send fails. When the user unlocks, adbd restarts a second time. The user sees the
