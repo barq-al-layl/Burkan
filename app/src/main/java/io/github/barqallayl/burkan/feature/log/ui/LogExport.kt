@@ -25,7 +25,8 @@ data class LogSource(val appVersion: String, val model: String, val androidRelea
 /**
  * The log as the text of a `.log` file: a header saying where it came from, then each run as a line followed by its
  * steps, one to a line, every line starting with the moment or with a mark in the same column. It holds what the
- * screen shows and no more: no key, and none of the user's apps by name.
+ * screen shows and no more: no key, and no list of the user's apps. A command that failed is quoted by the first
+ * line of what it said, and that line can name the one app it was about.
  */
 fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt: Instant, zone: ZoneId): String =
     buildString {
@@ -45,13 +46,13 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
                 ).joinToString(separator = " | "),
             )
             val under = INDENT + " ".repeat(MARK_DONE.length)
-            run.error?.let { appendLine("$INDENT$MARK_FAILED ${getString(it.resource)}") }
+            run.error?.let { appendLine("$INDENT$MARK_FAILED ${getString(it.logResource)}") }
             run.detail?.let { appendLine("$under $it") }
             run.steps.forEach { step ->
                 val mark = if (step.error == null) MARK_DONE else MARK_FAILED
                 val took = step.duration?.let { " (${durationText(it)})" }.orEmpty()
                 appendLine("$INDENT$mark ${text(step.kind.label())}$took")
-                step.error?.let { appendLine("$under ${getString(it.resource)}") }
+                step.error?.let { appendLine("$under ${getString(it.logResource)}") }
                 step.detail?.let { appendLine("$under $it") }
             }
             runDetailLines(run).forEach { appendLine("$INDENT$MARK_NOTE $it") }

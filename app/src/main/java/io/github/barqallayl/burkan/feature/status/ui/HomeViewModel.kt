@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.feature.status.ui
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
+import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -10,6 +11,8 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import io.github.barqallayl.burkan.core.model.AppError
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.core.model.UnexpectedError
+import kotlinx.coroutines.CancellationException
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.store.SettingsStore
@@ -91,7 +94,11 @@ data class HomeState(
 sealed interface HomeSideEffect {
     data object OpenLog : HomeSideEffect
     data object OpenSettings : HomeSideEffect
+    data object OpenExclusions : HomeSideEffect
     data object OpenDeveloperOptions : HomeSideEffect
+
+    /** Android's keyboard picker, where the default keyboard is chosen. */
+    data object ChooseKeyboard : HomeSideEffect
 }
 
 @Inject
@@ -186,8 +193,15 @@ class HomeViewModel(
     fun refresh(): Job = intent {
         if (state.run is ApplyRunState.Running || state.isRefreshing) return@intent
         reduce { state.copy(isRefreshing = true) }
-        val status =
+        val status = try {
             statusRepository.read().fold({ StatusState.Failed(it) }, { StatusState.Loaded(it) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Shown as a failed read, with its way to try again: left to fly, no later read would ever start.
+            Logger.e(e) { "Reading the status failed unexpectedly" }
+            StatusState.Failed(UnexpectedError)
+        }
         // The open apps are asked about once the status is on the screen: it is the slower of the two questions.
         val loaded = status is StatusState.Loaded
         val pairingCanLapse = statusRepository.pairingCanLapse()
@@ -197,6 +211,9 @@ class HomeViewModel(
                 statusReadAt = clock.now(),
                 isRefreshing = false,
                 behind = null,
+                // The sheet lists the apps behind: with the list gone it has nothing to show, and must not come
+                // back by itself when a later read finds some.
+                isShowingBehind = false,
                 isCheckingBehind = loaded,
                 pairingCanLapse = pairingCanLapse,
             )
@@ -253,15 +270,20 @@ class HomeViewModel(
         if (!state.behind.isNullOrEmpty()) reduce { state.copy(isShowingBehind = true) }
     }
 
-    fun confirmRestartBehind() = intent {
+    /**
+     * Restarts the apps behind that are ticked. With all of them ticked the run restarts whatever is behind when it
+     * reads the phone, as it always has; with some unticked, only [ticked].
+     */
+    fun confirmRestartBehind(ticked: Set<PackageName>) = intent {
+        if (ticked.isEmpty()) return@intent
         reduce { state.copy(isShowingBehind = false) }
-        launcher.start(ApplyKind.OpenApps)
-    }
-
-    /** Restarts one of the apps behind, from its row. */
-    fun restartOne(packageName: PackageName) = intent {
-        reduce { state.copy(isShowingBehind = false) }
-        launcher.start(ApplyKind.OpenApps, only = setOf(packageName))
+        // Every one of a known list: nothing the user saw is left out, so the run may restart what it finds.
+        val all = state.behind?.map { it.packageName }?.toSet().orEmpty()
+        if (all.isNotEmpty() && ticked.containsAll(all)) {
+            launcher.start(ApplyKind.OpenApps)
+        } else {
+            launcher.start(ApplyKind.OpenApps, only = ticked)
+        }
     }
 
     /** Never restarts an app again, from its row: it joins the exclusions, and leaves the list. */
@@ -294,7 +316,22 @@ class HomeViewModel(
 
     fun openSettings() = intent { postSideEffect(HomeSideEffect.OpenSettings) }
 
+    /** Never restart these apps, from the note about them in the Restart all apps sheet. */
+    fun openExclusions() = intent {
+        reduce { state.copy(isConfirmingFullApply = false) }
+        postSideEffect(HomeSideEffect.OpenExclusions)
+    }
+
     fun openDeveloperOptions() = intent { postSideEffect(HomeSideEffect.OpenDeveloperOptions) }
+
+    /**
+     * The run left another keyboard as the default and could not put it back: the user chooses theirs again in
+     * Android's picker. Choosing is the last thing the run asks of them, so its steps make way for the status too.
+     */
+    fun chooseKeyboard() = intent {
+        if (state.run == ApplyRunState.Idle) reduce { state.copy(runSteps = emptyList(), finishedRun = null) }
+        postSideEffect(HomeSideEffect.ChooseKeyboard)
+    }
 
     /**
      * Shows what the finished run read at its end. Only when it read nothing (it failed before it could) does Home
@@ -311,6 +348,7 @@ class HomeViewModel(
                     // as old, so the next return to the screen asks again.
                     statusReadAt = verified.at.takeIf { behind != null },
                     behind = behind,
+                    isShowingBehind = state.isShowingBehind && !behind.isNullOrEmpty(),
                     isCheckingBehind = false,
                 )
             }

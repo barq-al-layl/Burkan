@@ -2,7 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -28,6 +28,11 @@ import kotlin.time.Instant
  * or the app's process died under the run. The app holds `WRITE_SECURE_SETTINGS`, so it can write them back itself,
  * through [DeviceSettings].
  *
+ * The app also reads them itself, through [read]. What answers on the connection is not known to be the phone's own
+ * adb daemon: adb's TLS does not say who the other side is. A value taken from it and then written with the app's own
+ * permission would let whoever answered choose the phone's accessibility services. So what the app writes is what the
+ * app read, and it writes nothing that does not look like the setting it is for ([accepts]).
+ *
  * What was kept goes back only for [KEPT_FOR] after it was kept. The app may not be opened again for days, and by
  * then what the phone holds is more likely the user's own doing than the run's.
  */
@@ -38,16 +43,35 @@ class CapturedSettings(
     private val clock: Clock,
 ) {
 
-    /** Called before a run changes anything, so that what it captured outlives the run's process. */
-    suspend fun keep(values: Map<RestoredSetting, String>) {
-        if (values.isNotEmpty()) storage.set(values, at = clock.now())
+    /**
+     * Called before a run changes anything, so that what it captured outlives the run's process. False when the
+     * values could not be kept: the run must then change nothing, as nothing would put them back if its process died.
+     */
+    suspend fun keep(values: Map<RestoredSetting, String>): Boolean =
+        values.isEmpty() || storage.set(values, at = clock.now())
+
+    /**
+     * Every value is back where it was, so none is kept any longer. A write that fails here costs only a needless
+     * write later, of values the phone already holds.
+     */
+    suspend fun letGo() {
+        storage.set(emptyMap())
     }
 
-    /** Every value is back where it was, so none is kept any longer. */
-    suspend fun letGo() = storage.set(emptyMap())
+    /** What the phone holds for [setting] now, read by the app itself. */
+    fun read(setting: RestoredSetting): SettingRead = settings.get(setting.key)
 
-    /** Writes one value back without the shell. False when Android would not take it. */
-    fun putBack(setting: RestoredSetting, value: String): Boolean = settings.put(setting.key, value)
+    /**
+     * Writes one value back without the shell. False when Android would not take it, or when [value] is not one
+     * the setting could hold, which is never written.
+     */
+    fun putBack(setting: RestoredSetting, value: String): Boolean {
+        if (!setting.accepts(value)) {
+            Logger.w { "Not writing $setting: what was kept for it is not a value it can hold" }
+            return false
+        }
+        return settings.put(setting.key, value)
+    }
 
     /**
      * Puts back whatever is still kept: what a run left behind when its process died under it, or when neither the
@@ -75,14 +99,17 @@ class CapturedSettings(
     }
 }
 
-/** Where [CapturedSettings] keeps the values, and when it kept them. Setting none removes them all. */
+/**
+ * Where [CapturedSettings] keeps the values, and when it kept them. Setting none removes them all. [set] is false when
+ * the values could not be written.
+ */
 interface CapturedSettingsStorage {
     suspend fun get(): Map<RestoredSetting, String>
 
     /** When the values were kept. Null when none are, or when they were kept by a version that did not say. */
     suspend fun keptAt(): Instant?
 
-    suspend fun set(values: Map<RestoredSetting, String>, at: Instant? = null)
+    suspend fun set(values: Map<RestoredSetting, String>, at: Instant? = null): Boolean
 }
 
 /** Kept with the device state, which is not backed up: the values belong to this phone, and one names its apps. */
@@ -102,8 +129,8 @@ class DataStoreCapturedSettingsStorage(
 
     override suspend fun keptAt(): Instant? = preferences()[KEPT_AT]?.let(Instant::fromEpochMilliseconds)
 
-    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
-        dataStore.edit { preferences ->
+    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?): Boolean =
+        dataStore.editOrLog { preferences ->
             RestoredSetting.entries.forEach { setting ->
                 val value = values[setting]
                 if (value == null) preferences.remove(key(setting)) else preferences[key(setting)] = value
@@ -114,7 +141,6 @@ class DataStoreCapturedSettingsStorage(
                 preferences[KEPT_AT] = at.toEpochMilliseconds()
             }
         }
-    }
 
     private suspend fun preferences(): Preferences = dataStore.data
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }

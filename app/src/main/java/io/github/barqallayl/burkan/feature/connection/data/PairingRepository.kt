@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -48,7 +50,7 @@ class PairingRepository(
     }
 
     /** Pairs with [code] as typed: spaces are ignored, anything else must be six digits. */
-    suspend fun pair(code: String): Either<PairingError, Unit> {
+    suspend fun pair(code: String): Either<PairingError, Unit> = pairing.withLock {
         val result = either {
             val digits = code.filterNot { it.isWhitespace() }
             ensure(CODE.matches(digits)) { PairingError.InvalidCode }
@@ -59,8 +61,14 @@ class PairingRepository(
             deviceState.setPaired(true)
         }
         mutableStatus.value = result.fold({ PairingStatus.Failed(it) }, { PairingStatus.Paired })
-        return result
+        result
     }
+
+    /**
+     * One exchange at a time. The code can be typed into the notification while the screen sends one too, and two
+     * at once would both be put to the same dialog, each writing its outcome over the other's.
+     */
+    private val pairing = Mutex()
 
     private suspend fun exchange(endpoint: AdbEndpoint, code: String): Either<PairingError, Unit> {
         val loopback = client.pair(AdbShellAccess.LOOPBACK, endpoint.port, code)

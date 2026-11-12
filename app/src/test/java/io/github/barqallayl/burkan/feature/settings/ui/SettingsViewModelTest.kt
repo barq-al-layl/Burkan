@@ -112,6 +112,7 @@ class SettingsViewModelTest {
             containerHost.setSeedColor(SeedColors.Teal).join()
             containerHost.setPaletteStyle(PaletteStyles.Vibrant).join()
             containerHost.setTurnOffWirelessDebugging(false).join()
+            containerHost.setAllowExternalTriggers(false).join()
             cancelAndIgnoreRemainingItems()
         }
 
@@ -119,6 +120,7 @@ class SettingsViewModelTest {
         assertEquals(SeedColors.Teal, settings.seedColor.value)
         assertEquals(PaletteStyles.Vibrant, settings.paletteStyle.value)
         assertFalse(settings.turnOffWirelessDebugging.value)
+        assertFalse(settings.allowExternalTriggers.value)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.feature.connection.data
 
 import dev.zacsweers.metro.AppScope
+import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.sync.Mutex
@@ -10,6 +11,7 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import java.math.BigInteger
+import java.security.GeneralSecurityException
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.PrivateKey
@@ -49,14 +51,32 @@ class AdbKeyStore(private val secrets: SecretStore) {
         cached ?: (load() ?: generateAdbKeys().also { save(it) }).also { cached = it }
     }
 
+    /**
+     * The stored key, or null when there is none or what is stored cannot be read as one. A damaged key is as good as
+     * none: a new one is made in its place and the phone is paired again, where failing here would fail every
+     * connection from now on.
+     */
     private suspend fun load(): AdbKeys? {
         val key = secrets.get(PRIVATE_KEY) ?: return null
         val certificate = secrets.get(CERTIFICATE) ?: return null
-        return AdbKeys(
-            privateKey = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(decode(key))),
-            certificate = CertificateFactory.getInstance("X.509")
-                .generateCertificate(decode(certificate).inputStream()) as X509Certificate,
-        )
+        return try {
+            AdbKeys(
+                privateKey = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(decode(key))),
+                certificate = CertificateFactory.getInstance("X.509")
+                    .generateCertificate(decode(certificate).inputStream()) as X509Certificate,
+            )
+        } catch (e: GeneralSecurityException) {
+            unreadable(e)
+        } catch (e: IllegalArgumentException) {
+            // Not Base64.
+            unreadable(e)
+        }
+    }
+
+    // The exception's class says enough; its message could quote what was stored.
+    private fun unreadable(e: Exception): AdbKeys? {
+        Logger.w { "The stored adb key cannot be read (${e::class.simpleName}); a new one is made" }
+        return null
     }
 
     private suspend fun save(keys: AdbKeys) {

@@ -3,7 +3,7 @@ package io.github.barqallayl.burkan.feature.connection.shizuku;
 import android.os.ParcelFileDescriptor;
 
 /**
- * The shell Burkan asks Shizuku to run for it: a service in a process of its own, with the shell user's identity.
+ * The shell Burkan asks Shizuku to run for it: a service in a process of its own, as the user Shizuku runs as.
  *
  * Every method has an id of its own, as Shizuku requires of a user service. 16777114 is the one it reserves for
  * `destroy`.

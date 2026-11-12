@@ -3,7 +3,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -53,17 +53,19 @@ class DataStoreAutoApplyStorage(
                 waitingFor = WaitReason.entries.firstOrNull { it.name == waitingFor },
                 triedNetwork = preferences[Keys.triedNetwork],
                 systemUiAtNextLock = preferences[Keys.systemUiAtNextLock] ?: false,
+                lockRetries = preferences[Keys.lockRetries] ?: 0,
             )
         }
         .distinctUntilChanged()
 
     override suspend fun set(state: AutoApplyState) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             preferences.remove(Keys.waitingFor)
             preferences.remove(Keys.triedNetwork)
             state.waitingFor?.let { preferences[Keys.waitingFor] = it.name }
             state.triedNetwork?.let { preferences[Keys.triedNetwork] = it }
             preferences[Keys.systemUiAtNextLock] = state.systemUiAtNextLock
+            preferences[Keys.lockRetries] = state.lockRetries
         }
     }
 
@@ -72,13 +74,14 @@ class DataStoreAutoApplyStorage(
         .first()[Keys.lastBoot]
 
     override suspend fun setLastBoot(count: Int) {
-        dataStore.edit { it[Keys.lastBoot] = count }
+        dataStore.editOrLog { it[Keys.lastBoot] = count }
     }
 
     private object Keys {
         val waitingFor = stringPreferencesKey("auto_apply_waiting_for")
         val triedNetwork = longPreferencesKey("auto_apply_tried_network")
         val systemUiAtNextLock = booleanPreferencesKey("auto_apply_system_ui_at_next_lock")
+        val lockRetries = intPreferencesKey("auto_apply_lock_retries")
         val lastBoot = intPreferencesKey("auto_apply_last_boot")
     }
 }

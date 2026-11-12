@@ -25,6 +25,7 @@ import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
@@ -63,6 +64,46 @@ class AutoApplyTest {
     }
 
     @Test
+    fun `a run at the lock that could not connect is tried again, twice and no more`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+        val lost = RunOutcome(RunResult.Failed, ConnectionError.DaemonNotFound)
+
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(systemUiAtNextLock = true, lockRetries = 1), storage.state.value)
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(systemUiAtNextLock = true, lockRetries = 2), storage.state.value)
+        assertTrue(alerts.failures.isEmpty(), "nothing is said while it is still being tried")
+
+        autoApply.onRunFinished(RunTrigger.AtLock, lost)
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertEquals(listOf<AppError?>(ConnectionError.DaemonNotFound), alerts.failures)
+    }
+
+    @Test
+    fun `a run at the lock that the phone refused is not tried again`() = runTest {
+        storage.state.value = AutoApplyState(systemUiAtNextLock = true)
+
+        autoApply.onRunFinished(RunTrigger.AtLock, RunOutcome(RunResult.Failed, ConnectionError.NotAuthorised))
+
+        assertEquals(AutoApplyState(), storage.state.value)
+        assertEquals(listOf<AppError?>(ConnectionError.NotAuthorised), alerts.failures)
+    }
+
+    @Test
+    fun `the watch for the lock lasts as long as the phone takes to lock, within limits`() {
+        // And a phone that gives no boot count is told apart by the minute it started.
+        val startedAt = 1_800_000_000_000L
+        assertEquals(bootMinute(startedAt + 5_000, 5_000), bootMinute(startedAt + 3_600_000, 3_600_000))
+        assertTrue(bootMinute(startedAt + 120_000, 0) > bootMinute(startedAt, 0))
+        assertEquals(SHORTEST_LOCK_WAIT, lockWait(0.seconds))
+        assertEquals(SHORTEST_LOCK_WAIT, lockWait(5.seconds))
+        assertEquals(35.seconds, lockWait(30.seconds))
+        assertEquals(LONGEST_LOCK_WAIT, lockWait(1800.seconds))
+        // A phone that will not say is watched long enough for a lock a minute after the screen goes off.
+        assertEquals(65.seconds, lockWait(null))
+    }
+
+    @Test
     fun `a restart forgets that the app had switched wireless debugging on, as the restart switched it off`() =
         runTest {
             deviceState.switchedOnWirelessDebugging.value = true
@@ -71,6 +112,42 @@ class AutoApplyTest {
 
             assertFalse(deviceState.switchedOnWirelessDebugging.value)
         }
+
+    @Test
+    fun `BOOT_COMPLETED with wireless debugging still on leaves it the app's to switch off`() = runTest {
+        // Seen on a Galaxy S23: the app force-stopped mid-run, before it had kept a boot count, and opened again.
+        wirelessDebugging.on = true
+        deviceState.switchedOnWirelessDebugging.value = true
+
+        autoApply.onBoot()
+
+        assertTrue(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
+    fun `a run that ends keeps the boot, so BOOT_COMPLETED later in it is not a restart`() = runTest {
+        // Installed and set up, then a run: the app has not seen this boot's BOOT_COMPLETED.
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        // A force-stop, and the app opened again.
+        autoApply.onBoot()
+
+        assertEquals(0, launcher.automaticStarts)
+        assertEquals(1, storage.lastBoot)
+    }
+
+    @Test
+    fun `a run that ends leaves a boot already kept alone`() = runTest {
+        autoApply.onBoot()
+        bootCount.count = 2
+
+        autoApply.onRunFinished(RunTrigger.Manual, RunOutcome(RunResult.Succeeded))
+
+        // Only BOOT_COMPLETED says the phone restarted; a run in between must not hide that.
+        assertEquals(1, storage.lastBoot)
+        autoApply.onBoot()
+        assertEquals(2, launcher.automaticStarts)
+    }
 
     @Test
     fun `BOOT_COMPLETED again in the same boot is not a restart, and applies nothing`() = runTest {
@@ -425,6 +502,7 @@ class AutoApplyTest {
             FixedClock,
             FixtureDevice.Self,
             FakeRunAnnouncer(),
+            FakeShizukuClient(),
         )
         storage.state.value = AutoApplyState(systemUiAtNextLock = true)
 

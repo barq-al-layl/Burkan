@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,6 +42,9 @@ import com.composables.icons.tabler.outline.Search
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.entity.License
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import io.github.barqallayl.burkan.designsystem.component.BurkanSegment
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.messageRes
@@ -133,7 +136,7 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                LoadingIndicator()
+                BurkanLoadingIndicator()
             }
         } else if (libraries.libraries.isEmpty()) {
             BurkanMessage(
@@ -228,33 +231,62 @@ private fun LicencesContent(state: LicencesState, onBack: () -> Unit) {
     }
 }
 
-/** The libraries whose name, or whose licence's name, has [query] in it. */
+/** The libraries whose name, or whose licence's name or short name, has [query] in it. */
 private fun List<Library>.matching(query: String): List<Library> {
     val wanted = query.trim()
     if (wanted.isEmpty()) return this
     return filter { library ->
         library.name.contains(wanted, ignoreCase = true) ||
-            library.licenses.any { it.name.contains(wanted, ignoreCase = true) }
+            library.licenses.any {
+                it.name.contains(wanted, ignoreCase = true) || it.shortName.contains(wanted, ignoreCase = true)
+            }
     }
 }
+
+/**
+ * A licence by its short name where it has one, "Apache 2.0" rather than "The Apache Software License, Version 2.0",
+ * and by its full name otherwise. The short name is the SPDX identifier, read as words.
+ */
+val License.shortName: String
+    get() = spdxId?.takeIf { it.isNotBlank() }?.replace(VERSION_DASH, " ") ?: name
+
+/** The dash before a version number in an SPDX identifier: "Apache-2.0", "BSD-3-Clause". */
+private val VERSION_DASH = Regex("-(?=\\d)")
+
+/**
+ * A licence's text for a phone's width. Licences are written for a fixed-width page, with every line broken at about
+ * eighty characters; on a phone those breaks fall mid-line. Each paragraph, which a blank line ends, is joined into
+ * one line and wraps where the screen does.
+ */
+fun readableLicence(text: String): String =
+    text.trim()
+        .split(PARAGRAPH_BREAK)
+        .joinToString("\n\n") { paragraph -> paragraph.lines().joinToString(" ") { it.trim() }.trim() }
+
+private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
 
 /** A library's version and the licences it is under, as one line. */
 @Composable
 private fun Library.detail(): String {
     val names =
-        licenses.joinToString(separator = stringResource(R.string.list_separator)) { it.name }
+        licenses.joinToString(separator = stringResource(R.string.list_separator)) { it.shortName }
             .ifEmpty { stringResource(R.string.licences_no_licence) }
     val version = artifactVersion ?: return names
     return stringResource(R.string.licences_item_detail, version, names)
 }
 
-/** What a library is, and the ways out to its website and to the text of its licence. */
+/**
+ * What a library is and the text of its licence, which the app carries, so it reads without a connection. Its
+ * website is the way out. A licence the app has no text for is opened at its address instead.
+ */
 @Composable
 private fun LibrarySheet(library: Library) {
     val uriHandler = LocalUriHandler.current
+    val texts = library.licenses.mapNotNull { it.licenseContent?.takeIf(String::isNotBlank) }.distinct()
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = ScreenMargin)
             .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -271,7 +303,7 @@ private fun LibrarySheet(library: Library) {
             ) {
                 library.artifactVersion?.let { BurkanPill(it) }
                 if (library.licenses.isEmpty()) BurkanPill(stringResource(R.string.licences_no_licence))
-                library.licenses.forEach { BurkanPill(it.name, tone = Tone.Good) }
+                library.licenses.forEach { BurkanPill(it.shortName, tone = Tone.Good) }
             }
             library.description?.takeIf { it.isNotBlank() }?.let {
                 Text(
@@ -281,8 +313,19 @@ private fun LibrarySheet(library: Library) {
                 )
             }
         }
+        texts.forEach { text ->
+            BurkanSegment(index = 0, count = 1) {
+                Text(
+                    readableLicence(text),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
         val website = library.website?.takeIf { it.isNotBlank() }
         val licence = library.licenses.firstNotNullOfOrNull { it.url?.takeIf(String::isNotBlank) }
+            .takeIf { texts.isEmpty() }
         if (website != null || licence != null) {
             BurkanSheetActions(
                 modifier = Modifier.padding(top = 4.dp),
@@ -300,6 +343,20 @@ private fun LibrarySheet(library: Library) {
 private val apache = License(
     name = "The Apache Software License, Version 2.0",
     url = "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    spdxId = "Apache-2.0",
+    // The licence's opening, as it is broken across lines in the text the app carries.
+    licenseContent = """
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+    """.trimIndent(),
     hash = "Apache-2.0",
 )
 

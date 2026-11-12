@@ -35,6 +35,22 @@ class AdbKeyStoreTest {
     }
 
     @Test
+    fun `a stored key that cannot be read is replaced by a new one`() = runTest {
+        AdbKeyStore(secrets).keys()
+        listOf("not base64 !", "AAAA").forEach { damaged ->
+            secrets.put("adb_private_key", damaged)
+            val writes = secrets.writes
+
+            val keys = AdbKeyStore(secrets).keys()
+
+            assertEquals(2048, (keys.certificate.publicKey as RSAPublicKey).modulus.bitLength())
+            assertEquals(writes + 2, secrets.writes, "the new key is stored in place of \"$damaged\"")
+            // And it is the one read back from then on.
+            assertEquals(keys.certificate, AdbKeyStore(secrets).keys().certificate)
+        }
+    }
+
+    @Test
     fun `a restarted app reads the same key back`() = runTest {
         val before = AdbKeyStore(secrets).keys()
 

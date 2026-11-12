@@ -13,9 +13,9 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
 
 /**
- * The [ShellAccess] the rest of the app uses: the way to a shell the user chose in Settings, looked up each time a
- * block starts. A choice made between two runs takes effect at the next one; a run in progress keeps the shell it
- * began with.
+ * The [ShellAccess] the rest of the app uses: the way to a shell the caller names, or else the one the user chose in
+ * Settings, looked up each time a block starts. A choice made between two runs takes effect at the next one; a run in
+ * progress keeps the shell it began with.
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -29,10 +29,11 @@ class BackendShellAccess(
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
-    ): Either<AppError, T> = when (settings.shellBackend.first()) {
-        ShellBackend.WirelessDebugging -> wirelessDebugging.withShell(settle, patience, block)
-        ShellBackend.Shizuku -> shizuku.withShell(settle, patience, block)
+    ): Either<AppError, T> = when (backend ?: settings.shellBackend.first()) {
+        ShellBackend.WirelessDebugging -> wirelessDebugging.withShell(settle, patience, block = block)
+        ShellBackend.Shizuku -> shizuku.withShell(settle, patience, block = block)
     }
 
     /** Both: a shell kept from before the choice changed is closed too. */

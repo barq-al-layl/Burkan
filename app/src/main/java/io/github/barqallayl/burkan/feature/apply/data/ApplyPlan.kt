@@ -61,3 +61,17 @@ val RestoredSetting.key: SettingKey
         RestoredSetting.EdgeEnabled -> SettingKey.EdgeEnabled
         RestoredSetting.EdgePanels -> SettingKey.EdgePanels
     }
+
+/**
+ * Whether [value] is one this setting could hold. Asked before the app writes a value itself, with its own
+ * permission: a switch is `0` or `1`, and the accessibility services are `package/class` names with colons between.
+ * What Samsung keeps in its Edge panels key is not documented, so there only the characters are checked.
+ */
+fun RestoredSetting.accepts(value: String): Boolean = when (this) {
+    RestoredSetting.AutoRotation, RestoredSetting.EdgeEnabled -> value == "0" || value == "1"
+    RestoredSetting.AccessibilityServices -> value.split(':').all(COMPONENT::matches)
+    RestoredSetting.EdgePanels -> PLAIN_VALUE.matches(value)
+}
+
+private val COMPONENT = Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")
+private val PLAIN_VALUE = Regex("[A-Za-z0-9_.$/:;,|-]{1,2000}")

@@ -23,6 +23,7 @@ import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.settings.model.About
 import io.github.barqallayl.burkan.feature.setup.data.ShellBackendSwitcher
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.combine
 import org.orbitmvi.orbit.OrbitContainerHost
 import org.orbitmvi.orbit.viewmodel.orbitContainer
 
@@ -31,6 +32,7 @@ data class SettingsValues(
     val applyOnBoot: Boolean,
     val shellBackend: ShellBackend,
     val turnOffWirelessDebugging: Boolean,
+    val allowExternalTriggers: Boolean,
     val exclusionCount: Int,
     val appearance: Appearance,
 )
@@ -73,14 +75,23 @@ class SettingsViewModel(
 ) : OrbitContainerHost<SettingsState, SettingsState, SettingsSideEffect>, ViewModel() {
 
     override val container = orbitContainer<SettingsState, SettingsSideEffect>(
-        SettingsState(values = store.settings.value?.toValues(), version = version),
+        SettingsState(
+            values = store.settings.value?.toValues(SettingsStorage.Defaults.ALLOW_EXTERNAL_TRIGGERS),
+            version = version,
+        ),
     ) {
-        store.settings.filterNotNull()
-            .collect { settings -> reduce { state.copy(values = settings.toValues()) } }
+        combine(store.settings.filterNotNull(), settings.allowExternalTriggers) { user, allow -> user.toValues(allow) }
+            .collect { values -> reduce { state.copy(values = values) } }
     }
 
-    private fun UserSettings.toValues() =
-        SettingsValues(applyOnBoot, shellBackend, turnOffWirelessDebugging, exclusions.size, appearance)
+    private fun UserSettings.toValues(allowExternalTriggers: Boolean) = SettingsValues(
+        applyOnBoot,
+        shellBackend,
+        turnOffWirelessDebugging,
+        allowExternalTriggers,
+        exclusions.size,
+        appearance,
+    )
 
     fun setApplyOnBoot(enabled: Boolean) = intent {
         settings.setApplyOnBoot(enabled)
@@ -90,6 +101,8 @@ class SettingsViewModel(
 
     fun setTurnOffWirelessDebugging(enabled: Boolean) =
         intent { settings.setTurnOffWirelessDebugging(enabled) }
+
+    fun setAllowExternalTriggers(enabled: Boolean) = intent { settings.setAllowExternalTriggers(enabled) }
 
     fun openExclusions() = intent { postSideEffect(SettingsSideEffect.OpenExclusions) }
 
@@ -107,10 +120,11 @@ class SettingsViewModel(
 
     fun setPaletteStyle(style: PaletteStyles) = intent { settings.setPaletteStyle(style) }
 
-    /** Forgets the pairing and starts setup from its first step; `App.kt` then shows Setup. */
+    /** Forgets the pairing and starts setup from its first step; `App.kt` then shows Setup, not Welcome. */
     fun confirmRedoSetup() = intent {
         reduce { state.copy(dialog = null) }
         autoApply.stopWaiting()
+        deviceState.setWelcomeSeen(true)
         deviceState.setPaired(false)
         deviceState.setSetupStepsDone(0)
         deviceState.setSetupComplete(false)

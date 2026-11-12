@@ -4,6 +4,7 @@ import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
 import io.github.barqallayl.burkan.core.model.ShellBackend
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.core.shell.STOP_ALL_PREFIX
@@ -27,6 +28,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
@@ -70,6 +72,7 @@ class ApplyControllerTest {
     private val deviceSettings = FakeDeviceSettings()
     private val kept = FakeCapturedSettingsStorage()
     private val announcer = FakeRunAnnouncer()
+    private val shizuku = FakeShizukuClient()
     private val controller = ApplyController(
         access,
         log,
@@ -81,6 +84,7 @@ class ApplyControllerTest {
         clock,
         FixtureDevice.Self,
         announcer,
+        shizuku,
     )
 
     @Test
@@ -98,6 +102,24 @@ class ApplyControllerTest {
             entry.steps.map { it.kind },
         )
         assertEquals(ApplyRunState.Idle, controller.state.value)
+    }
+
+    @Test
+    fun `a fault of the app's own fails the run instead of taking the app down`() = runTest {
+        shell.beforeEach = { command ->
+            if (command.line.startsWith("setprop")) throw IllegalStateException("a bug")
+        }
+
+        val outcome = controller.run(ApplyKind.Light, RunTrigger.Manual)
+
+        assertEquals(RunResult.Failed, outcome?.result)
+        assertEquals(UnexpectedError, outcome?.error)
+        val entry = log.runs.value.single()
+        assertEquals(RunResult.Failed, entry.result)
+        assertEquals(AppErrorType.Unexpected, entry.error)
+        // The next run is not locked out.
+        shell.beforeEach = {}
+        assertEquals(RunResult.Succeeded, controller.run(ApplyKind.Light, RunTrigger.Manual)?.result)
     }
 
     @Test
@@ -132,20 +154,21 @@ class ApplyControllerTest {
     }
 
     @Test
-    fun `with Shizuku its own app is left running by a full run, so that it can start itself after a restart`() = runTest {
-        settings.shellBackend.value = ShellBackend.Shizuku
-        shell.reply(
-            ShellCommands.listPackages(),
-            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
-            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
-        )
+    fun `with Shizuku its own app is left running by a full run, so that it can start itself after a restart`() =
+        runTest {
+            settings.shellBackend.value = ShellBackend.Shizuku
+            shell.reply(
+                ShellCommands.listPackages(),
+                stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+                stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+            )
 
-        controller.run(ApplyKind.Full, RunTrigger.Manual)
+            controller.run(ApplyKind.Full, RunTrigger.Manual)
 
-        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
-        assertFalse("moe.shizuku.privileged.api" in stopAll)
-        assertTrue("com.example.notes;" in stopAll)
-    }
+            val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+            assertFalse("moe.shizuku.privileged.api" in stopAll)
+            assertTrue("com.example.notes;" in stopAll)
+        }
 
     @Test
     fun `with wireless debugging a Shizuku app, if the phone has one, is restarted like any other`() = runTest {
@@ -159,6 +182,56 @@ class ApplyControllerTest {
 
         val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
         assertTrue("moe.shizuku.privileged.api;" in stopAll)
+    }
+
+    @Test
+    fun `a run keeps the way to a shell it began with, though Settings changes part way through`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+        shell.beforeEach = { settings.shellBackend.value = ShellBackend.WirelessDebugging }
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        assertEquals(listOf<ShellBackend?>(ShellBackend.Shizuku), access.backends)
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertFalse("moe.shizuku.privileged.api" in stopAll)
+    }
+
+    @Test
+    fun `with Shizuku a fork's app is left running under the name the fork gives it`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        shizuku.app = PackageName.known("com.example.shizuku")
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:com.example.shizuku\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertFalse("com.example.shizuku" in stopAll)
+    }
+
+    @Test
+    fun `with Shizuku that has no app, as Sui, only the user's own choices are left running`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+        shizuku.app = null
+        shell.reply(
+            ShellCommands.listPackages(),
+            stdout = fixture("pm-list-packages.txt") + "package:moe.shizuku.privileged.api\n",
+            stderr = FixtureDevice.SECURE_FOLDER_ERROR,
+        )
+
+        controller.run(ApplyKind.Full, RunTrigger.Manual)
+
+        val stopAll = shell.lines.single { it.startsWith("${STOP_ALL_PREFIX}stop_app com.android.systemui;") }
+        assertTrue("moe.shizuku.privileged.api;" in stopAll)
+        assertTrue("com.example.notes;" in stopAll)
     }
 
     @Test
@@ -652,7 +725,11 @@ class ApplyControllerTest {
 
     @Test
     fun `a command that fails leaves its own words in the log`() = runTest {
-        shell.reply(ShellCommands.setVulkanRenderer(), stderr = "\nsetprop: failed to set property\nmore\n", exitCode = 1)
+        shell.reply(
+            ShellCommands.setVulkanRenderer(),
+            stderr = "\nsetprop: failed to set property\nmore\n",
+            exitCode = 1,
+        )
 
         controller.run(ApplyKind.Light, RunTrigger.Manual)
 

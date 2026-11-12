@@ -13,6 +13,11 @@ import arrow.core.Either
  *   outcome is unknown: the error is returned, and the next command reconnects before it is sent.
  *
  * Gives up after [MAX_RECONNECTS] reconnections for one command, so a connection that keeps dropping ends the run.
+ *
+ * One reconnection that fails is final: [reconnect] has spent its whole budget, and the next command would only spend
+ * it again. Every command after it fails at once with [ShellError.NotConnected], so a run that lost its shell gets to
+ * the steps that do without one, putting the settings back from the app, straight away. On a Galaxy S23 the three of
+ * them had each waited 30 seconds for a Shizuku that had stopped.
  */
 class ReconnectingShellExecutor(
     private val delegate: ShellExecutor,
@@ -22,9 +27,13 @@ class ReconnectingShellExecutor(
     /** Set when a command lost its connection and was not sent again: the next one reconnects first. */
     private var lost = false
 
+    /** Set when a reconnection failed. The shell is taken as gone for good. */
+    private var gone = false
+
     override suspend fun run(command: ShellCommand): Either<ShellError, ShellResult> {
+        if (gone) return Either.Left(ShellError.NotConnected)
         if (lost) {
-            if (!reconnect()) return Either.Left(ShellError.NotConnected)
+            if (!reconnected()) return Either.Left(ShellError.NotConnected)
             lost = false
         }
         var result = delegate.run(command)
@@ -35,13 +44,15 @@ class ReconnectingShellExecutor(
                     lost = true
                     return result
                 }
-                ShellError.TimedOut, null -> return result
+                ShellError.TimedOut, ShellError.Failed, null -> return result
             }
-            if (!reconnect()) return result
+            if (!reconnected()) return result
             result = delegate.run(command)
         }
         return result
     }
+
+    private suspend fun reconnected(): Boolean = reconnect().also { if (!it) gone = true }
 
     private companion object {
         const val MAX_RECONNECTS = 3

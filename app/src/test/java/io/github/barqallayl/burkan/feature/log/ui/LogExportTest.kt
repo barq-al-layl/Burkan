@@ -63,12 +63,12 @@ class LogExportTest {
 
             [2026-10-01 09:30:00 +00:00] | Restart all apps | Manual | Failed | 1 min 13 s
                 [ ok ] Set new apps to Vulkan
-                [ ok ] Stop 612 apps
+                [ ok ] Close 612 apps
                 [FAIL] Reopen 110 apps
-                       The phone took too long to answer. Try again.
+                       The phone took too long to answer.
 
             [2026-10-01 08:02:00 +00:00] | Apply | After restart | Failed | 4 s
-                [FAIL] Wireless debugging needs Wi-Fi. Connect to a Wi-Fi network and try again.
+                [FAIL] The phone was not on Wi-Fi, which Wireless debugging needs.
 
             """.trimIndent(),
             // Durations keep their number and unit together with a no-break space.
@@ -126,12 +126,12 @@ class LogExportTest {
             [2026-10-01 09:30:00 +00:00] | Apply | Manual | Failed | 9 s
                 [ ok ] Set new apps to Vulkan (1 s)
                 [FAIL] Restart the launcher (3 s)
-                       ${resources.getString(AppErrorType.CommandFailed.resource)}
+                       ${resources.getString(AppErrorType.CommandFailed.logResource)}
                        exit 1: Error: Activity not started
                 [info] Connected and read the phone in 4 s
                 [info] Before: new apps OpenGL, System UI OpenGL, launcher OpenGL, keyboard OpenGL
                 [info] After: new apps Vulkan, System UI OpenGL, launcher OpenGL, keyboard OpenGL
-                [info] 2 open apps left on the other renderer
+                [info] 2 open apps left on OpenGL
 
             """.trimIndent(),
             resources.logFileText(runs, source, exportedAt, ZoneOffset.UTC).replace('\u00A0', ' '),

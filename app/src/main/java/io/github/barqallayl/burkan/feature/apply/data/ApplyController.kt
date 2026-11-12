@@ -5,6 +5,8 @@ import arrow.core.Either
 import arrow.core.flatten
 import arrow.core.raise.either
 import arrow.core.raise.ensure
+import co.touchlab.kermit.Logger
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
@@ -26,8 +28,8 @@ import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.StepKind
 import io.github.barqallayl.burkan.feature.apply.model.StepRecord
-import io.github.barqallayl.burkan.feature.connection.data.SHIZUKU_PACKAGE
 import io.github.barqallayl.burkan.feature.connection.data.ShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.ShizukuClient
 import io.github.barqallayl.burkan.feature.log.data.RunLogStorage
 import io.github.barqallayl.burkan.feature.log.model.LoggedStep
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
@@ -108,6 +110,7 @@ class ApplyController(
     private val clock: Clock,
     @Named(AppBindings.OWN_PACKAGE) private val ownPackage: PackageName,
     private val announcer: RunAnnouncer,
+    private val shizukuClient: ShizukuClient,
 ) {
 
     private val running = AtomicBoolean(false)
@@ -167,13 +170,17 @@ class ApplyController(
             // What a full apply left changed when the app's process died under it goes back first, before this run
             // reads the phone and takes that for how it was.
             puttingBack.withLock { captured.putBackKept() }
-            val shizuku = settings.shellBackend.first() == ShellBackend.Shizuku
+            // Read once: a choice changed in Settings part way through must not give this run one way's label and
+            // exclusions and the other way's shell.
+            val backend = settings.shellBackend.first()
+            val shizuku = backend == ShellBackend.Shizuku
             show(if (shizuku) RunPhase.ConnectingToShizuku else RunPhase.Connecting)
             // Locking restarted adbd, which takes about a second to accept connections again.
             val outcome = shellAccess.withShell(
                 settle = if (atLock) ADBD_SETTLE else Duration.ZERO,
                 // Shizuku starts itself after a restart, which takes a while longer than this app does.
                 patience = if (trigger == RunTrigger.Boot) SHELL_PATIENCE_AFTER_BOOT else Duration.ZERO,
+                backend = backend,
             ) { shell ->
                 either {
                     show(RunPhase.Reading)
@@ -181,9 +188,10 @@ class ApplyController(
                     val before = (if (atLock) reader.readSystemUi() else reader.read()).bind()
                     beforeStatus = before.status
                     // Shizuku starts itself after the next restart only if it was not force-stopped: an app that was is
-                    // left alone by the system until it is opened.
+                    // left alone by the system until it is opened. A fork may name its app differently; Sui has none.
+                    val shizukuApp = if (shizuku) shizukuClient.appPackage() else null
                     val userExclusions = settings.userExclusions.first().let { chosen ->
-                        if (shizuku) chosen + SHIZUKU_PACKAGE else chosen
+                        if (shizukuApp == null) chosen else chosen + shizukuApp
                     }
                     val plan = when (kind) {
                         ApplyKind.Light -> LightApplyPlan.create(before, deferSystemUi)
@@ -193,7 +201,7 @@ class ApplyController(
                             // apply, OpenGL after going back.
                             val target = before.status.newApps
                             FullApplyPlan.create(
-                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                inputs = ApplyInputsReader(shell, captured).readFull().bind(),
                                 userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
@@ -206,7 +214,7 @@ class ApplyController(
                         ApplyKind.Full -> {
                             val limit = scope.limit
                             FullApplyPlan.create(
-                                inputs = ApplyInputsReader(shell).readFull().bind(),
+                                inputs = ApplyInputsReader(shell, captured).readFull().bind(),
                                 userExclusions = userExclusions,
                                 self = ownPackage,
                                 before = before,
@@ -223,7 +231,8 @@ class ApplyController(
                         // At the lock only System UI was read; Home reads the rest itself.
                         status = before.status.takeUnless { atLock }
                         // Nothing was restarted, so the open apps are as they were: Home still has to be told.
-                        if (!atLock) behind = OpenAppsReader(shell).behind(before, userExclusions, ownPackage).getOrNull()
+                        if (!atLock) behind =
+                            OpenAppsReader(shell).behind(before, userExclusions, ownPackage).getOrNull()
                         return@either
                     }
                     // A run nobody confirmed on the screen restarts System UI only under a locked phone. Left
@@ -269,6 +278,13 @@ class ApplyController(
         } catch (e: CancellationException) {
             result = RunResult.Cancelled
             throw e
+        } catch (e: Exception) {
+            // A fault of the app's own. The run is logged as failed, which it did, and the service lives to put
+            // back what the run had changed; thrown on, it would be logged as cancelled and take the app down.
+            Logger.e(e) { "The run failed unexpectedly" }
+            runError = UnexpectedError
+            result = RunResult.Failed
+            return RunOutcome(result, runError, status)
         } finally {
             withContext(NonCancellable) {
                 // Home shows what the run read, so nothing needs the connection now: close it and put the switch back.

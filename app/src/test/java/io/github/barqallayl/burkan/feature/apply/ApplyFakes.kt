@@ -9,6 +9,8 @@ import io.github.barqallayl.burkan.feature.apply.data.AutoApplyStorage
 import io.github.barqallayl.burkan.feature.apply.data.BootCount
 import io.github.barqallayl.burkan.feature.apply.data.CapturedSettingsStorage
 import io.github.barqallayl.burkan.feature.apply.data.DeviceSettings
+import io.github.barqallayl.burkan.feature.apply.data.FixtureDevice
+import io.github.barqallayl.burkan.feature.apply.data.SettingRead
 import io.github.barqallayl.burkan.feature.apply.data.LockEvents
 import io.github.barqallayl.burkan.feature.apply.data.RecentApps
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
@@ -177,9 +179,20 @@ class FakeSystemUiRestarts : SystemUiRestarts {
     }
 }
 
-/** Takes every write, unless it [refuses]: Android will not let the app write, and nothing is written. */
-class FakeDeviceSettings(var refuses: Boolean = false) : DeviceSettings {
+/**
+ * Takes every write, unless it [refuses]: Android will not let the app write, and nothing is written. Read, it holds
+ * [values], which start as the fixture phone's; [unreadable] plays Android refusing the app's reads.
+ */
+class FakeDeviceSettings(var refuses: Boolean = false, var unreadable: Boolean = false) : DeviceSettings {
     val written = mutableListOf<Pair<SettingKey, String>>()
+    val values = mutableMapOf(
+        SettingKey.AutoRotation to "1",
+        SettingKey.AccessibilityServices to FixtureDevice.ACCESSIBILITY,
+        SettingKey.EdgeEnabled to "1",
+    )
+
+    override fun get(key: SettingKey): SettingRead =
+        if (unreadable) SettingRead.Refused else SettingRead.Value(values[key])
 
     override fun put(key: SettingKey, value: String): Boolean {
         if (refuses) return false
@@ -192,13 +205,18 @@ class FakeCapturedSettingsStorage(
     var kept: Map<RestoredSetting, String> = emptyMap(),
     var keptAt: Instant? = null,
 ) : CapturedSettingsStorage {
+    /** Every write fails and leaves what was kept as it was, as a full disk would. */
+    var failWrites = false
+
     override suspend fun get(): Map<RestoredSetting, String> = kept
 
     override suspend fun keptAt(): Instant? = keptAt
 
-    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?) {
+    override suspend fun set(values: Map<RestoredSetting, String>, at: Instant?): Boolean {
+        if (failWrites) return false
         kept = values
         keptAt = at.takeIf { values.isNotEmpty() }
+        return true
     }
 }
 

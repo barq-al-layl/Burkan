@@ -32,21 +32,17 @@ private const val SLIDE_SHARE = 10
 
 /**
  * A change of screen in the One UI style, as the phone's own apps do it: the new screen slides in over the old one,
- * which gives way a short distance and dims out behind it. Going back runs it the other way, the old screen
- * returning from where it waited as the top one slides off.
+ * which gives way a short distance behind it. Neither fades: One UI only slides. Going back runs it the other way,
+ * the old screen returning from where it waited as the top one slides off.
  */
 fun oneUiTransition(forward: Boolean, rtl: Boolean = false): ContentTransform {
     val side = if (rtl) -1 else 1
     return if (forward) {
         slideInHorizontally(oneUiSlide) { width -> side * width } togetherWith
-            slideOutHorizontally(oneUiSlide) { width -> -side * (width * ONE_UI_GIVE).toInt() } + fadeOut(
-            oneUiFade,
-        )
+            slideOutHorizontally(oneUiSlide) { width -> -side * (width * ONE_UI_GIVE).toInt() }
     } else {
         (
-            slideInHorizontally(oneUiSlide) { width -> -side * (width * ONE_UI_GIVE).toInt() } + fadeIn(
-                oneUiFade,
-            ) togetherWith
+            slideInHorizontally(oneUiSlide) { width -> -side * (width * ONE_UI_GIVE).toInt() } togetherWith
                 slideOutHorizontally(oneUiSlide) { width -> side * width }
             ).apply {
                 // The screen being left is the one on top, so it stays above the one coming back.
@@ -62,4 +58,3 @@ private const val ONE_UI_MILLIS = 400
 /** Quick off the mark and long in settling, like One UI's own. */
 private val OneUiEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
 private val oneUiSlide = tween<IntOffset>(ONE_UI_MILLIS, easing = OneUiEasing)
-private val oneUiFade = tween<Float>(ONE_UI_MILLIS, easing = OneUiEasing)

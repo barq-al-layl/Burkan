@@ -3,6 +3,7 @@ import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.powerassert.gradle.PowerAssertCompilationFilter
 import java.io.ByteArrayOutputStream
 import java.util.Properties
 import javax.inject.Inject
@@ -12,6 +13,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.powerAssert)
     alias(libs.plugins.metro)
     alias(libs.plugins.roborazzi)
 }
@@ -122,6 +124,28 @@ tasks.withType<KotlinCompile>().configureEach {
     }
 }
 
+// A failed assertion prints the value of each part of its expression, where it said only "Expected value to be true".
+// Test code only: the plugin rewrites each call into code that builds that message, which has no place in the app.
+// The JVM tests are the compilations whose names end in "UnitTest" (debugUnitTest and the like); the plugin's own
+// TESTS filter looks for one named "test", which an Android app does not have. Not "Test" alone: that also takes
+// debugAndroidTest, whose classpath then asks for the plugin's runtime with no version, and lint, which resolves that
+// classpath, fails. The list is the kotlin.test functions the suite calls that take a message last, which is what the
+// plugin needs; a new one gets the diagram once it is here.
+// PowerAssertTest fails if the plugin stops being applied.
+powerAssert {
+    compilationFilter = PowerAssertCompilationFilter { it.name.endsWith("UnitTest") }
+    functions = listOf(
+        "kotlin.assert",
+        "kotlin.test.assertEquals",
+        "kotlin.test.assertNotEquals",
+        "kotlin.test.assertTrue",
+        "kotlin.test.assertFalse",
+        "kotlin.test.assertNull",
+        "kotlin.test.assertNotNull",
+        "kotlin.test.assertSame",
+    )
+}
+
 // Conscrypt's Android build carries native code for Android only. On the JVM it shadows the Conscrypt Robolectric
 // installs for itself, and every Robolectric test fails to load it.
 configurations.configureEach {
@@ -205,6 +229,8 @@ dependencies {
     testImplementation(libs.composable.preview.scanner.android)
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    // The plugin adds this itself, but with no version under AGP's built-in Kotlin, which then cannot resolve it.
+    testImplementation(libs.kotlin.powerAssert.runtime)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.orbit.test)
     testImplementation(libs.robolectric)
@@ -301,7 +327,13 @@ abstract class CheckRelease : ReleaseTask() {
                     add("$tag is not on main.")
                 }
             } else {
-                if (output("git", "rev-parse", "--abbrev-ref", "HEAD") != "main") add("The branch checked out is not main.")
+                if (output(
+                        "git",
+                        "rev-parse",
+                        "--abbrev-ref",
+                        "HEAD",
+                    ) != "main"
+                ) add("The branch checked out is not main.")
                 if (tagged != null && tagged != head) {
                     add("$tag already exists on another commit. Raise versionName and versionCode, or check that commit out.")
                 }

@@ -2,14 +2,42 @@
 
 Unit tests and screenshot tests run on any machine (see `CONTRIBUTING.md`). What follows cannot: it needs a real
 Galaxy S23, and an emulator does not stand in for it. A ticked item was observed on an S23 (SM-S911B, Android 16);
-the results are recorded in [`device-notes.md`](device-notes.md). An open item has not been checked yet. The last
-full pass was on One UI 8.5, with a debug build and the USB cable plugged in. The 1.0.0 release build was then
-tried on an S23 (SM-S911) and an S23 Ultra (SM-S918).
+the results are recorded in [`device-notes.md`](device-notes.md). A tick marked "(reported in #…)" was reported by
+a contributor in that pull request instead, and has not been observed by the maintainer. An open item has not been
+checked yet. The last full pass was on One UI 8.5, with a debug build and the USB cable plugged in. The 1.0.0
+release build was then tried on an S23 (SM-S911) and an S23 Ultra (SM-S918).
 
 When you check one, tick it here and record what you saw in the device notes.
 
 ## Setup and connection
 
+- [x] A fresh install opens on Welcome, and the phone in it redraws once, top to bottom, then rests. With Shizuku's
+      app installed, Get started offers the choice of connection, and Back goes from it to Welcome. (Android 17,
+      One UI, dark, 11 Nov 2026.)
+- [x] Notifications and Finishing setup show their tick and move on by themselves; Developer options and Wireless
+      debugging wait for Done. Pairing's two actions lead through pairing from the notification. Setup ends on
+      First apply, and Apply now opens Home on the run. (Same pass.)
+- [ ] Allowing the battery exemption in its dialog shows the tick and moves on, with no Done.
+- [ ] Refusing notifications twice, then tapping Allow, opens Burkan's notification settings; switching them on
+      there and coming back moves the step on.
+- [ ] On a phone without Shizuku's app, Welcome's Wi-Fi line comes and goes as Wi-Fi is switched from the
+      notification shade, without leaving the app.
+- [ ] With Shizuku's app installed, backing out of the choice of connection, closing the app and opening it again
+      opens on Welcome; Continue on the choice leaves Welcome for good.
+- [ ] Setup's back arrow goes back to the choice of connection or to Welcome while getting started, and is not
+      there after "Redo setup".
+- [ ] Once the last step is done, the First apply has no back arrow, and Back from it does not reach the choice of
+      connection or Welcome.
+- [ ] After "Redo setup", Finishing setup connects again rather than passing at once, and the step from home to
+      Setup and back to Home animates as a change of screen.
+- [ ] With the pairing dialog closed while waiting for the code, Open Wireless debugging under the first action
+      opens it again.
+- [ ] First apply with System UI on OpenGL: the screen locks once, and Home shows System UI on Vulkan after the
+      unlock. Later opens Home with nothing applied.
+- [ ] Welcome with Android's animations removed: the phone is drawn redrawn, with no movement.
+- [ ] Choosing Shizuku on the choice of connection leads to Shizuku's steps.
+- [ ] An update from a version with Connect and Permission, part way through setup, lands on the right step.
+- [ ] On a phone outside the S23 family, Setup shows the invitation, and Report a problem opens the issue form.
 - [x] A fresh install on a Samsung phone opens in the One UI style, in blue.
 - [x] A step is looked at only once it is the current one, and waits for Done: notifications already allowed,
       Developer options already on and wireless debugging already on each showed their tick and stayed put.
@@ -45,11 +73,15 @@ When you check one, tick it here and record what you saw in the device notes.
 - [ ] With wireless debugging off, open Home and force-stop Burkan from Settings within ten seconds, while the
       connection is still kept: wireless debugging stays on until Burkan is opened again, and is off once that
       connection has closed. (It used to stay on until the next restart. Covered by tests only.)
+      On Android 17, force-stopped with `am force-stop` in the middle of Restart all apps instead: wireless
+      debugging was off about five seconds after Burkan was opened again (device notes, section 12).
 - [ ] `settings get global adb_allowed_connection_time` on the S23: with Developer options' "Disable adb
       authorization timeout" off, does Burkan's entry under Paired devices lapse after that long without a
       connection, and does the next run then send setup back to Pair? Home now warns while the timeout is on;
       check that the notice shows, that the switch in Developer options takes it away, and that Android lets the
       app read the key at all (if not, the notice never shows).
+      On the S23 with Android 17 the key read 0 over adb: the timeout was switched off, so the lapse could not be
+      tried there.
 - [x] On Android 17, Start pairing asks for the nearby devices permission first, and allowing it goes on to
       Developer options. Pairing, Connect and Home then bring up no "choose a device" picker. (Device notes,
       section 15.)
@@ -63,33 +95,52 @@ When you check one, tick it here and record what you saw in the device notes.
 
 ## Shizuku as the way to a shell
 
-The code was written against Shizuku's API and its source, and is covered
-by tests with a fake only. Device notes, section 16, has what is expected. Use a Shizuku that starts itself after a
-restart (a fork such as thedjchi's, or Sui) for the restart checks.
+The code is covered by unit tests with fakes, and none of the items below has been checked on the maintainer's S23
+yet. A tick marked "(reported in #6)" was reported working by the contributor of pull request #6 on a Galaxy S23
+(SM-S911B, One UI 9) with Shizuku 13.6.0.r1318-thedjchi; device notes, section 16, records it with what is
+expected. Use a Shizuku that starts itself after a restart (a fork such as thedjchi's, or Sui) for the restart
+checks.
 
 - [x] Settings › Use Shizuku asks first; confirming goes to Setup, with notifications still done and the steps
       Allow Shizuku, Connect, Permission and Battery after it. Wireless debugging's own steps are not listed.
+      (reported in #6)
 - [x] With Shizuku stopped, the Allow Shizuku step offers Open Shizuku, which opens its app. With it running, the
       step offers Allow, which raises Shizuku's dialog; allowing it ticks the step when Burkan is next in front.
+      (reported in #6)
 - [ ] After a "deny and don't ask again", the step's own text says where to allow Burkan, and allowing it there
       ticks the step.
 - [x] Connect returns from `echo ok` through Shizuku, and Permission grants `WRITE_SECURE_SETTINGS` through it.
+      (reported in #6)
 - [x] A light and a full apply run end to end through Shizuku, and leave Shizuku's own app running: it is not in
       the list of stopped apps. `dumpsys activity processes` (about 1 MB) comes back whole, through the pipes.
+      (reported in #6)
 - [x] `ps -A` shows `io.github.barqallayl.burkan:shell` as `shell` while a run is on and for about ten seconds
-      after it, and not once it is over.
+      after it, and not once it is over. (reported in #6)
+      On Android 17 it was gone about four seconds after the run.
 - [ ] A command that outlives its timeout is killed in Shizuku's process and the run reports it timed out.
+- [ ] A command Shizuku cannot run fails at once with "Shizuku could not run a command", with no 30-second wait
+      for a new shell.
 - [ ] After a restart, with Shizuku starting itself: the run waits for it (up to two minutes), applies Vulkan, and
       needs no Wi-Fi of its own. Record how long Shizuku took to be there after the first unlock.
+      On Android 17, with Shizuku started from its app right after the unlock, it was there 30 seconds before
+      `BOOT_COMPLETED` reached Burkan, and the run went through it (device notes, section 16). Shizuku started
+      while the run already waits fails: on two reboots the run waited its two minutes and failed with "Shizuku
+      is not running". This is now documented as a limit rather than fixed (README, architecture).
 - [x] After a restart with Shizuku not starting: the run fails with "Shizuku is not running" after two minutes,
-      and the notification opens the app.
+      and the notification opens the app. (reported in #6)
 - [x] Shizuku survives System UI's restart and the lock that follows (adbd restarts on every keyguard change,
       device notes, section 11); the run at the lock finishes through Shizuku, or reconnects within 30 seconds.
+      (reported in #6)
 - [x] Switching back to wireless debugging brings Setup back with the pairing still counted, and the next run goes
-      through wireless debugging as before.
-- [x] A release build: R8 keeps `ShellService` and its stub, and the shell starts.
+      through wireless debugging as before. (reported in #6)
+- [x] A release build: R8 keeps `ShellService` and its stub, and the shell starts. (reported in #6)
 - [x] With wireless debugging chosen, which is the default, nothing about Shizuku shows anywhere but the Settings
-      row, and an app with Shizuku not installed behaves as before.
+      row, and an app with Shizuku not installed behaves as before. (reported in #6)
+- [ ] A full apply with a Shizuku fork under another package name, or with Sui, keeps the right app running:
+      `dumpsys package <app> | grep stopped` shows `stopped=false` afterwards, and with Sui nothing extra is kept.
+- [ ] `adb logcat` shows "Burkan's shell in Shizuku is up, as uid …" when the shell starts: 2000 when Shizuku
+      was started over adb, 0 with root.
+      2000 seen on Android 17, with Shizuku started over adb; root not tried.
 
 ## Applying and status
 
@@ -117,10 +168,15 @@ restart (a fork such as thedjchi's, or Sui) for the restart checks.
       is still listed by `dumpsys alarm` afterwards, and rings. (Seen on an Android 14 emulator only: `stop-app`
       kept Clock's alarm where `force-stop` lost it. Device notes, section 2.) Also whether the apps it stops keep
       their notifications, and whether accessibility services still need putting back.
+      On Android 17: Clock, stopped on its own with `stop-app`, kept its alarm, and so did every app with alarms
+      that a full apply stopped; all open apps but the live wallpaper and `system` ended on Vulkan. Whether the
+      alarm rings, and the notifications, are still to check.
 - [ ] The confirmation before Restart all apps reads true to what happens: every app closed, and those that were
       open or show a widget opened again.
 - [x] What `pm list packages` exits with on a phone with Secure Folder. (0, with an error about the other user
       printed besides the list. Device notes, section 13.)
+- [x] After an apply, locking Secure Folder and unlocking it again brings its screen and its apps up on Vulkan.
+      (Android 17, 12 Nov 2026, My Files. Device notes, section 17.)
 - [x] During a full apply, with other apps relaunched over Burkan, the run carries on to the restore steps and
       the log records it.
 - [x] Cancel from Home stops the run and the settings are put back.
@@ -131,10 +187,23 @@ restart (a fork such as thedjchi's, or Sui) for the restart checks.
       measured (device notes, section 4).
 - [ ] Force-stop Burkan from Settings in the middle of Restart all apps, then open it again: the same settings
       are put back as Home opens.
+      On Android 17 the kept settings were put back and cleared, but none had been changed on that phone, so
+      the values themselves showed nothing.
 - [ ] Opening Home with wireless debugging off refreshes the status, and wireless debugging is off again after.
 - [x] In One UI, a run shows as a list of steps in place of the surfaces, each ticked as it ends, and Done puts
       the surfaces back.
 - [ ] A run that fails marks the step that failed. (Seen only on an emulator.)
+
+- [ ] With Vulkan active and apps left behind, the docked button (and One UI's first button) reads "Restart N
+      apps" and opens the sheet of those apps; with nothing left behind, Apply now is tonal (grey in One UI).
+- [ ] With wireless debugging off, or no Wi-Fi, the status card says why and has Try again; the rows say Unknown,
+      Apply now and Restart all apps are unavailable, and no other card repeats the reason.
+- [ ] After a restart that left System UI for the next lock, the headline reads "Waiting for the lock" with a lock
+      symbol, the notice about the next lock is not shown, and locking then unlocking turns it into "Vulkan is
+      active".
+- [ ] During Restart all apps, the status card says "Closing N apps" and "Opening N apps again", the notification
+      says the same, and the Material rows say "Changing".
+- [ ] TalkBack reads a change of status once, headline and note together.
 
 ## After a restart
 
@@ -288,13 +357,45 @@ restart (a fork such as thedjchi's, or Sui) for the restart checks.
       clear of the navigation bar, and it still joins the circle a change of theme spreads in. (Seen only in
       previews, which draw a sheet without its window.)
 
+- [ ] Settings shows four groups (Applying, Connection, Appearance, About); at the largest text size, Connection's
+      value and the Appearance values sit under their names, uncut.
+- [ ] With Shizuku, Redo setup reads "Starts setup again", and its confirmation says nothing about a pairing.
+- [ ] A library's sheet under Open-source licences shows its licence text with no connection, scrolls to its end,
+      and offers Website only.
+- [ ] TalkBack on Never restart these apps reads "Chat, checked", not its package name; an app with no name is
+      read by its package name.
+
+- [ ] The Log groups runs under Today, Yesterday and dates in the phone's own format, and each row shows only the
+      time; a failed run says why on its row, in the past tense, without being opened.
+- [ ] An opened run's steps read in the body font, with the durations lined up; a step under a second says
+      "Under 1 s".
+- [ ] With a filter on, the Log's count reads "2 of 5 runs"; "Not finished" holds cancelled runs and those left for
+      the lock.
+
+- [ ] Home's drawn phone: each part in the accent or grey as the rows below say, outlines with a slow repeating
+      line while the status is read or a run is under way, and one redraw when a watched run ends, not when Home
+      only opens; with Android's animations removed, nothing moves.
+- [ ] After a restart that left System UI for the lock, the drawn phone's status bar carries the padlock.
+- [ ] Welcome's phone redraws exactly as it did before it moved onto the shared drawing.
+
+- [ ] On the "Still on OpenGL" sheet, every app starts ticked; unticking one leaves it as it is after "Restart N
+      apps", and the menu's "Never restart this app" takes it off the list. A list longer than the sheet scrolls
+      under the buttons.
+- [ ] The Restart all apps sheet mentions usage access only while 30 or 70 is chosen, and the row about the apps you
+      chose opens Never restart these apps.
+- [ ] The revert confirmation's button reads "Use OpenGL", and the Apply confirmation no longer mentions wireless
+      debugging.
+
 ## The lock screen, the launcher and the screens
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has
       finished and Home shows System UI on Vulkan.
-- [ ] With the USB cable unplugged (with it, locking does not restart adbd), the run reconnects after the lock
-      screen restarted adbd: the log shows the System UI step as succeeded.
-- [ ] mDNS reports the new port after adbd restarts, rather than the old one, within the 30 seconds.
+- [x] With the USB cable unplugged (with it, locking does not restart adbd), the run reconnects after the lock
+      screen restarted adbd: the log shows the System UI step as succeeded. (Android 17, 12 Nov 2026)
+- [x] mDNS reports the new port after adbd restarts, rather than the old one, within the 30 seconds. (Android 17,
+      12 Nov 2026: about a second after the restart)
+- [x] With USB debugging off and wireless debugging on, Apply connects, and reconnects under the lock screen, by
+      turning wireless debugging off and on; the log shows it as succeeded. (Android 17, 12 Nov 2026, #2)
 - [ ] Apply now twice within a minute: the second run leaves System UI alone and says why.
 - [x] Reboot: the launcher and keyboard switch at once, and the phone is not locked.
 - [ ] After the reboot, Home says System UI switches at the next lock.
@@ -305,6 +406,10 @@ restart (a fork such as thedjchi's, or Sui) for the restart checks.
       UI itself and all three surfaces ended on Vulkan.)
 - [ ] Locking with the screen-off timeout rather than the power button, and with a lock delay set: does the wait
       still catch the lock?
+      On Android 17, through Shizuku, with the screen timing out after 15 seconds: with "Auto lock when screen
+      turns off" at 5 seconds, 30 seconds and 5 minutes, the run at the lock started within a second of the phone
+      locking and restarted System UI each time (device notes, section 11). Through wireless debugging, the
+      power button and the lock set to None are still to try.
 - [ ] The foreground notification while waiting for the lock, and its Cancel.
 - [ ] Lock, then unlock within a few seconds: System UI is not restarted in front of the user, the log shows
       "System UI at lock · Left for the next lock", wireless debugging is off again, and the next lock restarts it.

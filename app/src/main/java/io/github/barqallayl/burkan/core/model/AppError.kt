@@ -8,3 +8,9 @@ package io.github.barqallayl.burkan.core.model
  * in their features.
  */
 interface AppError
+
+/**
+ * Something failed that the app has no name for: a fault of its own, caught where it would otherwise have taken the
+ * app down or left a screen waiting for good. The log has the exception.
+ */
+data object UnexpectedError : AppError

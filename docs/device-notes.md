@@ -71,7 +71,7 @@ This is where the original scripts were wrong, so read it carefully.
 | `am force-stop com.sec.android.app.launcher`, then launching it | Launcher restarted on `Skia (Vulkan)` | Measured |
 | Leaving the keyboard alone | Samsung Keyboard stayed on `Skia (OpenGL)` | Measured |
 | `am crash <keyboard package>` | Restarts Samsung Keyboard, which stayed the default input method | Measured |
-| `am stop-app <package>` (`cmd activity stop-app`, from Android 13) | Not yet run on the S23. On an Android 14 emulator, Google's Clock with an alarm set: its process ended, and its alarms, its next alarm clock and its jobs were all still listed, and the package was not left stopped | Measured on the emulator only |
+| `am stop-app <package>` (`cmd activity stop-app`, from Android 13) | On an Android 14 emulator, Google's Clock with an alarm set: its process ended, and its alarms, its next alarm clock and its jobs were all still listed, and the package was not left stopped. On the S23 (Android 17, One UI 9): Samsung's Clock kept its alarm and was not left stopped; in a full apply that stopped 619 apps, the six of them that had alarms (Calendar's provider and Always On Display among them) had as many alarms afterwards as before | Measured. Whether the alarm then rings was not waited for |
 | `am force-stop <package>` on the same Clock | On the emulator: every one of its alarms was gone, the next alarm clock with them, and the package was left stopped. Opening Clock again did not bring the alarm back | Measured on the emulator only |
 | `am <a command it does not know>` | Prints `Unknown command: …` on standard output and exits with 255 | Measured on the emulator only |
 | `am crash "$(pidof -s <package> \|\| echo <package>)"` for a package that is not running | Exits with 0 | Measured on the emulator only |
@@ -434,6 +434,22 @@ All measured.
 - **With a USB cable plugged in, locking did not restart adbd** (measured after a reboot, the same day). The
   restarts above were seen with wireless debugging alone. So whether the app's reconnection works on the phone is
   still open: it has to be tried with the cable unplugged.
+- **With USB debugging off, adbd stops and stays down.** Switching USB debugging off (`adb_enabled` 0) sets the USB
+  functions to `mtp` alone, and adbd exits at once. Every lock and unlock after that resets them again, to
+  `sec_charging` or `mtp`, never with `adb`, and stops an adbd started meanwhile. Nothing starts it again but writing
+  `adb_wifi_enabled`: off, then on 0.9 seconds later, started adbd within 0.1 seconds and its TLS port 0.6 seconds
+  after that. All the while `adb_wifi_enabled` reads 1. (Measured on the S23, Android 17, cable unplugged, from
+  logcat: `AdbService`, `UsbDeviceManager` and `adbd`.)
+  So the restart "about one second later" above holds only while USB debugging is on. Before this was handled,
+  Apply and Back to OpenGL failed at "Restart System UI" after 31 seconds, with System UI already on the right
+  renderer (#2). The app now turns wireless debugging off and on once when a search finds nothing behind a switch
+  that is on, both when it connects and when it reconnects.
+- **Turning the switch off and on works under the lock screen.** In an Apply with USB debugging off, the lock from
+  `am crash` stopped adbd; 7 seconds later (the 1-second pause and the 5-second search that found nothing) the app
+  wrote the switch off and, a second later, on; adbd started at once, the run connected a second after that, found
+  System UI on Vulkan and succeeded in 14 seconds, all before the phone was unlocked. Unlocking stopped adbd again,
+  and the next run started the same way: about 7 seconds before it connected, which the user sees as the "Wireless
+  debugging connected" notification coming late. (Measured on the S23, Android 17, cable unplugged.)
 
 So `am crash com.android.systemui` cuts the connection that sent it: the lock screen appears, adbd restarts, and
 anything the run still had to send fails. When the user unlocks, adbd restarts a second time. The user sees the
@@ -445,6 +461,20 @@ What follows for the app:
 - A lost connection is not the end of a run: wait, find the new port, connect again.
 - Every new connection raises the "Wireless debugging connected" notification, so connections are reused rather
   than opened per operation.
+
+**The lock delay, measured on Android 17 through Shizuku.** With the screen going off by its timeout (15 seconds)
+and System UI left for the lock, the app's watch caught the lock at each "Auto lock when screen turns off" tried:
+
+| Lock delay | Screen off | Locked | Run at the lock started | Run took |
+|---|---|---|---|---|
+| 5 seconds | 19:16:53 | 19:16:58 | 19:16:58 | 5.1 s |
+| 30 seconds | 19:22:24 | 19:22:54 | 19:22:54 | 5.0 s |
+| 5 minutes | 19:24:56 | 19:29:56 | 19:29:56 | 6.4 s |
+
+Each time, System UI restarting on the lock screen woke the screen for one to three seconds before it went dark
+again; the phone stayed locked throughout. The setting is `lock_screen_lock_after_timeout` in the secure table, in
+milliseconds. That the 5-minute lock was caught says One UI lets the app read it: when the app cannot, its watch
+lasts 65 seconds after the screen goes off.
 
 ---
 
@@ -459,7 +489,8 @@ Measured, rebooting with the USB cable plugged in, on a Wi-Fi network marked "Al
 | The app switched wireless debugging on with no prompt | Measured |
 | The first phase (set the property, restart the launcher and the keyboard, switch wireless debugging off) took 9 seconds, and Samsung Keyboard stayed the default input method | Measured |
 | System UI, left for the next lock, was restarted then; all three surfaces ended on `Skia (Vulkan)`, and wireless debugging was off afterwards | Measured |
-| `BOOT_COMPLETED` is also sent, with no reboot, to an app taken out of the stopped state. Since Android 15, a force-stopped app gets it the next time the user opens the app, so that it can register again the pending intents the force-stop cancelled. Installing from Android Studio force-stops the app | Expected — from the Android 15 behaviour changes. It matches a run labelled "After restart" that started twice after an install from Android Studio, with no reboot |
+| `BOOT_COMPLETED` is also sent, with no reboot, to an app taken out of the stopped state. Since Android 15, a force-stopped app gets it the next time the user opens the app, so that it can register again the pending intents the force-stop cancelled. Installing from Android Studio force-stops the app | Measured on Android 17: `am force-stop` in the middle of a run, then opening the app, delivered `BOOT_COMPLETED` with the boot count unchanged. A fresh install that had not yet kept a boot count took it for a restart, and with it forgot that it had switched wireless debugging on, which then stayed on. Fixed: a run that ends keeps the boot count, and a boot forgets the switch only when wireless debugging is off |
+| A first `BOOT_COMPLETED` is not sent to an app installed fresh and opened by the user | Inferred on Android 17: after installing, opening and setting the app up, it had kept no boot count, which the first `BOOT_COMPLETED` would have stored |
 | `Settings.Global.BOOT_COUNT` (`boot_count`) can be read by an app, and goes up by one on every boot | Expected |
 
 **The lock can come undone before System UI restarts.** The restart at the lock took about 7 seconds from the
@@ -575,13 +606,45 @@ checked by the maintainer, and which of the facts below each covered was not rec
 
 | Fact | Status |
 |---|---|
-| `Shizuku#newProcess` is private in API 13.1.x and planned to go, so a shell is a user service: a class of the app that Shizuku starts in a process of its own, as the user Shizuku runs as, and that the app calls through an AIDL interface | Measured: read from `Shizuku.java` |
-| Shizuku sends its binder to an app process when the process starts, and to every running app when it starts itself, through the app's `ShizukuProvider`. The provider has to be in the manifest for either to happen, and is created at every start of the app's process | Measured: read from `ShizukuProvider.java` and its documentation |
-| thedjchi's fork keeps the package name `moe.shizuku.privileged.api` and the API, so the same client works with it. Its start on boot waits for Wi-Fi, starts Shizuku over wireless debugging and has a watchdog | Measured: read from the fork's `manager/build.gradle` and README |
-| `bindUserService` with `daemon(false)` ends the service with the app's process, and `unbindUserService(…, remove = true)` has Shizuku call its `destroy` (transaction 16777115, written as 16777114 in AIDL) | Measured: read from `Shizuku.java` |
-| A Binder transaction carries about 1 MB, which a `dumpsys` can exceed, so the shell service copies a command's output into two pipes whose write ends the app hands it, and returns only the exit code | Measured |
-| `sh -c <line>` in the service's process runs the same command lines as adbd's `shell,v2` does, with the environment Shizuku's server had when it was started over adb (`BOOTCLASSPATH` and the like, which `am` and `pm` need) | Measured: not verified for any command the app sends |
-| Shizuku's server survives adbd restarting when the keyguard changes (section 11) | Measured: started over adb it is a daemon of its own. If not, the run at the lock reconnects within 30 seconds, as long as Shizuku is back by then |
-| `am force-stop` of Shizuku's own app leaves its server running, but leaves the app in the stopped state, which receives no `BOOT_COMPLETED` until opened. Shizuku's start on boot would not run | Measured. A full run never stops that package while Shizuku is the way to a shell |
-| Shizuku's permission dialog is shown by Shizuku's app over Burkan; after "deny and don't ask again" it is not shown again, and the permission is given in Shizuku's list of apps | Measured |
-| A shell from Shizuku raises no "Wireless debugging connected" notification, and needs no Wi-Fi, mDNS or `ACCESS_LOCAL_NETWORK` of Burkan's | Measured |
+| `Shizuku#newProcess` is private in API 13.1.x and planned to go, so a shell is a user service: a class of the app that Shizuku starts in a process of its own, as the user Shizuku runs as, and that the app calls through an AIDL interface | Read from the library's bytecode, version 13.1.5: `private static … newProcess` |
+| Shizuku sends its binder to an app process when the process starts, and to every running app when it starts itself, through the app's `ShizukuProvider`. The provider has to be in the manifest for either to happen, and is created at every start of the app's process | Half of it measured on the S23 (Android 17, Shizuku 13.6.0.r1086). An app process that starts gets the binder within a second. A server started again while Burkan was running sent it to Shizuku's own app only, twice; Burkan got it when it next came to the front, or when its process started again |
+| A user service cannot start after Shizuku's server was killed and started again from adb while Shizuku's app kept running: Shizuku's starter logs "server binder not received" after 5 seconds and exits, and Burkan says its shell did not start in Shizuku | Measured, twice. Restarting Shizuku's app put it right at once. Not seen when Shizuku is started from its own app, which is how a user starts it |
+| Twenty applies in a row through Shizuku: each took 2.0 to 2.4 seconds, none stalled | Measured |
+| `io.github.barqallayl.burkan:shell` runs as `shell` during a run and is gone about 4 seconds after it | Measured |
+| Shizuku's server killed in the middle of a full apply: the stop step ends in "connection lost", each of the three settings is still put back by the app itself after a 30-second wait for a shell, and the run is logged as failed after 157 seconds | Measured. Since one failed reconnection ends the shell for the run, the same run took 37 seconds: the stop step's 30-second wait, then the three settings in 2 to 8 milliseconds |
+| After a reboot, with Shizuku started from its app before `BOOT_COMPLETED` reached Burkan: Burkan's process got the binder 3 seconds after starting, its shell was up 3 seconds later, and the apply after the restart succeeded in 17 seconds. System UI, left for the lock, was restarted at the side key's lock through Shizuku in 7 seconds | Measured |
+| After a reboot, with Shizuku starting after Burkan's process (by its own start on boot 4 seconds later, or over USB 10 to 45 seconds later): the binder never reached Burkan, and the apply after the restart failed after its two-minute wait with "Shizuku is not running". A later broadcast that started a new process of Burkan's got the binder at once and applied | Measured on two reboots, with Shizuku 13.6.0.r1086. Its server logged "Uid … starts" for uids that became active and nothing for Burkan's, which was active throughout: Burkan's foreground service held it |
+| A process of Burkan's own, started every five seconds during that wait (a content provider in a process of its own, which ended itself), did not make Shizuku send the binder | Measured, then dropped. Shizuku's source on its master branch also sends on each new process, and to every app asking for its permission when it starts; this version did neither |
+| Shizuku's app guards its provider, which holds the binder, with `INTERACT_ACROSS_USERS_FULL`, so another app cannot ask it for the binder | Read from its manifest |
+| thedjchi's fork keeps Shizuku's API, so the same client works with it. Its start on boot waits for Wi-Fi, starts Shizuku over wireless debugging and has a watchdog. Burkan finds Shizuku's app as the package that defines `moe.shizuku.manager.permission.API_V23`, so the fork's package name does not matter | Expected — read from the fork's `manager/build.gradle` and README |
+| `bindUserService` with `daemon(false)` ends the service with the app's process, and `unbindUserService(…, remove = true)` has Shizuku call its `destroy` (transaction 16777115, written as 16777114 in AIDL) | Read from the library's bytecode, version 13.1.5 (`UserServiceArgs.daemon`, `unbindUserService(…, boolean)`), and its source |
+| A Binder transaction carries about 1 MB, which a `dumpsys` can exceed, so the shell service copies a command's output into two pipes whose write ends the app hands it, and returns only the exit code | Expected — Android's Binder limit. The 1 MB `dumpsys activity processes` check in `testing.md` is the measurement |
+| `sh -c <line>` in the service's process runs the same command lines as adbd's `shell,v2` does, with the environment Shizuku's server had when it was started over adb (`BOOTCLASSPATH` and the like, which `am` and `pm` need) | Not verified for any command the app sends |
+| Shizuku's server survives adbd restarting when the keyguard changes (section 11) | Expected — started over adb it is a daemon of its own. Reported working in #6, not checked here. If not, the run at the lock reconnects within 30 seconds, as long as Shizuku is back by then |
+| `am force-stop` of Shizuku's own app leaves its server running, but leaves the app in the stopped state, which receives no `BOOT_COMPLETED` until opened. Shizuku's start on boot would not run | Expected — Android's stopped state. A full run never stops the app it finds while Shizuku is the way to a shell |
+| Shizuku's permission dialog is shown by Shizuku's app over Burkan; after "deny and don't ask again" it is not shown again, and the permission is given in Shizuku's list of apps | Expected, not checked |
+| A shell from Shizuku raises no "Wireless debugging connected" notification, and needs no Wi-Fi, mDNS or `ACCESS_LOCAL_NETWORK` of Burkan's | Expected, not checked |
+| Shizuku started with root, or Sui, runs the shell as root (uid 0) instead of `shell` (uid 2000). Burkan runs the same fixed commands either way and logs the uid when the shell starts | Expected, not checked: only a Shizuku running as `shell` has been tried |
+
+---
+
+## 17. Secure Folder
+
+Measured on the S23 (Android 17, One UI 9), 12 Nov 2026.
+
+Secure Folder is user 150, of type `android.os.usertype.profile.PRIVATE`, flagged `SECURE_FOLDER`. Its app,
+`com.samsung.knox.securefolder`, is installed in both users: the screen that holds Secure Folder's apps runs in user
+150, and a process of its own runs in user 0.
+
+| What | Result |
+|---|---|
+| The shell and user 150 | `pm` and `am crash` refuse it (sections 2 and 3), but `dumpsys gfxinfo <pid>` reads the renderer of a user-150 process by its pid |
+| Secure Folder open, with My Files in it | `am get-started-user-state 150` says `RUNNING_UNLOCKED`; about 40 `u150_` processes run, Secure Folder's screen and My Files among them, all on `Skia (OpenGL)` while the phone was on OpenGL |
+| An apply | Restarts no process of user 150: the shell may not stop or crash that user's apps. Whether the open apps check counts them was not checked |
+| Secure Folder locked by hand (its own lock, not the phone's) | The system stops the whole user (`stopProfileRegardlessOfParent`, then `stopPackagesOfStoppedUser`): every `u150_` process ends, and user 150 is back in quiet mode, "not started" |
+| Secure Folder unlocked again after an apply, and My Files opened | Both came up on `Skia (Vulkan)`: the renderer property is phone-wide, and a process started after the apply reads it |
+| The user-0 process of Secure Folder's app | Not restarted by the apply here; Android ended it as idle, and it came back on `Skia (Vulkan)`. A full apply that restarts user 0's apps would restart it like any other |
+
+So locking Secure Folder once after an apply brings it and its apps to Vulkan, and the app does not need to do it.
+`am stop-user 150` would do the same as the lock, but was not tried: whether the shell may stop that user is
+unknown, and the lock needs no permission.

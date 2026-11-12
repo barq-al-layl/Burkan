@@ -60,6 +60,8 @@ Burkan does it on the phone. It pairs once with the phone's own Wireless Debuggi
 - If the phone restarts without Wi-Fi, Burkan waits and applies as soon as a trusted network connects. It keeps the phone awake only for the short time a run takes.
 - Optionally, *Use Shizuku* in Settings gets the shell from Shizuku instead of from Wireless Debugging, for a phone where Shizuku already starts itself after a restart, such as with a fork that has start on boot. Burkan then needs no pairing and no Wi-Fi of its own, and starts nothing: Shizuku has to be running. This is off by default.
 
+  After a restart, Shizuku has to be running before Burkan wakes, which is about half a minute after the first unlock. Shizuku hands its connection to an app only as the app starts, so a Shizuku that comes up later is not seen: the apply after the restart fails with "Shizuku is not running". Opening Burkan from that notification and tapping *Apply now* then does it.
+
 ### By hand
 - *Apply now* sets the system property and restarts System UI, the launcher and the keyboard on Vulkan.
 - *Restart all apps* closes and relaunches background apps and home screen widgets so they pick up Vulkan. It can restart every app, or only the 30 or 70 most recently used.
@@ -176,7 +178,7 @@ More detail is in:
 <br>
 Burkan was built for the Snapdragon 8 Gen 2 for Galaxy and verified on the Galaxy S23 (SM-S911) and S23 Ultra (SM-S918). The S23+ (SM-S916) has the same platform and is treated as supported.
 <br><br>
-Other phones on Android 13 or newer should work too, but none has been verified. Wireless Debugging, the renderer property and the status check are standard Android, and Burkan asks the phone which home app, keyboard and wallpaper it uses. On other phones it shows a warning and lets you continue. What could go wrong there:
+Other phones on Android 13 or newer should work too, but none has been verified. Wireless Debugging, the renderer property and the status check are standard Android, and Burkan asks the phone which home app, keyboard and wallpaper it uses. On other phones it says it is tested on the S23 series, invites a report, and lets you carry on. What could go wrong there:
 <ul>
 <li>How well Vulkan works depends on the phone's graphics driver and its maker's Android version, and varies a lot between them. Burkan only turns it on. If something looks wrong, tap <i>Back to OpenGL</i> or restart the phone.</li>
 <li><i>Restart all apps</i> leaves a fixed list of Samsung apps running so that Wi-Fi calling and VoLTE keep working. On another phone it would restart that maker's equivalents, which can drop Wi-Fi calling or VoLTE. <i>Apply now</i> and the apply after a restart leave those apps alone.</li>
@@ -202,6 +204,12 @@ No. Burkan switches Wireless Debugging on only for the few seconds a run takes, 
 <summary><b>How can I check that Vulkan is really active?</b></summary>
 <br>
 The Home screen shows what each surface renders with, read from <code>dumpsys gfxinfo</code>. You can also check for yourself by turning on <b>GPUWatch</b> in Developer options and opening any app.
+</details>
+
+<details>
+<summary><b>Why are the apps in Secure Folder still on OpenGL?</b></summary>
+<br>
+Secure Folder is a separate user on the phone, and Android does not let Burkan restart its apps. Apps already open in it keep the renderer they started with. After an apply, lock Secure Folder once, from its own lock button or its Quick Settings tile. Locking closes Secure Folder and every app in it, and when you unlock it they start again on Vulkan.
 </details>
 
 ## Acknowledgements

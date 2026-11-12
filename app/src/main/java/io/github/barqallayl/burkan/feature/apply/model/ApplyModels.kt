@@ -100,6 +100,12 @@ sealed interface ApplyError : AppError {
 
     /** Restarting the keyboard changed the default keyboard, and it could not be put back. */
     data object KeyboardNotRestored : ApplyError
+
+    /**
+     * The settings a full apply has to put back could not be kept before it changed anything, so it changed nothing:
+     * had its process died, nothing would have put them back.
+     */
+    data object SettingsNotKept : ApplyError
 }
 
 /** What the automatic apply after a restart is waiting for before it can connect. */
@@ -115,10 +121,11 @@ enum class WaitReason {
  * Where the automatic apply after a restart stands. [triedNetwork] is the handle of the network the last attempt was
  * made on, so that network coming up again does not start the same failing attempt. [systemUiAtNextLock] is set when
  * the run after a restart left System UI for the next time the phone locks, so as not to lock a phone the user has
- * just unlocked.
+ * just unlocked. [lockRetries] counts the runs at the lock that could not connect and are tried again.
  */
 data class AutoApplyState(
     val waitingFor: WaitReason? = null,
     val triedNetwork: Long? = null,
     val systemUiAtNextLock: Boolean = false,
+    val lockRetries: Int = 0,
 )

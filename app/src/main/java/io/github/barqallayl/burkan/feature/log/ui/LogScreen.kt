@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -43,7 +43,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -100,6 +99,10 @@ import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
 import io.github.barqallayl.burkan.feature.log.model.RunResult
 import java.time.ZoneId
 import java.time.ZoneOffset
+import io.github.barqallayl.burkan.core.ui.LocalToday
+import io.github.barqallayl.burkan.core.ui.dayOf
+import io.github.barqallayl.burkan.core.ui.dayHeading
+import io.github.barqallayl.burkan.designsystem.component.BurkanSectionTitle
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import kotlin.time.Clock
@@ -145,6 +148,7 @@ private fun LogContent(
 ) {
     val appBar = rememberBurkanAppBar()
     val listState = rememberLazyListState()
+    val found = remember(state.runs, filter) { state.runs.orEmpty().filter { filter.accepts(it.result) } }
     Scaffold(
         modifier = Modifier.topBarScroll(appBar),
         topBar = {
@@ -152,14 +156,19 @@ private fun LogContent(
                 onBack = onBack,
                 appBar = appBar,
                 contentScroll = { listState.scrolledPx() },
-                // How many runs there are, under the title: the list is long and this is its size.
+                // How many runs there are, under the title: the list is long and this is its size. With a filter on,
+                // how many of them are shown.
                 title = {
                     Column {
                         Text(stringResource(R.string.log_title))
                         val count = state.runs?.size ?: 0
                         if (count > 0) {
                             Text(
-                                pluralStringResource(R.plurals.log_run_count, count, count),
+                                if (filter == LogFilter.All) {
+                                    pluralStringResource(R.plurals.log_run_count, count, count)
+                                } else {
+                                    pluralStringResource(R.plurals.log_run_count_filtered, count, found.size, count)
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -186,7 +195,7 @@ private fun LogContent(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                LoadingIndicator()
+                BurkanLoadingIndicator()
             }
 
             runs.isEmpty() && state.isUnreadable -> BurkanMessage(
@@ -208,7 +217,11 @@ private fun LogContent(
             }
 
             else -> {
-                val found = remember(runs, filter) { runs.filter { filter.accepts(it.result) } }
+                // Under a heading for each day, newest first: what happened after last night's restart is found by
+                // its day, and each run says only its time.
+                val today = LocalToday.current
+                val days = remember(found, zone) { found.groupBy { dayOf(it.startedAt, zone) }.toList() }
+                val resources = LocalResources.current
                 val barInset = innerPadding.listInset()
                 LazyColumn(
                     // The margin is content padding, so the row of chips can run to the screen's edges. The bar's
@@ -235,18 +248,26 @@ private fun LogContent(
                     if (present.size > 2) {
                         item(key = "filters") { Filters(runs, present, filter, onFilter) }
                     }
-                    itemsIndexed(
-                        found,
-                        key = { _, run -> run.startedAt.toEpochMilliseconds() },
-                    ) { index, run ->
-                        RunItem(
-                            run = run,
-                            index = index,
-                            count = found.size,
-                            expanded = run.startedAt in state.expanded,
-                            zone = zone,
-                            onClick = { onToggle(run) },
-                        )
+                    days.forEach { (day, dayRuns) ->
+                        item(key = "day:$day") {
+                            BurkanSectionTitle(
+                                resources.dayHeading(day, today),
+                                modifier = Modifier.padding(top = if (day == days.first().first) 0.dp else 8.dp),
+                            )
+                        }
+                        itemsIndexed(
+                            dayRuns,
+                            key = { _, run -> run.startedAt.toEpochMilliseconds() },
+                        ) { index, run ->
+                            RunItem(
+                                run = run,
+                                index = index,
+                                count = dayRuns.size,
+                                expanded = run.startedAt in state.expanded,
+                                zone = zone,
+                                onClick = { onToggle(run) },
+                            )
+                        }
                     }
                 }
             }
@@ -340,7 +361,24 @@ private fun RunItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RunResultBadge(run.result)
-            RunSummary(run, zone, modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                RunSummary(run, zone, timeOnly = true)
+                // Why it failed, without opening it: what the Log is most often opened for. Opened, the steps say it.
+                val reason = run.failureReason
+                AnimatedVisibility(
+                    visible = reason != null && !expanded,
+                    enter = expandVertically(motion.settle()) + fadeIn(),
+                    exit = shrinkVertically(motion.settle()) + fadeOut(),
+                ) {
+                    if (reason != null) {
+                        Text(
+                            stringResource(reason.logResource),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
             if (hasDetail) {
                 val turn by animateFloatAsState(if (expanded) HALF_TURN else 0f, label = "chevron")
                 Icon(
@@ -363,8 +401,8 @@ private fun RunItem(
 
 @Composable
 private fun RunSteps(run: RunLogEntry) {
-    // The steps are the log proper: set in the fixed-width face, on a panel of the screen's own colour set into
-    // the card.
+    // The steps are the log proper, on a panel of the screen's own colour set into the card. They are sentences, so
+    // they are set in the body face; the durations use figures of one width, so they line up down their column.
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -372,39 +410,43 @@ private fun RunSteps(run: RunLogEntry) {
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        ProvideTextStyle(MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)) {
+        ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
             Column(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 val small = LocalTextStyle.current.merge(MaterialTheme.typography.bodySmall)
-                    .copy(fontFamily = FontFamily.Monospace)
+                val figures = small.copy(fontFeatureSettings = "tnum")
                 val quiet = MaterialTheme.colorScheme.onSurfaceVariant
                 run.error?.let {
                     Text(
-                        stringResource(it.resource),
+                        stringResource(it.logResource),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
                 run.detail?.let { Text(it, style = small, color = quiet) }
                 run.steps.forEach { step ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(step.kind.label().text())
+                    Column {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            RunResultIcon(failed = step.error != null, modifier = Modifier.size(20.dp))
+                            Text(step.kind.label().text(), modifier = Modifier.weight(1f))
+                            // How long the step took, at the end of its line where the eye can run down them.
+                            step.duration?.let { Text(durationText(it), style = figures, color = quiet) }
+                        }
+                        // Under the step's line and as wide as the card, level with its name: beside the
+                        // duration, a sentence was squeezed into a few words a line.
+                        Column(modifier = Modifier.padding(start = 30.dp)) {
                             step.error?.let {
                                 Text(
-                                    stringResource(it.resource),
+                                    stringResource(it.logResource),
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
                             step.detail?.let { Text(it, style = small, color = quiet) }
                         }
-                        // How long the step took, at the end of its line where the eye can run down them.
-                        step.duration?.let { Text(durationText(it), style = small, color = quiet) }
                     }
                 }
                 // What stands behind the steps, for whoever is looking for a fault: quieter, and after them.

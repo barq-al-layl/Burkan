@@ -8,6 +8,13 @@ import kotlinx.serialization.Serializable
 sealed interface Route : NavKey
 
 @Serializable
+data object WelcomeRoute : Route
+
+/** The choice of connection, offered after Welcome on a phone that has Shizuku's app. */
+@Serializable
+data object ConnectionRoute : Route
+
+@Serializable
 data object SetupRoute : Route
 
 @Serializable

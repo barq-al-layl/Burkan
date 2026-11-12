@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -41,6 +40,9 @@ interface SettingsStorage {
     /** Switch wireless debugging off again after a run, when the app was the one that switched it on. */
     val turnOffWirelessDebugging: Flow<Boolean>
 
+    /** Act on the broadcasts by which another app, Tasker for one, starts a run. */
+    val allowExternalTriggers: Flow<Boolean>
+
     /** Apps the user never wants a full apply to restart. */
     val userExclusions: Flow<Set<PackageName>>
 
@@ -51,6 +53,7 @@ interface SettingsStorage {
     suspend fun setApplyOnBoot(enabled: Boolean)
     suspend fun setShellBackend(backend: ShellBackend)
     suspend fun setTurnOffWirelessDebugging(enabled: Boolean)
+    suspend fun setAllowExternalTriggers(enabled: Boolean)
 
     /**
      * Replaces the user's exclusions with what [change] makes of them, read and written in one go: two changes made
@@ -71,6 +74,9 @@ interface SettingsStorage {
         const val APPLY_ON_BOOT: Boolean = true
         val shellBackend: ShellBackend = ShellBackend.WirelessDebugging
         const val TURN_OFF_WIRELESS_DEBUGGING: Boolean = true
+
+        /** On, so that automation set up before the switch existed goes on working. */
+        const val ALLOW_EXTERNAL_TRIGGERS: Boolean = true
     }
 }
 
@@ -111,6 +117,9 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
                 ?: SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING
         }
 
+    override val allowExternalTriggers: Flow<Boolean> =
+        read { it[Keys.allowExternalTriggers] ?: SettingsStorage.Defaults.ALLOW_EXTERNAL_TRIGGERS }
+
     /** A stored name that is not a valid package name is dropped: it never reaches a command. */
     override val userExclusions: Flow<Set<PackageName>> =
         read { it.userExclusions() }
@@ -131,8 +140,10 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     override suspend fun setTurnOffWirelessDebugging(enabled: Boolean) =
         write(Keys.turnOffWirelessDebugging, enabled)
 
+    override suspend fun setAllowExternalTriggers(enabled: Boolean) = write(Keys.allowExternalTriggers, enabled)
+
     override suspend fun updateUserExclusions(change: (Set<PackageName>) -> Set<PackageName>) {
-        dataStore.edit { preferences ->
+        dataStore.editOrLog { preferences ->
             preferences[Keys.userExclusions] = change(preferences.userExclusions()).map { it.value }.toSet()
         }
     }
@@ -144,7 +155,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         preferences.map(transform).distinctUntilChanged()
 
     private suspend fun <T> write(key: Preferences.Key<T>, value: T) {
-        dataStore.edit { it[key] = value }
+        dataStore.editOrLog { it[key] = value }
     }
 
     private inline fun <reified E : Enum<E>> Preferences.enumValue(key: Preferences.Key<String>): E? =
@@ -158,6 +169,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
         val applyOnBoot = booleanPreferencesKey("apply_on_boot")
         val shellBackend = stringPreferencesKey("shell_backend")
         val turnOffWirelessDebugging = booleanPreferencesKey("turn_off_wireless_debugging")
+        val allowExternalTriggers = booleanPreferencesKey("allow_external_triggers")
         val userExclusions = stringSetPreferencesKey("user_exclusions")
     }
 }

@@ -36,12 +36,9 @@ class ApplyFlowTest {
         // Once restarted, System UI answers on Vulkan.
         thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
     }
-    private val reader = ApplyInputsReader(shell)
-    private val runner = ApplyRunner(
-        shell,
-        SystemUiCooldown(FakeSystemUiRestarts(), FixedClock),
-        CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings(), FixedClock),
-    )
+    private val captured = CapturedSettings(FakeCapturedSettingsStorage(), FakeDeviceSettings(), FixedClock)
+    private val reader = ApplyInputsReader(shell, captured)
+    private val runner = ApplyRunner(shell, SystemUiCooldown(FakeSystemUiRestarts(), FixedClock), captured)
     private val records = mutableListOf<StepRecord>()
 
     @Test
@@ -101,9 +98,8 @@ class ApplyFlowTest {
                 "dumpsys activity processes",
                 "dumpsys appwidget",
                 "settings get secure default_input_method",
-                "settings get system accelerometer_rotation",
-                "settings get secure enabled_accessibility_services",
-                "settings get secure edge_enable",
+                // The settings to put back are read by the app itself. Only one that reads as unset there is
+                // asked for over the shell as well.
                 "settings get secure edge_panels_enabled",
                 "setprop debug.hwui.renderer skiavk",
                 // Not stopped: keyboards, the wallpaper, fixed exclusions, the media provider, the user's

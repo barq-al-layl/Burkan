@@ -9,8 +9,20 @@ import dev.zacsweers.metro.Inject
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.SettingsNamespace
 
-/** The phone's settings, written by the app itself rather than through the shell. */
+/** What the app itself read of a setting. */
+sealed interface SettingRead {
+    /** The setting as the phone holds it; [value] is null when it is unset. */
+    data class Value(val value: String?) : SettingRead
+
+    /** Android would not let the app read it. */
+    data object Refused : SettingRead
+}
+
+/** The phone's settings, read and written by the app itself rather than through the shell. */
 interface DeviceSettings {
+    /** Reads [key] from the phone. Nothing but Android stands between the app and the answer. */
+    fun get(key: SettingKey): SettingRead
+
     /** Writes [value] to [key]. False when Android would not take it. */
     fun put(key: SettingKey, value: String): Boolean
 }
@@ -22,6 +34,19 @@ interface DeviceSettings {
 @Inject
 @ContributesBinding(AppScope::class)
 class ProviderDeviceSettings(private val application: Application) : DeviceSettings {
+
+    override fun get(key: SettingKey): SettingRead = try {
+        val resolver = application.contentResolver
+        SettingRead.Value(
+            when (key.namespace) {
+                SettingsNamespace.System -> Settings.System.getString(resolver, key.name)
+                SettingsNamespace.Secure -> Settings.Secure.getString(resolver, key.name)
+            },
+        )
+    } catch (e: SecurityException) {
+        Logger.w(e) { "Android would not let the app read ${key.name}" }
+        SettingRead.Refused
+    }
 
     override fun put(key: SettingKey, value: String): Boolean = try {
         val resolver = application.contentResolver

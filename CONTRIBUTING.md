@@ -81,7 +81,7 @@ One UI cannot be tested without the device.
 | Serialization | kotlinx-serialization (routes, stored models) |
 | Screenshots | Roborazzi through the Compose preview scanner, on Robolectric |
 | Open-source licences | AboutLibraries: the Android Gradle plugin and `aboutlibraries-core`, shown in the app's own list |
-| Tests | JUnit 4, `kotlin-test`, `kotlinx-coroutines-test`, `orbit-test` |
+| Tests | JUnit 4, `kotlin-test` with the power-assert plugin, `kotlinx-coroutines-test`, `orbit-test` |
 
 Versions live only in `gradle/libs.versions.toml`; `./gradlew versionCatalogUpdate` refreshes them.
 
@@ -198,6 +198,11 @@ Navigation 3, used directly:
 - Routes are `@Serializable` objects and classes implementing `NavKey`, all declared in `core/navigation/`.
 - `Navigator` wraps the back stack and exposes `push`, `pop`, `replaceAll`. It is created in `App.kt` and provided
   through `LocalNavigator`.
+- **The start route is read once; moving elsewhere altogether is `replaceAll`.** Never give `NavDisplay` a new back
+  stack in place of the old one, by a changing start route or a key: a stack dropped whole takes nothing off it, so
+  its screens' ViewModels are not cleared, and the next time one of those screens opens it gets the old ViewModel
+  back with what it held. `replaceAll` takes the old screens off, which clears them; `ReplaceAllViewModelTest`
+  pins both halves.
 - One `entryProvider` maps every route to its screen.
 - **Every route round-trips through serialization in a test**, so a route that cannot be saved fails a test
   instead of crashing on the first rotation.
@@ -397,6 +402,15 @@ Metro, one graph:
   licences screen.
 - **English only.** One `res/values/strings.xml`. No user-facing string as a literal, in a composable or a
   ViewModel.
+- **Say it in fewer words.** If a word can go, it goes. In particular:
+  - The voice is calm and exact: no contractions, no "we", and no "your" where the screen already says whose.
+  - A row's subtitle is a phrase of three to six words, not a sentence, with no full stop.
+  - An error says what happened, then what to do, in two short sentences at most.
+  - A dialog's text says only what follows from the choice and what it costs; its title already names the action.
+  - One word for one thing: "turn on" and "turn off", never "switch"; **Wireless debugging** with a capital, as the
+    setting is named; "restart", not "close and reopen", unless the difference matters.
+  - To send the user to a setting, give a button that opens it, rather than a path in words. Where no button can
+    go, as in the Log, name the screen, not every step to it.
 - Use `start`/`end`, never `left`/`right`.
 - **Icons are Tabler outline**, in both styles and in the top bars too. Do not hand-roll a vector the set has.
   Anything that points — back, a chevron, an arrow — is `Icons.AutoMirrored.Outlined.*`.
@@ -467,6 +481,9 @@ Metro, one graph:
   an interface.
 - A fake that reimplements a production rule shares that rule's code, so an assertion against the fake means
   something.
+- **Assertions are `kotlin.test`'s,** which Kotlin's power-assert plugin rewrites in test code so that a failure
+  prints the values in its expression. A `kotlin.test` function not yet in the `powerAssert` list in
+  `app/build.gradle.kts` gets no diagram until it is added there.
 
 ---
 

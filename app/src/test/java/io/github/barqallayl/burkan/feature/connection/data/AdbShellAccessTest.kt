@@ -197,6 +197,31 @@ class AdbShellAccessTest {
     }
 
     @Test
+    fun `a switch found on with no adbd behind it is turned off and on before connecting`() = runTest {
+        // USB debugging was switched off, which stopped adbd; the user's wireless debugging still reads as on.
+        wirelessDebugging.on = true
+        discovery.endpoints.clear()
+        wirelessDebugging.onSwitchedOn = {
+            discovery.endpoints[AdbService.Connect] = AdbEndpoint("192.168.1.20", 40_001)
+        }
+
+        assertEquals("ran".right(), access().withShell { "ran" })
+        assertEquals(listOf("connect 127.0.0.1:40001"), client.calls)
+        assertEquals(listOf(false, true), wirelessDebugging.writes)
+        assertTrue(wirelessDebugging.on)
+    }
+
+    @Test
+    fun `a switch found on with no adbd behind it fails once turning it off and on finds none either`() = runTest {
+        wirelessDebugging.on = true
+        discovery.endpoints.clear()
+
+        assertEquals(ConnectionError.DaemonNotFound.left(), access().withShell { })
+        assertEquals(listOf(false, true), wirelessDebugging.writes, "turned off and on once, then left on")
+        assertTrue(wirelessDebugging.on)
+    }
+
+    @Test
     fun `loopback refused falls back to the Wi-Fi address`() = runTest {
         wirelessDebugging.on = true
         client.connectResults["127.0.0.1"] = ConnectionError.ConnectFailed.left()
@@ -298,6 +323,59 @@ class AdbShellAccessTest {
         val (command, elapsed) = result.getOrNull()!!
         assertEquals(ShellError.NotConnected.left(), command)
         assertTrue(elapsed in 30_000L..31_000L, "gave up after $elapsed ms")
+        assertEquals(listOf(false, true), wirelessDebugging.writes, "the switch is turned off and on once, not again")
+    }
+
+    @Test
+    fun `adbd that stays down after the lock is started again by turning wireless debugging off and on`() = runTest {
+        // The user's own switch: the app did not turn it on, and must leave it on.
+        wirelessDebugging.on = true
+        val access = access()
+
+        val result = access.withShell { shell ->
+            // With USB debugging off, adbd exits at the lock and stays down until the switch is written.
+            client.dropOpens = 1
+            discovery.endpoints.clear()
+            wirelessDebugging.onSwitchedOn = {
+                discovery.endpoints[AdbService.Connect] = AdbEndpoint("192.168.1.20", 40_001)
+            }
+            shell.run(ShellCommands.echoOk())
+        }
+        afterLinger()
+
+        assertEquals(ShellResult(0, "ok\n", "").right().right(), result)
+        assertEquals(listOf("connect 127.0.0.1:37215", "connect 127.0.0.1:40001", "disconnect"), client.calls)
+        assertEquals(listOf(false, true), wirelessDebugging.writes)
+        assertTrue(wirelessDebugging.on, "the user's switch is left on")
+        assertFalse(deviceState.switchedOnWirelessDebugging.value)
+    }
+
+    @Test
+    fun `adbd that comes back by itself is not restarted`() = runTest {
+        wirelessDebugging.on = true
+
+        access().withShell { shell ->
+            client.dropOpens = 1
+            discovery.endpoints[AdbService.Connect] = AdbEndpoint("192.168.1.20", 40_001)
+            shell.run(ShellCommands.echoOk())
+        }
+
+        assertEquals(emptyList(), wirelessDebugging.writes)
+    }
+
+    @Test
+    fun `without the permission to write the switch, adbd is only searched for`() = runTest {
+        wirelessDebugging.on = true
+        wirelessDebugging.permitted = false
+
+        val result = access().withShell { shell ->
+            client.dropOpens = Int.MAX_VALUE
+            discovery.endpoints.clear()
+            shell.run(ShellCommands.echoOk())
+        }
+
+        assertEquals(ShellError.NotConnected.left().right(), result)
+        assertEquals(emptyList(), wirelessDebugging.writes)
     }
 
     @Test

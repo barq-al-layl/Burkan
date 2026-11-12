@@ -74,4 +74,14 @@ class BackendShellAccessTest {
         assertEquals("disconnect", adb.calls.last())
         assertEquals("disconnect", shizuku.calls.last())
     }
+
+    @Test
+    fun `a way named by the caller wins over the one chosen in Settings`() = runTest {
+        settings.shellBackend.value = ShellBackend.Shizuku
+
+        assertEquals("ran".right(), access().withShell(backend = ShellBackend.WirelessDebugging) { "ran" })
+
+        assertEquals(listOf("connect 127.0.0.1:37215"), adb.calls)
+        assertEquals(emptyList(), shizuku.calls)
+    }
 }

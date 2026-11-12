@@ -10,6 +10,7 @@ import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.ReconnectingShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
@@ -53,6 +54,7 @@ class ShizukuShellAccess(
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()
@@ -108,7 +110,12 @@ class ShizukuShellAccess(
      * Gets the shell again after it was lost: Shizuku was restarted, or ended it. Waits for Shizuku to be back and
      * starts the shell afresh, until [RECONNECT_BUDGET] runs out. Runs inside a block, which holds [mutex].
      */
-    private suspend fun reconnect(): Boolean = withTimeoutOrNull(RECONNECT_BUDGET) { reconnectUntilDone() } ?: false
+    private suspend fun reconnect(): Boolean {
+        val back = withTimeoutOrNull(RECONNECT_BUDGET) { reconnectUntilDone() } ?: false
+        // With no shell there is nothing kept for the next block to reuse: it starts one, and says why if it cannot.
+        if (!back) connected = false
+        return back
+    }
 
     private suspend fun reconnectUntilDone(): Boolean {
         while (true) {

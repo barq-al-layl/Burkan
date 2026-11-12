@@ -3,7 +3,10 @@ package io.github.barqallayl.burkan.core.shell
 import arrow.core.Either
 import io.github.barqallayl.burkan.core.model.AppError
 
-/** Runs commands as the `shell` user. Everything above this interface is plain Kotlin, tested with a fake. */
+/**
+ * Runs commands as the `shell` user, or as root through a Shizuku that has it. Everything above this interface is plain
+ * Kotlin, tested with a fake.
+ */
 interface ShellExecutor {
     /**
      * Runs one command line, giving up after [ShellCommand.timeout]. A non-zero exit is a [ShellResult], not an
@@ -19,4 +22,7 @@ sealed interface ShellError : AppError {
     data object NotConnected : ShellError
     data object ConnectionLost : ShellError
     data object TimedOut : ShellError
+
+    /** The shell is there but could not run the command. Sending it again, or over a new connection, does not help. */
+    data object Failed : ShellError
 }

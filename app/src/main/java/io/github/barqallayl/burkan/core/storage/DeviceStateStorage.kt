@@ -3,7 +3,6 @@ package io.github.barqallayl.burkan.core.storage
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -28,8 +27,17 @@ interface DeviceStateStorage {
     /** How many setup steps the user has finished, counted from the first. */
     val setupStepsDone: Flow<Int>
 
+    /** Which list of steps [setupStepsDone] counts in: `SETUP_STEPS_VERSION`, or 1 for a count from before it. */
+    val setupStepsVersion: Flow<Int>
+
     /** Whether every setup step is done. `App.kt` chooses the start screen from it. */
     val isSetupComplete: Flow<Boolean>
+
+    /** Whether the Welcome screen has been seen, or need not be: it opens a fresh install, and only that. */
+    val isWelcomeSeen: Flow<Boolean>
+
+    /** Setup has just been completed and its First apply is still on offer; Home waits until it is taken or put off. */
+    val isFirstApplyPending: Flow<Boolean>
 
     /**
      * Whether wireless debugging is on because this app switched it on, from just before it does until it is
@@ -41,7 +49,14 @@ interface DeviceStateStorage {
 
     suspend fun setSetupStepsDone(count: Int)
 
+    /** Stores [count] as counted in [version] of the steps. */
+    suspend fun setSetupStepsDone(count: Int, version: Int)
+
     suspend fun setSetupComplete(complete: Boolean)
+
+    suspend fun setWelcomeSeen(seen: Boolean)
+
+    suspend fun setFirstApplyPending(pending: Boolean)
 
     suspend fun setSwitchedOnWirelessDebugging(switchedOn: Boolean)
 }
@@ -60,16 +75,31 @@ class DataStoreDeviceStateStorage(
     override val isPaired: Flow<Boolean> = read(Keys.paired)
     override val setupStepsDone: Flow<Int> =
         preferences.map { it[Keys.setupStepsDone] ?: 0 }.distinctUntilChanged()
+    override val setupStepsVersion: Flow<Int> =
+        preferences.map { it[Keys.setupStepsVersion] ?: 1 }.distinctUntilChanged()
     override val isSetupComplete: Flow<Boolean> = read(Keys.setupComplete)
+    override val isWelcomeSeen: Flow<Boolean> = read(Keys.welcomeSeen)
+    override val isFirstApplyPending: Flow<Boolean> = read(Keys.firstApplyPending)
     override val switchedOnWirelessDebugging: Flow<Boolean> = read(Keys.switchedOnWirelessDebugging)
 
     override suspend fun setPaired(paired: Boolean) = write(Keys.paired, paired)
 
     override suspend fun setSetupStepsDone(count: Int) {
-        dataStore.edit { it[Keys.setupStepsDone] = count }
+        dataStore.editOrLog { it[Keys.setupStepsDone] = count }
+    }
+
+    override suspend fun setSetupStepsDone(count: Int, version: Int) {
+        dataStore.editOrLog {
+            it[Keys.setupStepsDone] = count
+            it[Keys.setupStepsVersion] = version
+        }
     }
 
     override suspend fun setSetupComplete(complete: Boolean) = write(Keys.setupComplete, complete)
+
+    override suspend fun setWelcomeSeen(seen: Boolean) = write(Keys.welcomeSeen, seen)
+
+    override suspend fun setFirstApplyPending(pending: Boolean) = write(Keys.firstApplyPending, pending)
 
     override suspend fun setSwitchedOnWirelessDebugging(switchedOn: Boolean) =
         write(Keys.switchedOnWirelessDebugging, switchedOn)
@@ -78,13 +108,16 @@ class DataStoreDeviceStateStorage(
         preferences.map { it[key] ?: false }.distinctUntilChanged()
 
     private suspend fun write(key: Preferences.Key<Boolean>, value: Boolean) {
-        dataStore.edit { it[key] = value }
+        dataStore.editOrLog { it[key] = value }
     }
 
     private object Keys {
         val paired = booleanPreferencesKey("paired")
         val setupStepsDone = intPreferencesKey("setup_steps_done")
+        val setupStepsVersion = intPreferencesKey("setup_steps_version")
         val setupComplete = booleanPreferencesKey("setup_complete")
+        val welcomeSeen = booleanPreferencesKey("welcome_seen")
+        val firstApplyPending = booleanPreferencesKey("first_apply_pending")
         val switchedOnWirelessDebugging = booleanPreferencesKey("switched_on_wireless_debugging")
     }
 

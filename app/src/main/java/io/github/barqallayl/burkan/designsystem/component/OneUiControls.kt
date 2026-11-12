@@ -28,12 +28,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
@@ -89,6 +93,7 @@ fun BurkanFloatingSearch(
     glass: BurkanAppBar? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
     val share by animateFloatAsState(
         targetValue = if (focused || query.isNotEmpty()) 1f else RESTING_SHARE,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -105,6 +110,8 @@ fun BurkanFloatingSearch(
             .fillMaxWidth(share)
             .height(SearchHeight)
         Surface(
+            // The whole pill takes the tap, not only the line of text in the middle of it.
+            onClick = { focus.requestFocus() },
             modifier = if (glass != null) size.glassPane(glass, fill, CircleShape) else size,
             shape = CircleShape,
             // As glass it has no fill of its own, and no shadow, which would show dark through it.
@@ -129,6 +136,9 @@ fun BurkanFloatingSearch(
                     onValueChange = onSearch,
                     modifier = Modifier
                         .weight(1f)
+                        .focusRequester(focus)
+                        // Its name for a screen reader, which the placeholder stops being once something is typed.
+                        .semantics { contentDescription = placeholder }
                         .onFocusChanged { focused = it.isFocused },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),

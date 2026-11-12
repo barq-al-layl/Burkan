@@ -1,5 +1,9 @@
 package io.github.barqallayl.burkan.feature.log.ui
 
+import io.github.barqallayl.burkan.core.model.AppErrorType
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import io.github.barqallayl.burkan.core.ui.formatTime
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -45,31 +49,60 @@ val RunResult.icon: ImageVector
         RunResult.Cancelled -> Tabler.Outline.Ban
     }
 
-/** A run's result as the round badge that leads its row. The pill beside the run's name says it in words. */
+/**
+ * A run's result as the round badge that leads its row. A result that wants attention is said in words too, in a pill
+ * beside the run's name; one that went as it should is said by the badge alone.
+ */
 @Composable
 fun RunResultBadge(result: RunResult, modifier: Modifier = Modifier) {
     BurkanIconBadge(result.icon, modifier = modifier, tone = result.tone)
 }
 
+/** Whether a result is one to look at: it failed, was stopped, or was left for later. */
+val RunResult.wantsAttention: Boolean
+    get() = when (this) {
+        RunResult.Failed, RunResult.Cancelled, RunResult.Postponed -> true
+        RunResult.Succeeded, RunResult.AlreadyApplied -> false
+    }
+
 /**
- * A run in two lines, as Home and the Log both show it: what ran with its result in a pill, then when, why and for
- * how long. The pill moves under the name when the two do not fit side by side.
+ * Why a run failed: its own error, or the error of the step that failed. Null for a run that did not fail. The log's
+ * form of it says what happened, without an instruction to try again: the run is over.
+ */
+val RunLogEntry.failureReason: AppErrorType?
+    get() = if (result != RunResult.Failed) null else error ?: steps.firstNotNullOfOrNull { it.error }
+
+/**
+ * A run in two lines, as Home and the Log both show it: what ran, with its result in a pill when it wants attention,
+ * then when, why and for how long. The pill moves under the name when the two do not fit side by side. With
+ * [timeOnly] the second line gives the time without the date, for a list that is headed by its days. The result is
+ * said once to TalkBack, in the pill or, without one, with the run's name.
  */
 @Composable
-fun RunSummary(run: RunLogEntry, zone: ZoneId, modifier: Modifier = Modifier) {
+fun RunSummary(run: RunLogEntry, zone: ZoneId, modifier: Modifier = Modifier, timeOnly: Boolean = false) {
+    val result = stringResource(run.resultLabel)
+    val pill = run.result.wantsAttention
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(run.kind.label), style = MaterialTheme.typography.titleMedium)
-            BurkanPill(stringResource(run.resultLabel), tone = run.result.tone)
+            Text(
+                stringResource(run.kind.label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = if (pill) Modifier else Modifier.semantics { stateDescription = result },
+            )
+            if (pill) BurkanPill(result, tone = run.result.tone)
         }
         Text(
             stringResource(
                 R.string.log_run_detail,
-                formatDateTime(run.startedAt, zone, LocalCurrentYear.current),
+                if (timeOnly) formatTime(run.startedAt, zone) else formatDateTime(
+                    run.startedAt,
+                    zone,
+                    LocalCurrentYear.current,
+                ),
                 stringResource(run.trigger.label),
                 durationText(run.duration),
             ),

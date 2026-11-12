@@ -5,6 +5,7 @@ import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.feature.settings.data.FakeInstalledApps
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.UnexpectedError
 import io.github.barqallayl.burkan.core.shell.FakeShellExecutor
 import io.github.barqallayl.burkan.core.shell.SettingKey
 import io.github.barqallayl.burkan.core.shell.ShellCommands
@@ -35,6 +36,7 @@ import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import io.github.barqallayl.burkan.feature.connection.data.FakeShellAccess
+import io.github.barqallayl.burkan.feature.connection.data.FakeShizukuClient
 import io.github.barqallayl.burkan.feature.connection.data.FakeWirelessDebugging
 import io.github.barqallayl.burkan.feature.connection.model.ConnectionError
 import io.github.barqallayl.burkan.feature.log.data.FakeRunLogStorage
@@ -84,6 +86,7 @@ class HomeViewModelTest {
         clock,
         FixtureDevice.Self,
         announcer,
+        FakeShizukuClient(),
     )
     private val launcher = FakeApplyLauncher()
     private val installedApps = FakeInstalledApps(mapOf("net.example.reader" to "Reader"))
@@ -130,6 +133,26 @@ class HomeViewModelTest {
             containerHost.refresh()
 
             assertEquals(notApplied, awaitState { !it.isRefreshing && it.status != StatusState.Loading }.status)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `a read that throws shows as failed, and the next one still runs`() = runTest {
+        shell.beforeEach = { throw IllegalStateException("a bug") }
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.refresh()
+            assertEquals(
+                StatusState.Failed(UnexpectedError),
+                awaitState { !it.isRefreshing && it.status != StatusState.Loading }.status,
+            )
+
+            shell.beforeEach = {}
+            containerHost.refresh()
+            assertEquals(notApplied, awaitState { !it.isRefreshing && it.status == notApplied }.status)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
@@ -317,6 +340,27 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `choosing the keyboard after a run puts the run away and opens the picker`() = runTest {
+        shell.thenReply(ShellCommands.gfxInfo(ShellCommands.SystemUi), stdout = fixture("gfxinfo-vulkan.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            this@runTest.runCurrent()
+
+            controller.run(ApplyKind.Light, RunTrigger.Manual)
+            awaitState { it.finishedRun != null }
+
+            containerHost.chooseKeyboard()
+
+            val dismissed = awaitState { it.runSteps.isEmpty() }
+            assertEquals(null, dismissed.finishedRun)
+            assertEquals(HomeSideEffect.ChooseKeyboard, (awaitItem() as Item.SideEffectItem).value)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
     fun `resuming soon after a read shows it as it is, and later reads again`() = runTest {
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
@@ -434,25 +478,40 @@ class HomeViewModelTest {
             awaitState { it.isShowingBehind }
             assertTrue(launcher.started.isEmpty())
 
-            containerHost.confirmRestartBehind()
+            // All of them ticked: the run restarts whatever is behind when it reads the phone.
+            containerHost.confirmRestartBehind(setOf(PackageName.known("net.example.reader")))
             awaitState { !it.isShowingBehind }
             assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
+            assertEquals(listOf<Set<PackageName>?>(null), launcher.only)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
     }
 
     @Test
-    fun `one app is restarted alone from its row`() = runTest {
+    fun `with some apps unticked, only the ticked ones are restarted`() = runTest {
         val chat = PackageName.known("org.example.chat")
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
 
-            containerHost.restartOne(chat).join()
+            containerHost.confirmRestartBehind(setOf(chat)).join()
 
             assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
             assertEquals(listOf<Set<PackageName>?>(setOf(chat)), launcher.only)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `with nothing ticked, nothing is restarted`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.confirmRestartBehind(emptySet()).join()
+
+            assertTrue(launcher.started.isEmpty())
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
@@ -486,6 +545,30 @@ class HomeViewModelTest {
             containerHost.showBehind().join()
 
             assertTrue(launcher.started.isEmpty())
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `the sheet of apps behind does not open again by itself when a later read finds some`() = runTest {
+        shell.reply(ShellCommands.gfxInfoAll(), stdout = fixture("gfxinfo-all.txt"))
+
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+            containerHost.refresh()
+            awaitState { it.behind != null }
+            containerHost.showBehind()
+            awaitState { it.isShowingBehind }
+
+            // A read while the sheet is up takes its list away, and the read of the open apps after it brings one
+            // back.
+            containerHost.refresh()
+            val cleared = awaitState { it.behind == null }
+            val readAgain = awaitState { it.behind != null }
+
+            assertEquals(false, cleared.isShowingBehind)
+            assertEquals(false, readAgain.isShowingBehind)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

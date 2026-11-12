@@ -40,10 +40,17 @@ class ApplyRunner(
      * Returns true when System UI was due but [mayRestartSystemUi] said no: it was left alone, and no step recorded.
      */
     suspend fun run(plan: ApplyPlan, onStepStarted: (StepKind) -> Unit = {}, onStep: (StepRecord) -> Unit): Boolean {
+        // Kept from before the first step, so that a run whose process dies under it can still be undone. What cannot
+        // be kept is not changed: the first step fails without being sent, and there is nothing to put back.
+        if (!captured.keep(plan.restore.associate { it.setting to it.value })) {
+            plan.steps.firstOrNull()?.let { first ->
+                onStepStarted(first.kind)
+                onStep(StepRecord(first.kind, ApplyError.SettingsNotKept))
+            }
+            return false
+        }
         var failed = false
         try {
-            // Kept from before the first step, so that a run whose process dies under it can still be undone.
-            captured.keep(plan.restore.associate { it.setting to it.value })
             for (step in plan.steps) {
                 onStepStarted(step.kind)
                 val failure = if (step.kind == StepKind.RestartKeyboard) keepingDefaultKeyboard(step) else execute(step)

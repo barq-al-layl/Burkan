@@ -9,6 +9,7 @@ import org.junit.Test
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -56,6 +57,26 @@ class AdbShellExecutorTest {
         )
 
         assertEquals(ShellResult(0, "ok\n", "").right(), executor.run(command))
+    }
+
+    @Test
+    fun `a stream the daemon refuses fails the command, where no connection means not connected`() = runTest {
+        val refused = AdbShellExecutor({ throw StreamRefusedException() }, StandardTestDispatcher(testScheduler))
+        val gone = AdbShellExecutor({ throw IOException("Not connected") }, StandardTestDispatcher(testScheduler))
+
+        assertEquals(ShellError.Failed.left(), refused.run(command))
+        assertEquals(ShellError.NotConnected.left(), gone.run(command))
+    }
+
+    @Test
+    fun `output past the most a command may give fails it`() {
+        val decoder = ShellProtocolDecoder()
+        // One megabyte of stdout: the id, the length with its low byte first, then the bytes.
+        val megabyte = byteArrayOf(1, 0, 0, 0x10, 0) + ByteArray(1024 * 1024)
+
+        assertFailsWith<OutputTooLargeException> {
+            repeat(ShellProtocolDecoder.MAX_OUTPUT / megabyte.size + 2) { decoder.feed(megabyte) }
+        }
     }
 
     @Test

@@ -13,6 +13,9 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 
     val entries: List<Route> get() = backStack
 
+    /** Whether there is a destination behind this one for [pop] to go back to. Read in composition, it is observed. */
+    val canPop: Boolean get() = backStack.size > 1
+
     fun push(route: Route) {
         backStack.add(route)
     }
@@ -35,12 +38,13 @@ class Navigator(private val backStack: NavBackStack<Route>) {
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No Navigator provided") }
 
 /**
- * A [Navigator] whose back stack survives configuration changes and process death. A different [start] replaces the
- * whole back stack.
+ * A [Navigator] whose back stack survives configuration changes and process death. [start] is read once, when there
+ * is no stack to restore. To move somewhere else altogether, use [Navigator.replaceAll]: never a new stack in place of
+ * this one, which would drop its screens without taking them off it, and so without clearing their ViewModels.
  */
 @Composable
 fun rememberNavigator(start: Route): Navigator {
-    val backStack = rememberSerializable(start, serializer = NavBackStackSerializer(Route.serializer())) {
+    val backStack = rememberSerializable(serializer = NavBackStackSerializer(Route.serializer())) {
         NavBackStack(start)
     }
     return remember(backStack) { Navigator(backStack) }

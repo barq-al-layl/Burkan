@@ -24,7 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -61,6 +61,7 @@ import com.composables.icons.tabler.outline.Refresh
 import com.composables.icons.tabler.outline.Scale
 import com.composables.icons.tabler.outline.SunMoon
 import com.composables.icons.tabler.outline.Terminal
+import com.composables.icons.tabler.outline.PlugConnected
 import com.composables.icons.tabler.outline.WifiOff
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import io.github.barqallayl.burkan.Appearance
@@ -76,6 +77,7 @@ import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
 import io.github.barqallayl.burkan.designsystem.component.listInset
+import io.github.barqallayl.burkan.designsystem.component.accentTextColor
 import io.github.barqallayl.burkan.designsystem.component.rememberBurkanAppBar
 import io.github.barqallayl.burkan.designsystem.component.listTop
 import io.github.barqallayl.burkan.designsystem.component.topBarScroll
@@ -99,6 +101,7 @@ import io.github.barqallayl.burkan.designsystem.preview.BurkanPreview
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewTheme
 import io.github.barqallayl.burkan.designsystem.preview.BurkanPreviewWrapper
 import io.github.barqallayl.burkan.designsystem.preview.LargeFontScale
+import androidx.compose.ui.platform.LocalDensity
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 
@@ -122,6 +125,7 @@ fun SettingsScreen() {
             onBack = viewModel::back,
             onApplyOnBoot = viewModel::setApplyOnBoot,
             onTurnOffWirelessDebugging = viewModel::setTurnOffWirelessDebugging,
+            onAllowExternalTriggers = viewModel::setAllowExternalTriggers,
             onOpenExclusions = viewModel::openExclusions,
             onShow = viewModel::show,
             onDismissDialog = viewModel::dismissDialog,
@@ -143,6 +147,7 @@ private class SettingsActions(
     val onBack: () -> Unit = {},
     val onApplyOnBoot: (Boolean) -> Unit = {},
     val onTurnOffWirelessDebugging: (Boolean) -> Unit = {},
+    val onAllowExternalTriggers: (Boolean) -> Unit = {},
     val onOpenExclusions: () -> Unit = {},
     val onShow: (SettingsDialog) -> Unit = {},
     val onDismissDialog: () -> Unit = {},
@@ -182,7 +187,7 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                LoadingIndicator()
+                BurkanLoadingIndicator()
             }
             return@Scaffold
         }
@@ -203,21 +208,14 @@ private fun SettingsContent(state: SettingsState, actions: SettingsActions) {
                 .readableWidth(),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
-            Section(R.string.settings_section_restart) { RestartItems(values, actions) }
+            // Four groups, each named for what its rows are about: how Vulkan is applied, how Burkan reaches the
+            // phone, which Redo setup sets up again, how the app looks, and the app itself.
+            Section(R.string.settings_section_applying) { ApplyingItems(values, actions) }
+            Section(R.string.settings_section_connection) { ConnectionItems(values, actions) }
             Section(R.string.settings_section_appearance) {
                 AppearanceItems(
                     values.appearance,
                     actions,
-                )
-            }
-            Section(R.string.settings_section_setup) {
-                BurkanSegmentItem(
-                    index = 0,
-                    count = 1,
-                    headline = stringResource(R.string.settings_redo_setup),
-                    supporting = stringResource(R.string.settings_redo_setup_text),
-                    onClick = { actions.onShow(SettingsDialog.RedoSetup) },
-                    leading = { Icon(Tabler.Outline.Refresh, contentDescription = null) },
                 )
             }
             Section(R.string.settings_section_about) { AboutItems(state.version, actions) }
@@ -236,32 +234,40 @@ private fun Section(title: Int, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
+private fun ApplyingItems(values: SettingsValues, actions: SettingsActions) {
     val shizuku = values.shellBackend == ShellBackend.Shizuku
-    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on.
-    val count = if (shizuku) RESTART_ITEMS - 1 else RESTART_ITEMS
     SwitchItem(
         index = 0,
-        count = count,
+        count = APPLYING_ITEMS,
         icon = Tabler.Outline.Power,
         title = R.string.settings_apply_on_boot,
         text = if (shizuku) R.string.settings_apply_on_boot_shizuku_text else R.string.settings_apply_on_boot_text,
         checked = values.applyOnBoot,
         onCheckedChange = actions.onApplyOnBoot,
     )
-    // Not a switch that turns at a tap: it asks first, as changing it starts setup again.
-    SwitchItem(
-        index = 1,
+    ExclusionsItem(index = 1, count = APPLYING_ITEMS, values = values, actions = actions)
+}
+
+@Composable
+private fun ConnectionItems(values: SettingsValues, actions: SettingsActions) {
+    val shizuku = values.shellBackend == ShellBackend.Shizuku
+    // Switching wireless debugging off again is its own business: with Shizuku, Burkan switches nothing on. Redo
+    // setup closes the group: it sets up the connection again.
+    val count = if (shizuku) CONNECTION_ITEMS - 1 else CONNECTION_ITEMS
+    // A row that opens a question, not a switch: changing it starts setup again, which a switch does not promise.
+    ChoiceItem(
+        index = 0,
         count = count,
         icon = Tabler.Outline.Terminal,
-        title = R.string.settings_shizuku,
-        text = R.string.settings_shizuku_text,
-        checked = shizuku,
-        onCheckedChange = { actions.onShow(SettingsDialog.SwitchShellBackend) },
+        title = R.string.settings_connection,
+        value = stringResource(
+            if (shizuku) R.string.settings_connection_shizuku else R.string.settings_connection_wireless_debugging,
+        ),
+        onClick = { actions.onShow(SettingsDialog.SwitchShellBackend) },
     )
     if (!shizuku) {
         SwitchItem(
-            index = 2,
+            index = 1,
             count = count,
             icon = Tabler.Outline.WifiOff,
             title = R.string.settings_turn_off_wireless_debugging,
@@ -270,8 +276,32 @@ private fun RestartItems(values: SettingsValues, actions: SettingsActions) {
             onCheckedChange = actions.onTurnOffWirelessDebugging,
         )
     }
+    SwitchItem(
+        index = count - 2,
+        count = count,
+        icon = Tabler.Outline.PlugConnected,
+        title = R.string.settings_external_triggers,
+        text = R.string.settings_external_triggers_text,
+        checked = values.allowExternalTriggers,
+        onCheckedChange = actions.onAllowExternalTriggers,
+    )
     BurkanSegmentItem(
         index = count - 1,
+        count = count,
+        headline = stringResource(R.string.settings_redo_setup),
+        // With Shizuku there is no pairing to forget.
+        supporting = stringResource(
+            if (shizuku) R.string.settings_redo_setup_shizuku_text else R.string.settings_redo_setup_text,
+        ),
+        onClick = { actions.onShow(SettingsDialog.RedoSetup) },
+        leading = { Icon(Tabler.Outline.Refresh, contentDescription = null) },
+    )
+}
+
+@Composable
+private fun ExclusionsItem(index: Int, count: Int, values: SettingsValues, actions: SettingsActions) {
+    BurkanSegmentItem(
+        index = index,
         count = count,
         headline = stringResource(R.string.settings_exclusions),
         // One UI leaves a row that opens a screen to that screen to explain itself, and writes the row's value,
@@ -364,7 +394,7 @@ private fun AboutItems(version: String, actions: SettingsActions) {
     BurkanSegmentItem(
         index = 1,
         count = ABOUT_ITEMS,
-        headline = stringResource(R.string.settings_star),
+        headline = stringResource(R.string.settings_source),
         onClick = actions.onOpenSource,
         leading = { Icon(Tabler.Outline.BrandGithub, contentDescription = null) },
         trailing = { Chevron() },
@@ -407,7 +437,13 @@ private fun SettingsDialogs(
     when (dialog) {
         SettingsDialog.RedoSetup -> BurkanConfirm(
             title = stringResource(R.string.settings_redo_setup_confirm_title),
-            text = stringResource(R.string.settings_redo_setup_confirm_text),
+            text = stringResource(
+                if (values.shellBackend == ShellBackend.Shizuku) {
+                    R.string.settings_redo_setup_confirm_shizuku_text
+                } else {
+                    R.string.settings_redo_setup_confirm_text
+                },
+            ),
             confirm = stringResource(R.string.settings_redo_setup_confirm_action),
             dismiss = stringResource(R.string.dialog_cancel),
             onConfirm = actions.onConfirmRedoSetup,
@@ -432,7 +468,13 @@ private fun SettingsDialogs(
             )
         }
 
-        else -> BurkanBottomSheet(onDismiss = actions.onDismissDialog) { AppearanceChoices(dialog, appearance, actions) }
+        else -> BurkanBottomSheet(onDismiss = actions.onDismissDialog) {
+            AppearanceChoices(
+                dialog,
+                appearance,
+                actions,
+            )
+        }
     }
 }
 
@@ -587,7 +629,8 @@ private fun SwitchItem(
 /**
  * A preference that opens a sheet of choices. In Material what is chosen now sits at the end of the row, before the
  * chevron, so the group reads as two columns: the names down one side, their values down the other. One UI writes
- * it under the name, in the accent colour, and has no chevron.
+ * it under the name, in the accent colour, and has no chevron. At a large text size Material writes it under the name
+ * too: at the end of the row it would be cut short.
  */
 @Composable
 private fun ChoiceItem(
@@ -600,11 +643,12 @@ private fun ChoiceItem(
     onClick: () -> Unit,
 ) {
     val oneUi = LocalAppStyle.current == AppStyle.OneUi
+    val underName = oneUi || LocalDensity.current.fontScale > VALUE_UNDER_NAME_ABOVE_FONT_SCALE
     BurkanSegmentItem(
         index = index,
         count = count,
         headline = stringResource(title),
-        supporting = if (oneUi) value else null,
+        supporting = if (underName) value else null,
         supportingColor = valueColor,
         onClick = onClick,
         leading = { Icon(icon, contentDescription = null) },
@@ -618,7 +662,7 @@ private fun ChoiceItem(
                         .size(14.dp)
                         .background(swatch, CircleShape),
                 )
-                if (!oneUi) {
+                if (!underName) {
                     TrailingValue(value)
                 }
                 Chevron()
@@ -643,7 +687,7 @@ private fun TrailingValue(value: String) {
 /** The colour of a row's second line when that line is its value: One UI's accent. Material has no such line. */
 private val valueColor: Color?
     @Composable
-    get() = if (LocalAppStyle.current == AppStyle.OneUi) MaterialTheme.colorScheme.primary else null
+    get() = if (LocalAppStyle.current == AppStyle.OneUi) accentTextColor else null
 
 /** A value longer than this is cut short, so the row's name always has the room it needs. */
 private val VALUE_MAX_WIDTH = 150.dp
@@ -655,8 +699,12 @@ private fun Chevron() {
     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
 }
 
-private const val RESTART_ITEMS = 4
+private const val APPLYING_ITEMS = 2
+private const val CONNECTION_ITEMS = 4
 private const val ABOUT_ITEMS = 5
+
+/** Above this text size a value goes under its row's name, where it has the row's width. */
+private const val VALUE_UNDER_NAME_ABOVE_FONT_SCALE = 1.15f
 
 private fun sample(
     dialog: SettingsDialog? = null,
@@ -667,6 +715,7 @@ private fun sample(
         applyOnBoot = SettingsStorage.Defaults.APPLY_ON_BOOT,
         shellBackend = SettingsStorage.Defaults.shellBackend,
         turnOffWirelessDebugging = SettingsStorage.Defaults.TURN_OFF_WIRELESS_DEBUGGING,
+        allowExternalTriggers = SettingsStorage.Defaults.ALLOW_EXTERNAL_TRIGGERS,
         exclusionCount = exclusions,
         appearance = sampleAppearance(appStyle),
     ),

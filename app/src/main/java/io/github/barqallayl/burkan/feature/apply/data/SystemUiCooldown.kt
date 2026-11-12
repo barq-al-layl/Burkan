@@ -2,7 +2,7 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -41,7 +41,7 @@ class DataStoreSystemUiRestarts(
         ?.let(Instant::fromEpochMilliseconds)
 
     override suspend fun record(at: Instant) {
-        dataStore.edit { it[LAST_RESTART] = at.toEpochMilliseconds() }
+        dataStore.editOrLog { it[LAST_RESTART] = at.toEpochMilliseconds() }
     }
 
     private companion object {

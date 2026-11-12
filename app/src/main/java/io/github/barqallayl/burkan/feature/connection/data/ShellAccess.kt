@@ -5,12 +5,12 @@ import arrow.core.raise.Raise
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import dev.zacsweers.metro.AppScope
-
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.di.AppBindings
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.ShellBackend
 import io.github.barqallayl.burkan.core.shell.AdbShellExecutor
 import io.github.barqallayl.burkan.core.shell.ReconnectingShellExecutor
 import io.github.barqallayl.burkan.core.shell.ShellExecutor
@@ -45,10 +45,15 @@ interface ShellAccess {
      *
      * [patience] is how long a shell that is still coming up may be waited for, as Shizuku is after a restart, when
      * it has to start itself first. Wireless debugging has its waits of its own and takes none of this.
+     *
+     * [backend] is the way to the shell, for a caller that has already read the choice and must not see it change
+     * part way through its run; null is the one chosen in Settings now. Only [BackendShellAccess] reads it: each of
+     * the two ways to a shell is the way it is.
      */
     suspend fun <T> withShell(
         settle: Duration = Duration.ZERO,
         patience: Duration = Duration.ZERO,
+        backend: ShellBackend? = null,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T>
 
@@ -83,9 +88,21 @@ class AdbShellAccess(
     private var connection: OpenConnection? = null
     private var closing: Job? = null
 
+    init {
+        // What the app switched on is the app's to switch off, and the flag that says so outlives the process. But
+        // wireless debugging found off was switched off by someone since, and if it is on the next time, that was
+        // not the app: the flag is dropped, so the user's own switch is left alone.
+        scope.launch {
+            mutex.withLock {
+                if (connection == null && !wirelessDebugging.isOn()) deviceState.setSwitchedOnWirelessDebugging(false)
+            }
+        }
+    }
+
     override suspend fun <T> withShell(
         settle: Duration,
         patience: Duration,
+        backend: ShellBackend?,
         block: suspend (ShellExecutor) -> T,
     ): Either<AppError, T> = mutex.withLock {
         closing?.cancel()
@@ -122,17 +139,30 @@ class AdbShellAccess(
     private suspend fun Raise<ConnectionError>.open(settle: Duration): OpenConnection = coroutineScope {
         ensure(discovery.isAllowed()) { ConnectionError.LocalNetworkDenied }
         val settling = launch { delay(settle) }
+        val alreadyOn = wirelessDebugging.isOn()
         val switchedOn = switchOn()
         try {
             settling.join()
-            val endpoint =
-                discovery.find(AdbService.Connect, DISCOVERY_TIMEOUT) ?: raise(ConnectionError.DaemonNotFound)
+            val endpoint = findDaemon(alreadyOn) ?: raise(ConnectionError.DaemonNotFound)
             connect(endpoint).bind()
             OpenConnection(switchedOn)
         } catch (e: Throwable) {
             if (switchedOn) withContext(NonCancellable) { switchOff() }
             throw e
         }
+    }
+
+    /**
+     * Finds adbd for a new connection. A switch found on may have no adbd behind it: with USB debugging off, adbd
+     * stops when USB debugging is switched off and at every lock and unlock, and only writing the switch starts it
+     * again. So a switch that was already on and has nothing behind it after a short search is turned off and on,
+     * once, as [reconnect] does. A switch the app has just turned on has started adbd already.
+     */
+    private suspend fun findDaemon(alreadyOn: Boolean): AdbEndpoint? {
+        if (!alreadyOn || !wirelessDebugging.canSwitch()) return discovery.find(AdbService.Connect, DISCOVERY_TIMEOUT)
+        discovery.find(AdbService.Connect, RECONNECT_DISCOVERY_TIMEOUT)?.let { return it }
+        restartWirelessDebugging()
+        return discovery.find(AdbService.Connect, DISCOVERY_TIMEOUT)
     }
 
     private suspend fun close() {
@@ -178,20 +208,44 @@ class AdbShellAccess(
     /**
      * Connects again after adbd restarted: it comes back on a new port about a second later, so wait, find the port
      * again and connect, until [RECONNECT_BUDGET] runs out. Runs inside a block, which holds [mutex].
+     *
+     * With USB debugging off, the USB reset at every lock and unlock leaves no `adb` function, so adbd exits and stays
+     * down until wireless debugging is written again, while the switch still reads as on. So when one search finds
+     * nothing, the switch is turned off and on again, once per reconnection, if the app may write it. It is left as it
+     * was found, on, and so stays whoever's it was.
      */
     private suspend fun reconnect(): Boolean = withTimeoutOrNull(RECONNECT_BUDGET) { reconnectUntilDone() } ?: false
 
     private suspend fun reconnectUntilDone(): Boolean {
+        var restarted = false
         while (true) {
             delay(RECONNECT_PAUSE)
             if (!wirelessDebugging.isOn()) return false
-            val endpoint = discovery.find(AdbService.Connect, RECONNECT_DISCOVERY_TIMEOUT) ?: continue
+            val endpoint = discovery.find(AdbService.Connect, RECONNECT_DISCOVERY_TIMEOUT)
+            if (endpoint == null) {
+                if (!restarted && wirelessDebugging.canSwitch()) {
+                    restarted = true
+                    restartWirelessDebugging()
+                }
+                continue
+            }
             when (connect(endpoint).leftOrNull()) {
                 null -> return true
                 ConnectionError.NotAuthorised -> return false
                 else -> Unit
             }
         }
+    }
+
+    /**
+     * Turns wireless debugging off and on again, which starts adbd when it has exited. Not cancellable part way: a
+     * switch left off by a run that ran out of time there would be the user's switch turned off.
+     */
+    private suspend fun restartWirelessDebugging() = withContext(NonCancellable) {
+        wirelessDebugging.set(false)
+        // Two writes close together can reach the system's observer as one, which then sees no change.
+        delay(RESTART_GAP)
+        wirelessDebugging.set(true)
     }
 
     private suspend fun connect(endpoint: AdbEndpoint): Either<ConnectionError, Unit> {
@@ -227,5 +281,8 @@ class AdbShellAccess(
         /** adbd accepts connections again about a second after it restarts. */
         val RECONNECT_PAUSE = 1.seconds
         val RECONNECT_DISCOVERY_TIMEOUT = 5.seconds
+
+        /** Between switching wireless debugging off and on again when adbd does not come back by itself. */
+        val RESTART_GAP = 1.seconds
     }
 }

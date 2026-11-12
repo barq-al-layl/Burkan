@@ -14,8 +14,13 @@ import io.github.barqallayl.burkan.core.shell.parseSettingValue
 import io.github.barqallayl.burkan.feature.apply.model.ApplyError
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 
-/** Reads what a plan needs from the device. Read-only: nothing here changes the device. */
-class ApplyInputsReader(private val shell: ShellExecutor) {
+/**
+ * Reads what a plan needs from the device. Read-only: nothing here changes the device.
+ *
+ * The settings a run puts back afterwards are read by the app itself, through [captured], not over the shell: see
+ * [CapturedSettings] for why.
+ */
+class ApplyInputsReader(private val shell: ShellExecutor, private val captured: CapturedSettings) {
 
     /** The current input method's package, or null when none is set. */
     suspend fun readKeyboard(): Either<AppError, PackageName?> = either {
@@ -36,10 +41,23 @@ class ApplyInputsReader(private val shell: ShellExecutor) {
             running = parseRunningPackages(read(ShellCommands.dumpProcesses()).bind(), installed.toSet()),
             widgets = parseWidgetPackages(read(ShellCommands.dumpAppWidgets()).bind()),
             keyboard = readKeyboard().bind(),
-            captured = RestoredSetting.entries.associateWith { setting ->
-                parseSettingValue(read(ShellCommands.getSetting(setting.key)).bind())
-            },
+            captured = RestoredSetting.entries.associateWith { setting -> capture(setting).bind() },
         )
+    }
+
+    /**
+     * What [setting] holds now, or null when it is unset. The app's own read is the answer. Where it gives none,
+     * because Android refused or the key reads as unset to an app, the shell is asked instead, and believed only
+     * for a value the setting could hold. The accessibility services are never taken from the shell: that is the
+     * one value worth lying about.
+     */
+    private suspend fun capture(setting: RestoredSetting): Either<AppError, String?> = either {
+        val own = (captured.read(setting) as? SettingRead.Value)?.value?.takeIf { it.isNotEmpty() }
+        when {
+            own != null -> own
+            setting == RestoredSetting.AccessibilityServices -> null
+            else -> parseSettingValue(read(ShellCommands.getSetting(setting.key)).bind())?.takeIf(setting::accepts)
+        }
     }
 
     private suspend fun read(command: ShellCommand, failOnExitCode: Boolean = true): Either<AppError, String> =

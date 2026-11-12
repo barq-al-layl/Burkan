@@ -3,6 +3,7 @@ package io.github.barqallayl.burkan.designsystem.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,12 +25,14 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,6 +95,24 @@ val noticeAccentColor: Color
     }
 
 private val OneUiCardShape = RoundedCornerShape(27.dp)
+
+/**
+ * The accent as the colour of a line of text: a value written under its name, as One UI writes one. On a light
+ * screen the accent itself is too pale for body text, so it is taken a shade darker there.
+ */
+val accentTextColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() {
+        val scheme = MaterialTheme.colorScheme
+        return if (scheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+            scheme.primary
+        } else {
+            lerp(scheme.primary, Color.Black, ACCENT_TEXT_SHADE)
+        }
+    }
+
+private const val ACCENT_TEXT_SHADE = 0.3f
 private val SquareCorners = RoundedCornerShape(0.dp)
 
 /** Whether what is drawn sits on a floating sheet. The sheet says so. */
@@ -267,8 +288,15 @@ fun SegmentedColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  * [supportingOneLine] is for a second line that is an identifier, a package name above all: it is kept to one
  * line and shortened in its middle, where a sentence would wrap.
  *
+ * [supportingSpoken] false keeps the second line on screen but out of what TalkBack reads: for a line that is there
+ * to tell rows apart at a glance, such as an app's package name under its name, and would only be noise read aloud.
+ *
  * [pressMorph] is whether the row changes shape while it is pressed, as Material's does. A row whose tap is
  * answered by the whole screen changing does not: see `BurkanChoiceList`.
+ *
+ * [headlineBadge] goes on the headline's own line, after it, such as a "Recommended" label; it moves under the
+ * headline when the two do not fit side by side. Unlike [content], it leaves the row's icon and control level with
+ * the middle of its text.
  */
 @Composable
 fun BurkanSegmentItem(
@@ -279,6 +307,7 @@ fun BurkanSegmentItem(
     supporting: String? = null,
     supportingColor: Color? = null,
     supportingOneLine: Boolean = false,
+    supportingSpoken: Boolean = true,
     containerColor: Color = segmentContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     headlineStyle: TextStyle = MaterialTheme.typography.titleMedium,
@@ -289,6 +318,7 @@ fun BurkanSegmentItem(
     pressMorph: Boolean = true,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    headlineBadge: (@Composable () -> Unit)? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     // Selection is the primary colour's tint, like the app's other marks of "this one": under the expressive palette
@@ -307,7 +337,10 @@ fun BurkanSegmentItem(
         selectedContentColor = selectedContentColor,
         selectedLeadingContentColor = selectedContentColor,
         selectedTrailingContentColor = selectedContentColor,
-        selectedSupportingContentColor = selectedContentColor.copy(alpha = SUPPORTING_ALPHA),
+        // Not quietened on the tinted row: on that tint the quieter tone falls under the contrast body text needs.
+        // One UI's chosen row keeps the row's own colours, and so its quieter line.
+        selectedSupportingContentColor =
+            if (oneUi) contentColor.copy(alpha = SUPPORTING_ALPHA) else selectedContentColor,
     )
     // A row's icon and control sit level with the middle of its text. A row that carries more under its text keeps
     // them at the top, beside the text they belong to.
@@ -334,13 +367,27 @@ fun BurkanSegmentItem(
                     color = supportingColor ?: Color.Unspecified,
                     maxLines = if (supportingOneLine) 1 else Int.MAX_VALUE,
                     overflow = if (supportingOneLine) TextOverflow.MiddleEllipsis else TextOverflow.Clip,
+                    modifier = if (supportingSpoken) Modifier else Modifier.clearAndSetSemantics { },
                 )
                 // What goes under the text is the row's own content, not a quieter line of it.
                 if (content != null) CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
             }
         }
     }
-    val headlineContent = @Composable { Text(headline, style = headlineStyle) }
+    val headlineContent = @Composable {
+        if (headlineBadge == null) {
+            Text(headline, style = headlineStyle)
+        } else {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(headline, style = headlineStyle)
+                headlineBadge()
+            }
+        }
+    }
     when {
         checked != null && onCheckedChange != null -> SegmentedListItem(
             checked = checked,

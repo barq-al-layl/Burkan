@@ -23,7 +23,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import io.github.barqallayl.burkan.designsystem.component.BurkanLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -219,7 +219,7 @@ private fun ExclusionsContent(
                             ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            LoadingIndicator()
+                            BurkanLoadingIndicator()
                             Text(stringResource(R.string.exclusions_loading))
                         }
                     }
@@ -351,6 +351,8 @@ private fun LazyListScope.fixedItems(fixed: List<ExcludableApp>?, icon: IconLoad
                 headline = app.label ?: app.packageName.value,
                 supporting = if (app.label != null) app.packageName.value else notInstalled(),
                 supportingOneLine = true,
+                // An app with a name is read by its name; one without is read by its package name, the headline.
+                supportingSpoken = app.label == null,
                 leading = { AppIcon(app.packageName, icon) },
                 trailing = { LockMark() },
             )
@@ -435,9 +437,12 @@ private fun AppItem(
     BurkanSegmentItem(
         index = index,
         count = count,
-        headline = app.label ?: notInstalled(),
-        supporting = app.packageName.value,
+        // An app that is gone is known by its package, as it is in the list below: that is what tells one from
+        // another.
+        headline = app.label ?: app.packageName.value,
+        supporting = if (app.label != null) app.packageName.value else notInstalled(),
         supportingOneLine = true,
+        supportingSpoken = app.label == null,
         checked = excluded,
         onCheckedChange = { onToggle() },
         leading = { AppIcon(app.packageName, icon) },

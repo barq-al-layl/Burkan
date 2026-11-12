@@ -11,6 +11,11 @@ import android.provider.Settings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** The phone's wireless-debugging switch and what it depends on. */
 interface WirelessDebugging {
@@ -23,6 +28,13 @@ interface WirelessDebugging {
 
     /** Whether the phone is connected to a Wi-Fi network, which need not be the one it reaches the internet through. */
     fun isWifiConnected(): Boolean
+
+    /**
+     * [isWifiConnected], from now on: its answer at once, then again whenever a Wi-Fi network comes up or goes. For a
+     * screen that says whether the phone is on Wi-Fi while the user may be changing it from the notification shade,
+     * which does not take the app out of the foreground.
+     */
+    val wifiConnected: Flow<Boolean>
 
     /**
      * Whether Android forgets a paired device that has not connected for a while: 7 days, unless the user set
@@ -48,6 +60,24 @@ class SettingsWirelessDebugging(private val application: Application) : Wireless
 
     override fun isWifiConnected(): Boolean =
         application.getSystemService(ConnectivityManager::class.java).wifiNetwork() != null
+
+    override val wifiConnected: Flow<Boolean> = callbackFlow {
+        val connectivity = application.getSystemService(ConnectivityManager::class.java)
+        // Asked again on every change rather than counted from the callbacks: the phone can hold more than one Wi-Fi
+        // network for a moment while it moves between them.
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                trySend(isWifiConnected())
+            }
+
+            override fun onLost(network: Network) {
+                trySend(isWifiConnected())
+            }
+        }
+        trySend(isWifiConnected())
+        connectivity.registerNetworkCallback(wifiNetworkRequest(), callback)
+        awaitClose { connectivity.unregisterNetworkCallback(callback) }
+    }.conflate().distinctUntilChanged()
 
     override fun forgetsPairings(): Boolean = try {
         Settings.Global.getLong(application.contentResolver, ADB_ALLOWED_CONNECTION_TIME, DEFAULT_CONNECTION_TIME) != 0L
