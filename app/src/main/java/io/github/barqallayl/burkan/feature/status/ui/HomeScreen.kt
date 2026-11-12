@@ -1,5 +1,12 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.saveable.rememberSaveable
+import io.github.barqallayl.burkan.core.navigation.ExclusionsRoute
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
@@ -220,6 +227,7 @@ fun HomeScreen() {
         when (effect) {
             HomeSideEffect.OpenLog -> navigator.push(LogRoute)
             HomeSideEffect.OpenSettings -> navigator.push(SettingsRoute)
+            HomeSideEffect.OpenExclusions -> navigator.push(ExclusionsRoute)
             HomeSideEffect.OpenDeveloperOptions -> context.openSettings(wirelessDebuggingIntent())
         }
     }
@@ -243,7 +251,7 @@ fun HomeScreen() {
             onShowBehind = viewModel::showBehind,
             onConfirmRestartBehind = viewModel::confirmRestartBehind,
             onDismissBehind = viewModel::dismissBehind,
-            onRestartOne = { viewModel.restartOne(it) },
+            onOpenExclusions = viewModel::openExclusions,
             onKeep = { viewModel.keep(it) },
             onRevert = viewModel::requestRevert,
             onConfirmRevert = viewModel::confirmRevert,
@@ -267,9 +275,9 @@ private class HomeActions(
     val onConfirmRestartAll: () -> Unit = {},
     val onDismissRestartAll: () -> Unit = {},
     val onShowBehind: () -> Unit = {},
-    val onConfirmRestartBehind: () -> Unit = {},
+    val onConfirmRestartBehind: (Set<PackageName>) -> Unit = {},
     val onDismissBehind: () -> Unit = {},
-    val onRestartOne: (PackageName) -> Unit = {},
+    val onOpenExclusions: () -> Unit = {},
     val onKeep: (PackageName) -> Unit = {},
     val onRevert: () -> Unit = {},
     val onConfirmRevert: () -> Unit = {},
@@ -428,7 +436,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
         BurkanConfirm(
             title = stringResource(R.string.home_confirm_apply_title),
             text = stringResource(R.string.home_confirm_apply_text),
-            confirm = stringResource(R.string.home_confirm_apply_action),
+            confirm = stringResource(R.string.home_apply_now),
             dismiss = stringResource(R.string.home_confirm_dismiss),
             onConfirm = actions.onConfirmApply,
             onDismiss = actions.onDismissApply,
@@ -445,6 +453,7 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 onScope = actions.onRestartScope,
                 onConfirm = { hide(actions.onConfirmRestartAll) },
                 onDismiss = { hide(actions.onDismissRestartAll) },
+                onOpenKept = { hide(actions.onOpenExclusions) },
             )
         }
     }
@@ -456,10 +465,9 @@ private fun HomeContent(state: HomeState, zone: ZoneId, actions: HomeActions, ic
                 apps = behind,
                 renderer = newApps.other(),
                 icon = icon,
-                onRestartOne = { app -> hide { actions.onRestartOne(app) } },
                 // Keeping the last of them leaves nothing to show: the sheet goes as it does for its own buttons.
                 onKeep = { app -> if (behind.size == 1) hide { actions.onKeep(app) } else actions.onKeep(app) },
-                onConfirm = { hide(actions.onConfirmRestartBehind) },
+                onConfirm = { ticked -> hide { actions.onConfirmRestartBehind(ticked) } },
                 onDismiss = { hide(actions.onDismissBehind) },
             )
         }
@@ -489,21 +497,26 @@ private val Renderer.nameRes: Int
     }
 
 /**
- * The open apps that are behind, by name, and the offer to restart them: only these, where "Restart all apps" would
- * close everything. [renderer] is the one they are still on.
+ * The open apps that are behind, by name, each ticked to be restarted, and the offer to restart the ticked ones:
+ * only these, where "Restart all apps" would close everything. [renderer] is the one they are still on. Nothing is
+ * restarted until the button is tapped, so a tap on a row never loses what an app holds unsaved. Keeping an app out
+ * of every restart is in each row's menu, in words. The list scrolls under the buttons, which stay in reach.
  */
 @Composable
-private fun BehindSheet(
+private fun ColumnScope.BehindSheet(
     apps: List<BehindApp>,
     renderer: Renderer,
-    onConfirm: () -> Unit,
+    onConfirm: (Set<PackageName>) -> Unit,
     onDismiss: () -> Unit,
     icon: IconLoader = IconLoader.None,
-    onRestartOne: (PackageName) -> Unit = {},
     onKeep: (PackageName) -> Unit = {},
 ) {
+    // Every app is ticked to begin with; an app that leaves the list leaves the ticks with it.
+    var unticked by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val ticked = apps.map { it.packageName }.filterNot { it.value in unticked }.toSet()
     Column(
         modifier = Modifier
+            .weight(1f, fill = false)
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = ScreenMargin),
@@ -521,56 +534,84 @@ private fun BehindSheet(
         )
         SegmentedColumn {
             apps.forEachIndexed { index, app ->
+                val isTicked = app.packageName in ticked
                 BurkanSegmentItem(
                     index = index,
                     count = apps.size,
                     headline = app.label,
                     supporting = app.packageName.value,
                     supportingOneLine = true,
+                    // The app is read by its name; its package name only tells rows apart on screen.
+                    supportingSpoken = false,
+                    checked = isTicked,
+                    onCheckedChange = { tick ->
+                        unticked = if (tick) unticked - app.packageName.value else unticked + app.packageName.value
+                    },
                     leading = { AppIcon(app.packageName, icon) },
-                    // One app at a time: restarted alone, or kept from every run from now on.
                     trailing = {
-                        Row {
-                            BurkanIconButton(
-                                Tabler.Outline.ShieldCheck,
-                                stringResource(R.string.home_behind_keep, app.label),
-                                { onKeep(app.packageName) },
-                            )
-                            BurkanIconButton(
-                                Tabler.Outline.Refresh,
-                                stringResource(R.string.home_behind_restart_one, app.label),
-                                { onRestartOne(app.packageName) },
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isTicked, onCheckedChange = null)
+                            AppMenu(app, onKeep)
                         }
                     },
                 )
             }
         }
-        BurkanSheetActions(
-            modifier = Modifier.padding(bottom = 8.dp),
-            dismiss = stringResource(R.string.home_confirm_dismiss),
-            onDismiss = onDismiss,
-            confirm = stringResource(R.string.home_behind_action),
-            onConfirm = onConfirm,
-            confirmIcon = Tabler.Outline.Refresh,
+    }
+    BurkanSheetActions(
+        modifier = Modifier
+            .padding(horizontal = ScreenMargin)
+            .padding(top = 12.dp, bottom = 8.dp),
+        dismiss = stringResource(R.string.home_confirm_dismiss),
+        onDismiss = onDismiss,
+        confirm = pluralStringResource(R.plurals.home_restart_behind, ticked.size, ticked.size),
+        onConfirm = { onConfirm(ticked) },
+        confirmIcon = Tabler.Outline.Refresh,
+        confirmEnabled = ticked.isNotEmpty(),
+    )
+}
+
+/** An app's own menu in the list of apps left behind: what can be done with it besides restarting it now. */
+@Composable
+private fun AppMenu(app: BehindApp, onKeep: (PackageName) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        BurkanIconButton(
+            Icons.Outlined.MoreVert,
+            stringResource(R.string.home_behind_more, app.label),
+            { open = true },
         )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.home_behind_keep)) },
+                onClick = {
+                    open = false
+                    onKeep(app.packageName)
+                },
+                leadingIcon = { Icon(Tabler.Outline.ShieldCheck, contentDescription = null) },
+            )
+        }
     }
 }
 
 /**
- * Asks before the full apply, and how far it should go: every app, as it opens, or only the most recent few.
+ * Asks before the full apply, and how far it should go: every app, as it opens, or only the most recent few. What
+ * the choice costs is said under it, and the usage access a shorter list needs only while one is chosen. The choices
+ * scroll under the buttons, which stay in reach at any text size.
  */
 @Composable
-private fun RestartAllSheet(
+private fun ColumnScope.RestartAllSheet(
     scope: RestartScope,
     keptCount: Int,
     locks: Boolean,
     onScope: (RestartScope) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    onOpenKept: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
+            .weight(1f, fill = false)
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = ScreenMargin),
@@ -590,12 +631,16 @@ private fun RestartAllSheet(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
-        // What the run leaves alone, said before it starts.
+        // What the run leaves alone, said before it starts, and the way to the list of them.
         if (keptCount > 0) {
-            NoticeCard(Tabler.Outline.ShieldCheck, centred = true) {
-                Text(
-                    pluralStringResource(R.plurals.home_confirm_kept, keptCount, keptCount),
-                    style = MaterialTheme.typography.bodyMedium,
+            SegmentedColumn {
+                BurkanSegmentItem(
+                    index = 0,
+                    count = 1,
+                    headline = pluralStringResource(R.plurals.home_confirm_kept, keptCount, keptCount),
+                    onClick = onOpenKept,
+                    leading = { BurkanIconBadge(Tabler.Outline.ShieldCheck) },
+                    trailing = { if (LocalAppStyle.current != AppStyle.OneUi) Icon(Tabler.Outline.ChevronRight, null) },
                 )
             }
         }
@@ -606,31 +651,36 @@ private fun RestartAllSheet(
                         index = index,
                         count = RestartScope.entries.size,
                         text = option.label(),
-                        supporting = stringResource(
-                            if (option.limit == null) R.string.restart_scope_all_text else R.string.restart_scope_recent_text,
-                        ),
+                        // Every app needs no word on what it does: the sheet's first line has said it.
+                        supporting = option.limit?.let { stringResource(R.string.restart_scope_recent_text) },
                         selected = option == scope,
                         onClick = { onScope(option) },
                     )
                 }
             }
             Text(
-                stringResource(R.string.home_confirm_scope_text),
+                if (scope.limit == null) {
+                    stringResource(R.string.home_confirm_scope_text)
+                } else {
+                    stringResource(R.string.home_confirm_scope_text) + " " + stringResource(R.string.home_confirm_usage_text)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp),
             )
         }
-        BurkanSheetActions(
-            modifier = Modifier.padding(bottom = 8.dp),
-            dismiss = stringResource(R.string.home_confirm_dismiss),
-            onDismiss = onDismiss,
-            confirm = stringResource(R.string.home_confirm_action),
-            onConfirm = onConfirm,
-            confirmIcon = Tabler.Outline.Refresh,
-        )
     }
+    BurkanSheetActions(
+        modifier = Modifier
+            .padding(horizontal = ScreenMargin)
+            .padding(top = 12.dp, bottom = 8.dp),
+        dismiss = stringResource(R.string.home_confirm_dismiss),
+        onDismiss = onDismiss,
+        confirm = stringResource(R.string.home_confirm_action),
+        onConfirm = onConfirm,
+        confirmIcon = Tabler.Outline.Refresh,
+    )
 }
 
 @Composable
@@ -661,9 +711,12 @@ private fun StatusGroup(state: HomeState, onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The phone first, each part in what it draws with: the answer at a glance, before the words.
-            HomePhone(state, Modifier
-                .fillMaxWidth()
-                .height(PHONE_HEIGHT))
+            HomePhone(
+                state,
+                Modifier
+                    .fillMaxWidth()
+                    .height(PHONE_HEIGHT),
+            )
             // The answer changes by itself, as the phone is read and as a run goes on. The headline and its note are
             // one thing to TalkBack, read out once when either changes, without taking over from what is being read.
             Column(
@@ -816,10 +869,13 @@ private fun OneUiSummary(state: HomeState, actions: HomeActions) {
                     .padding(top = 28.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                HomePhone(state, Modifier
-                    .padding(bottom = 16.dp)
-                    .fillMaxWidth()
-                    .height(PHONE_HEIGHT))
+                HomePhone(
+                    state,
+                    Modifier
+                        .padding(bottom = 16.dp)
+                        .fillMaxWidth()
+                        .height(PHONE_HEIGHT),
+                )
                 // The headline and its note are one thing to TalkBack, read out once when either changes.
                 Column(
                     modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },

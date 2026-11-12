@@ -400,19 +400,18 @@
         <item quantity="other">%1$d still on %2$s</item>
     </plurals>
     <string name="home_behind_title">Still on %1$s</string>
-    <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost. The shield keeps an app out of every restart from now on; the arrow restarts that app alone.</string>
+    <string name="home_behind_text">These apps were open when the renderer changed, and each keeps the one it started with until it is restarted. Restarting them closes and reopens them; anything unsaved in them is lost.</string>
     <string name="home_behind_action">Restart them</string>
-    <string name="home_behind_restart_one">Restart %1$s</string>
-    <string name="home_behind_keep">Never restart %1$s</string>
+    <string name="home_behind_more">More for %1$s</string>
+    <string name="home_behind_keep">Never restart this app</string>
     <string name="home_revert">Back to OpenGL</string>
     <string name="home_revert_title">Go back to OpenGL?</string>
-    <string name="home_revert_confirm_text">New apps start on OpenGL again, and System UI, the launcher and the keyboard are restarted, so the screen locks for a moment. Apps that are open keep Vulkan until they are restarted. If \"Apply after restart\" is on, Burkan applies Vulkan again the next time the phone restarts.</string>
-    <string name="home_revert_action">Go back</string>
+    <string name="home_revert_confirm_text">The screen locks for a moment while System UI restarts. Burkan applies Vulkan again after the next restart, if Apply after restart is on.</string>
+    <string name="home_revert_action">Use OpenGL</string>
     <plurals name="home_confirm_kept">
-        <item quantity="one">%1$d app you chose stays running.</item>
-        <item quantity="other">%1$d apps you chose stay running.</item>
+        <item quantity="one">%1$d app you chose stays running</item>
+        <item quantity="other">%1$d apps you chose stay running</item>
     </plurals>
-    <string name="restart_scope_all_text">Closes every app, and reopens the ones that were open.</string>
     <string name="restart_scope_recent_text">Only the apps you used last.</string>
     <string name="home_apply_now">Apply now</string>
     <string name="home_restart_all">Restart all apps</string>
@@ -429,13 +428,13 @@
     <string name="home_allow">Allow</string>
     <string name="home_cancel_run">Cancel</string>
     <string name="home_confirm_apply_title">The screen will lock for a moment</string>
-    <string name="home_confirm_apply_text">Restarting System UI brings up the lock screen, and wireless debugging disconnects and reconnects. Unlock the phone afterwards; Burkan finishes by itself.</string>
-    <string name="home_confirm_apply_action">Apply</string>
+    <string name="home_confirm_apply_text">Restarting System UI brings up the lock screen. Unlock the phone afterwards; Burkan finishes by itself.</string>
     <string name="home_confirm_title">Restart all apps?</string>
-    <string name="home_confirm_text">Every app is closed, and those that were open or show a widget are opened again. It takes about a minute, and the screen will flash. Afterwards Burkan puts back any setting it switched off for the run.</string>
+    <string name="home_confirm_text">Every app closes and reopens. It takes about a minute, and the screen will flash.</string>
     <string name="home_confirm_lock_text">At the end the screen locks for a moment while System UI restarts.</string>
     <string name="home_confirm_action">Restart</string>
-    <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts. To know which apps you used last, Burkan gives itself usage access, which stays on until you turn it off in the phone’s Settings.</string>
+    <string name="home_confirm_scope_text">Fewer is quicker. An app left out keeps its old renderer until it next starts.</string>
+    <string name="home_confirm_usage_text">To know which apps you used last, Burkan gives itself usage access, which stays on until you turn it off in the phone’s Settings.</string>
     <string name="home_confirm_dismiss">Not now</string>
 
     <plurals name="log_run_count">

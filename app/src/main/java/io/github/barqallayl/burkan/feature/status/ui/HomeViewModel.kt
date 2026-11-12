@@ -94,6 +94,7 @@ data class HomeState(
 sealed interface HomeSideEffect {
     data object OpenLog : HomeSideEffect
     data object OpenSettings : HomeSideEffect
+    data object OpenExclusions : HomeSideEffect
     data object OpenDeveloperOptions : HomeSideEffect
 }
 
@@ -266,15 +267,20 @@ class HomeViewModel(
         if (!state.behind.isNullOrEmpty()) reduce { state.copy(isShowingBehind = true) }
     }
 
-    fun confirmRestartBehind() = intent {
+    /**
+     * Restarts the apps behind that are ticked. With all of them ticked the run restarts whatever is behind when it
+     * reads the phone, as it always has; with some unticked, only [ticked].
+     */
+    fun confirmRestartBehind(ticked: Set<PackageName>) = intent {
+        if (ticked.isEmpty()) return@intent
         reduce { state.copy(isShowingBehind = false) }
-        launcher.start(ApplyKind.OpenApps)
-    }
-
-    /** Restarts one of the apps behind, from its row. */
-    fun restartOne(packageName: PackageName) = intent {
-        reduce { state.copy(isShowingBehind = false) }
-        launcher.start(ApplyKind.OpenApps, only = setOf(packageName))
+        // Every one of a known list: nothing the user saw is left out, so the run may restart what it finds.
+        val all = state.behind?.map { it.packageName }?.toSet().orEmpty()
+        if (all.isNotEmpty() && ticked.containsAll(all)) {
+            launcher.start(ApplyKind.OpenApps)
+        } else {
+            launcher.start(ApplyKind.OpenApps, only = ticked)
+        }
     }
 
     /** Never restarts an app again, from its row: it joins the exclusions, and leaves the list. */
@@ -306,6 +312,12 @@ class HomeViewModel(
     fun openLog() = intent { postSideEffect(HomeSideEffect.OpenLog) }
 
     fun openSettings() = intent { postSideEffect(HomeSideEffect.OpenSettings) }
+
+    /** Never restart these apps, from the note about them in the Restart all apps sheet. */
+    fun openExclusions() = intent {
+        reduce { state.copy(isConfirmingFullApply = false) }
+        postSideEffect(HomeSideEffect.OpenExclusions)
+    }
 
     fun openDeveloperOptions() = intent { postSideEffect(HomeSideEffect.OpenDeveloperOptions) }
 

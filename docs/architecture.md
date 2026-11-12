@@ -166,7 +166,9 @@ The status, and the two actions. The two styles lay it out differently; what it 
   on a phone that has been in use, what was open is still on OpenGL. The row says how many apps that is, or that
   all of them are on what new apps get. With some behind it opens a sheet that names them and offers to restart
   only those: the machinery of Restart all apps, limited to them, with the property and the surfaces left as they are.
-  Each app's row restarts that app alone, or puts it among the apps never restarted, which takes it off the list.
+  Each app is ticked to be restarted, and the sheet's button restarts the ticked ones; unticking an app leaves it
+  as it is. Nothing restarts until that button is tapped. Each row's menu puts the app among the apps never
+  restarted, which takes it off the list.
   After going back to OpenGL the same row counts the apps still on Vulkan. An app no run would restart (a
   keyboard, the wallpaper, one the user set aside, the fixed exclusions) is not counted, nor is the system's own
   process, `system`, which no restart moves. The apps are read after the status is shown, from one
@@ -179,7 +181,7 @@ The status, and the two actions. The two styles lay it out differently; what it 
   apps, filled, when Vulkan is active and open apps are left behind, which opens the sheet of those apps; Apply now,
   quiet, when nothing is left to do or what is left happens at the next lock; Cancel during a run.
 - **Apply now**: sets new apps to Vulkan and restarts System UI, the launcher and the keyboard. When System UI is
-  to be restarted, a confirmation says first that the screen will lock for a moment.
+  to be restarted, a confirmation says first that the screen will lock for a moment, and its button is Apply now.
 - **Restart all apps**: Apply now, and every app closed and reopened too. Behind a confirmation that says what it does: closes every app and opens
   again those that were open or show a widget, takes
   about a minute, the screen will flash, and, when System UI is to be restarted, it locks for a moment at the end.

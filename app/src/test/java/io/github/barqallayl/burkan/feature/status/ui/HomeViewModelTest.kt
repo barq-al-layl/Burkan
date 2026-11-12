@@ -457,25 +457,40 @@ class HomeViewModelTest {
             awaitState { it.isShowingBehind }
             assertTrue(launcher.started.isEmpty())
 
-            containerHost.confirmRestartBehind()
+            // All of them ticked: the run restarts whatever is behind when it reads the phone.
+            containerHost.confirmRestartBehind(setOf(PackageName.known("net.example.reader")))
             awaitState { !it.isShowingBehind }
             assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
+            assertEquals(listOf<Set<PackageName>?>(null), launcher.only)
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }
     }
 
     @Test
-    fun `one app is restarted alone from its row`() = runTest {
+    fun `with some apps unticked, only the ticked ones are restarted`() = runTest {
         val chat = PackageName.known("org.example.chat")
 
         viewModel().testWithInternalState(this) {
             val creating = runOnCreate()
 
-            containerHost.restartOne(chat).join()
+            containerHost.confirmRestartBehind(setOf(chat)).join()
 
             assertEquals(listOf(ApplyKind.OpenApps), launcher.started)
             assertEquals(listOf<Set<PackageName>?>(setOf(chat)), launcher.only)
+            creating.cancel()
+            cancelAndIgnoreRemainingItems()
+        }
+    }
+
+    @Test
+    fun `with nothing ticked, nothing is restarted`() = runTest {
+        viewModel().testWithInternalState(this) {
+            val creating = runOnCreate()
+
+            containerHost.confirmRestartBehind(emptySet()).join()
+
+            assertTrue(launcher.started.isEmpty())
             creating.cancel()
             cancelAndIgnoreRemainingItems()
         }

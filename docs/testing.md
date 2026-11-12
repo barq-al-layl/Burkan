@@ -376,6 +376,14 @@ checks.
 - [ ] After a restart that left System UI for the lock, the drawn phone's status bar carries the padlock.
 - [ ] Welcome's phone redraws exactly as it did before it moved onto the shared drawing.
 
+- [ ] On the "Still on OpenGL" sheet, every app starts ticked; unticking one leaves it as it is after "Restart N
+      apps", and the menu's "Never restart this app" takes it off the list. A list longer than the sheet scrolls
+      under the buttons.
+- [ ] The Restart all apps sheet mentions usage access only while 30 or 70 is chosen, and the row about the apps you
+      chose opens Never restart these apps.
+- [ ] The revert confirmation's button reads "Use OpenGL", and the Apply confirmation no longer mentions wireless
+      debugging.
+
 ## The lock screen, the launcher and the screens
 
 - [ ] Apply now with System UI on OpenGL: the warning shows, the screen locks, and after unlocking the run has
