@@ -4,7 +4,7 @@ aboutLibraries = "15.3.0"
 # @pin
 aboutLibrariesPlugin = "15.1.0"
 activityCompose = "1.13.0"
-agp = "9.5.1"
+agp = "9.5.2"
 arrow = "2.3.0.1"
 # The version libadb-android brings for bcprov; bcpkix must match it.
 bouncycastle = "1.87"
