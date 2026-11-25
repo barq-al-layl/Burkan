@@ -1,38 +1,121 @@
-# Publishes a release. A version is released by pushing its tag, v<versionName>, signed and made by hand on main once
-# its changelog is written: this checks the tag, runs the checks, builds the APK signed with the release key, and
-# publishes it on GitHub with the changelog, through the same `:app:githubRelease` that works from a computer.
+# Publishes a release. A version is released by merging its release pull request: on every push to main,
+# release-please (release-please-config.json) opens or updates a pull request that raises versionName and adds the
+# version's section to CHANGELOG.md, chosen from the Conventional Commit titles merged since the last release. The
+# release-pr job then adds what release-please cannot write, the versionCode and the store changelog, and marks the
+# pull request `release/ready`. Merging it makes release-please tag the commit v<versionName> and open a draft
+# release with its notes; the release job runs the checks, builds the APKs signed with the release key, uploads them
+# to the draft and publishes it, through the same `:app:githubRelease` that works from a computer.
+#
+# Pushing a tag v<versionName>, signed and made by hand on main once its changelog is written, still releases that
+# version: this checks the tag, runs the checks and publishes the APKs with the changelog. Like running
+# `:app:githubRelease` on a computer, it is for when the pull request cannot be used.
 #
 # Started by hand instead, it builds the signed APKs of the commit chosen, one for each processor and a universal
 # one, and keeps them as an artifact, publishing nothing: to compare them with ones built elsewhere, as F-Droid does
 # with every release.
 #
-# The key is in the secrets of the `release` environment, which only main and the version tags may use.
+# The key is in the secrets of the `release` environment, which only main and the version tags may use. The release
+# pull request is made with the workflow's own token, so check.yml does not run on it; it changes nothing but the
+# version and the changelogs, and the release job runs the same checks before anything is signed.
 name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
-  release:
+  release-please:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    environment: release
+    timeout-minutes: 10
+    concurrency:
+      group: release-please
+      cancel-in-progress: false
     permissions:
-      # To publish the release.
+      # To push the release branch, tag a merged one and make its draft release.
       contents: write
+      # To open and label the release pull request.
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      sha: ${{ steps.release.outputs.sha }}
+      pr: ${{ steps.release.outputs.pr }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Only when release-please has just opened or rewritten the pull request, which drops what this added before.
+  release-pr:
+    needs: release-please
+    if: needs.release-please.outputs.pr != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: release-pr
+      cancel-in-progress: false
+    permissions:
+      # To push to the release branch.
+      contents: write
+      # To mark the pull request ready.
+      statuses: write
+    env:
+      BRANCH: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # All of history, to tell that the tag is on main.
+          ref: ${{ env.BRANCH }}
+          # All of history, for main's versionCode.
+          fetch-depth: 0
+          # This job pushes a commit, and runs nothing from the build.
+          persist-credentials: true
+
+      - name: Add the versionCode and the store changelog
+        run: .github/scripts/prepare-release-pr.sh "$BRANCH"
+
+      - name: Mark the pull request ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" \
+            -f state=success -f context=release/ready \
+            -f description="The versionCode and the store changelog are in. Merging releases it."
+
+  release:
+    needs: release-please
+    # Without the pull request's release, release-please did not run (a tag, or started by hand) or made none.
+    if: >-
+      !cancelled() && (
+        needs.release-please.outputs.release_created == 'true' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      # To publish the release.
+      contents: write
+    env:
+      # Who made the tag and the GitHub release; see ReleaseSource in app/build.gradle.kts.
+      RELEASE_SOURCE: ${{ needs.release-please.outputs.release_created == 'true' && 'release-please' || 'tag' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit release-please tagged, which is the one this run was started for.
+          ref: ${{ needs.release-please.outputs.sha || github.sha }}
+          # All of history, to tell that the tag is on main and find the last release's versionCode.
           fetch-depth: 0
           persist-credentials: false
 

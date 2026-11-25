@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Refuses a commit whose subject is not a Conventional Commit: a type, an optional scope, an optional ! for a
+# breaking change, then the imperative sentence, as in "feat: Add the quick settings tile". See "Commits and pull
+# requests" in CONTRIBUTING.md. Turned on once in each clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# .github/workflows/conventional-commits.yml runs the same check on pull requests: strictly on the title, which is
+# what lands on main, and as a warning on each commit, which a squash merge folds away.
+#
+# Usage: commit-msg <file holding the message> [--strict]
+# With --strict, the subjects git writes itself (merges, reverts and fixups) are refused too.
+set -euo pipefail
+
+file=${1:?usage: commit-msg <message file> [--strict]}
+strict=${2:-}
+
+# The first line that is neither a comment git added nor empty.
+subject=$(grep -v '^#' "$file" | grep -m 1 -v '^[[:space:]]*$' || true)
+
+# What git writes itself: a merge from a pull, a revert, and the fixups `git rebase --autosquash` folds away.
+if [[ $strict != --strict && $subject =~ ^(Merge\ |Revert\ \"|fixup!\ |squash!\ |amend!\ ) ]]; then
+  exit 0
+fi
+
+pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: [^[:space:]]'
+if [[ $subject =~ $pattern ]]; then
+  exit 0
+fi
+
+cat >&2 <<EOF
+Not a Conventional Commit: "$subject"
+
+Start the subject with a type, then a colon and the imperative sentence:
+  feat: Add the quick settings tile
+  fix(setup): Keep the pairing code when the screen rotates
+  feat!: Drop Android 13
+Types: feat, fix, perf, refactor, docs, test, build, ci, chore, revert. feat and fix reach the changelog.
+EOF
+exit 1

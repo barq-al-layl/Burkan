@@ -552,10 +552,10 @@ reachable through it.
   can be replaced; the app being open source, anyone can rebuild it with their own copy.
 - **Distributed outside the Play Store.** `QUERY_ALL_PACKAGES`, the `specialUse` foreground service and a
   permission granted over ADB are a poor fit for it.
-- **Released from a tag, on GitHub and F-Droid.** `./gradlew :app:githubRelease` tags a commit, builds it and
-  publishes the APKs, from a computer or, once the tag is pushed by hand, from GitHub Actions; F-Droid rebuilds the
-  same tag and ships each APK only if its own build is identical, so the build names its NDK.
-  [`f-droid.md`](f-droid.md) has the detail.
+- **Released from a tag, on GitHub and F-Droid.** Merging the release pull request that release-please keeps open
+  tags a commit, and GitHub Actions builds it with `./gradlew :app:githubRelease` and publishes the APKs; the same
+  task still releases from a computer, or from a tag pushed by hand. F-Droid rebuilds the same tag and ships each
+  APK only if its own build is identical, so the build names its NDK. [`f-droid.md`](f-droid.md) has the detail.
 - **One APK for each processor**, from version code 4: 64-bit ARM, which every phone in the S23 family is, 32-bit
   ARM and x86_64, with a universal APK beside them on GitHub. 1.1.0 carried 64-bit ARM alone; each APK now has
   only its own processor's native code, so none is larger than that one was.

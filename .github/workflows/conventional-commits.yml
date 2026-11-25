@@ -1,0 +1,65 @@
+# Commit messages are Conventional Commits, checked by .githooks/commit-msg; see "Commits and pull requests" in
+# CONTRIBUTING.md. Pull requests are squash-merged, so the title, with the description as its body, is the one commit
+# that lands on main, and what release-please reads to choose the next version and write the changelog. The title
+# must pass; whoever merges can fix it in a moment. The commits on the branch are folded away by the merge, so one
+# that does not follow the rule is only marked with a warning: a contributor is not asked to rewrite their history.
+name: Conventional Commits
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .githooks
+          persist-credentials: false
+
+      - name: Check the title
+        env:
+          # Through the environment, never in the script itself: the title is whatever its author wrote.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$TITLE" > "$RUNNER_TEMP/title"
+          if ! bash .githooks/commit-msg "$RUNNER_TEMP/title" --strict 2> "$RUNNER_TEMP/why"; then
+            echo "::error title=Pull request title::$(head -n 1 "$RUNNER_TEMP/why") Start it with a type, as in \"feat: Add the quick settings tile\"; see CONTRIBUTING.md."
+            exit 1
+          fi
+
+  commits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # To list the pull request's commits.
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .githooks
+          persist-credentials: false
+
+      - name: Warn about commits that are not Conventional Commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          warned=0
+          while IFS=$'\t' read -r sha subject; do
+            printf '%s\n' "$subject" > "$RUNNER_TEMP/subject"
+            if ! bash .githooks/commit-msg "$RUNNER_TEMP/subject" 2> /dev/null; then
+              echo "::warning title=Commit ${sha:0:7}::\"$subject\" is not a Conventional Commit. The squash merge keeps only the title, so this blocks nothing."
+              warned=$((warned + 1))
+            fi
+          done < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST/commits" \
+              --jq '.[] | select((.parents | length) == 1) | [.sha, (.commit.message | split("\n")[0])] | @tsv'
+          )
+          echo "$warned commit(s) do not follow Conventional Commits."

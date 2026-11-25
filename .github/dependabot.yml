@@ -1,6 +1,9 @@
 # Dependabot opens a pull request when a library, Gradle or an action has a newer release. Each one is checked by
 # check.yml like any other pull request, and is merged by hand. The rules it has to follow are in CONTRIBUTING.md,
 # under "The stack" and "Build".
+#
+# Its titles start with `chore(deps):`, the Conventional Commit conventional-commits.yml asks for: an update alone is
+# no reason for a release, and release-please leaves it out of the changelog.
 version: 2
 
 registries:
@@ -22,6 +25,9 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
     ignore:
       # Pinned in gradle/libs.versions.toml, with the reason beside each.
       - dependency-name: "com.mikepenz.aboutlibraries.plugin*"
@@ -40,6 +46,9 @@ updates:
       day: monday
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
     groups:
       actions:
         patterns:
