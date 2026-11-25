@@ -42,19 +42,23 @@ recipe in fdroiddata and updates `CurrentVersion`. Nothing in fdroiddata is edit
 release needs here:
 
 1. **A higher `versionCode`**, and the new `versionName`, in `app/build.gradle.kts`. A tag whose `versionCode` is
-   not higher than the last one is not picked up.
+   not higher than the last one is not picked up. The release pull request has both: release-please raises
+   `versionName`, and the workflow sets `versionCode` to one more than `main`'s.
 2. **A changelog** for each processor's version code, as
-   `fastlane/metadata/android/en-US/changelogs/<versionCode>1.txt`, `…2.txt` and `…3.txt`, the same text in each.
-   F-Droid shows each APK's with that APK.
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>1.txt`, `…2.txt` and `…3.txt`, the same text in each,
+   of at most 500 characters. F-Droid shows each APK's with that APK. The release pull request has them too, made
+   from the version's section of `CHANGELOG.md`; edit them there if they need it.
 3. **Screenshots that match the app**, whenever a screen has changed since the last release. F-Droid shows the
    store listing from the tag it built, so screenshots updated after the tag wait for the next release. Copy the
    current baselines from `app/src/test/screenshots` over `fastlane/metadata/android/en-US/images/phoneScreenshots`:
    `HomeActiveOneUiDarkPreview` as `1.png`, `HomeRunningOneUiDarkPreview` as `2.png`, `SetupPairOneUiDarkPreview`
    as `3.png`, `SettingsOneUiDarkPreview` as `4.png`, `LogExpandedOneUiDarkPreview` as `5.png` and
    `HomeActiveDarkPreview` as `6.png`.
-4. **The release itself, with `./gradlew :app:githubRelease`** from a clean `main`. It tags `v<versionName>` and
-   publishes the APKs under the names the recipe's `binary` lines expect. F-Droid compares its own builds with
-   those APKs, so neither the tag nor an APK may change after the release.
+4. **The release itself: merging the release pull request.** release-please tags `v<versionName>`, and
+   `release.yml` builds the APKs with `:app:githubRelease` and publishes them under the names the recipe's
+   `binary` lines expect. Running `./gradlew :app:githubRelease` from a clean `main` does the same from a
+   computer. F-Droid compares its own builds with those APKs, so neither the tag nor an APK may change after the
+   release.
 5. **Watching the build.** Once the bot has picked up the tag, the version shows on
    <https://monitor.f-droid.org/builds>, with its log if the build fails, and it reaches the package page when
    its build cycle is published. The bot's runs are on the same site, which is where to look if a tag has not

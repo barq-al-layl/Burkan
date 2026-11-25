@@ -54,8 +54,25 @@ One UI cannot be tested without the device.
 
 ## Commits and pull requests
 
-- A commit subject is an imperative sentence saying what changed ("Add the pairing notification flow"). The body
-  says why, with a short bullet list when several things changed.
+- **A commit subject is a Conventional Commit**: a type, an optional scope, `!` before the colon for a breaking
+  change, then an imperative sentence saying what changed, as in `feat: Add the pairing notification flow` or
+  `fix(setup): Keep the pairing code when the screen rotates`. The type is one of `feat`, `fix`, `perf`,
+  `refactor`, `docs`, `test`, `build`, `ci`, `chore` or `revert`. The body says why, with a short bullet list when
+  several things changed.
+- **Turn the hook on once in each clone**: `git config core.hooksPath .githooks`. `.githooks/commit-msg` then
+  refuses a commit whose subject does not follow the rule; it lets through what git writes itself, a merge, a
+  revert or a `fixup!`.
+- **A pull request's title follows the same rule, and it is the one that counts.** Pull requests are squash-merged,
+  so the title, with the description as its body, is the one commit that lands on `main`, and it is what
+  release-please reads: `feat` raises the minor version, `fix` and `perf` the patch, `!` or a `BREAKING CHANGE:`
+  line the major, and only those three types reach the changelog. A `Release-As: 1.4.0` line in the description
+  sets the next version by hand. `.github/workflows/conventional-commits.yml` fails a pull request whose title does
+  not follow the rule, and only warns about its commits, which the merge folds away.
+- **One pull request is one changelog entry**, from its title. When it does several things worth listing, end the
+  description with one more Conventional Commit line for each, as `fix(setup): Keep the pairing code when the
+  screen rotates`, each its own paragraph. To change what a merged pull request says, add the lines to its
+  description between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`, and release-please uses them in place of
+  its title from its next run.
 - Keep a change scoped to one thing.
 - Never commit `local.properties`, `keystore.properties`, keystores or build output.
 
@@ -498,22 +515,31 @@ Metro, one graph:
   comment why it is dropped.
 - **Opt-ins go in `compilerOptions.optIn`** at module level, not as `@OptIn` scattered through the source.
 - **Context parameters are not used.**
-- **A release is one task.** Raise `versionName` and `versionCode`, add the changelog under each processor's
+- **A release is a merged pull request.** After each push to `main`, release-please
+  (`release-please-config.json`, run by `.github/workflows/release.yml`) keeps a pull request titled
+  `chore: release <version>` open, with the version chosen from the titles merged since the last release, the
+  raised `versionName` and `.release-please-manifest.json`, and the version's section of `CHANGELOG.md`. The
+  workflow then adds the next `versionCode`, one more than `main`'s, and the store changelog under each processor's
   version code (`fastlane/metadata/android/en-US/changelogs/<versionCode>1.txt`, `…2.txt` and `…3.txt`, the same
-  text in each), commit on `main`, then run
-  `./gradlew :app:githubRelease`. It checks that the tree is clean, the changelog and the signing key are there
-  and the version is not out already; then it tags the commit `v<versionName>`, builds the signed release, pushes
-  the branch and the tag, and publishes the APKs on GitHub with that changelog. `./gradlew :app:checkRelease`
-  runs the checks alone and changes nothing. F-Droid takes a new version from the same tag, so never push a
-  `v…` tag for anything that is not a release.
-- **Or push the tag, and GitHub releases it.** Make the signed tag yourself
-  (`git tag --sign v<versionName> -m "Burkan <versionName>"`) on the commit on `main`, then push `main` and the
-  tag. `.github/workflows/release.yml` checks that the tag is that version's and on `main`, runs the tests, the
-  screenshots and lint, and runs the same `:app:githubRelease`, which on GitHub Actions makes and pushes no tag.
-  Its key and passwords are the secrets of the repository's `release` environment: `RELEASE_KEYSTORE` (the
-  keystore file in base64), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Started by
-  hand from the Actions tab, the workflow builds the signed APKs of `main` and keeps them as an artifact,
-  publishing nothing.
+  text in each), made from that section and cut to F-Droid's 500 characters
+  (`.github/scripts/prepare-release-pr.sh`), and marks the pull request `release/ready`. Edit the changelog files
+  on the branch if they need it, after the last merge to `main`, since a new one rewrites the branch. Merging it
+  makes release-please tag the commit `v<versionName>` and open a draft release; the workflow runs the tests, the
+  screenshots and lint, builds the signed APKs with `./gradlew :app:githubRelease`, uploads them to the draft and
+  publishes it. The workflow's own token makes the pull request, so `check.yml` does not run on it.
+- **`./gradlew :app:checkRelease`** says what stands in the way of releasing and changes nothing: the signing key,
+  the NDK, the three changelogs (the same, and no longer than 500 characters), a `versionCode` above the last
+  release's, `.release-please-manifest.json` at the version, a clean tree and no release of it yet. F-Droid takes
+  a new version from the tag, so never push a `v…` tag for anything that is not a release.
+- **Without the pull request**, raise `versionName`, `versionCode` and `.release-please-manifest.json`, add the
+  changelogs, and commit on `main`. Then either run `./gradlew :app:githubRelease`, which tags the commit
+  `v<versionName>`, builds the signed release, pushes the branch and the tag, and publishes the APKs with that
+  changelog; or make the signed tag yourself (`git tag --sign v<versionName> -m "Burkan <versionName>"`) and push
+  `main` and the tag, and `release.yml` checks that the tag is that version's and on `main`, runs the checks and
+  the same task, which on GitHub Actions makes and pushes no tag. The release key and passwords are the secrets of
+  the repository's `release` environment: `RELEASE_KEYSTORE` (the keystore file in base64),
+  `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Started by hand from the Actions
+  tab, the workflow builds the signed APKs of `main` and keeps them as an artifact, publishing nothing.
 - **Every push to `main` and every pull request is checked** by `.github/workflows/check.yml`: the unit tests,
   the screenshots, a debug build and lint. When it fails, the run keeps the reports and the screenshot
   comparisons.

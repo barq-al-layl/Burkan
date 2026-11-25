@@ -24,6 +24,9 @@ after each restart by connecting to the ADB daemon on the phone itself. One Grad
   signature compiles against nothing. Check that a version exists before editing `gradle/libs.versions.toml`.
 - Check `git status` before editing and leave changes you did not make alone. Never `git stash`, `checkout` or
   `restore` to compare against the last commit; use a separate worktree.
+- Write every commit subject as a Conventional Commit, `type: Imperative sentence`, and a pull request's title the
+  same way. The title becomes the commit on `main` and the changelog entry, so choose its type for what a person
+  using the app sees: `feat` and `fix` reach the changelog, the rest do not.
 - Before finishing, run `:app:testDebugUnitTest :app:verifyRoborazziDebug :app:assembleDebug`, and say plainly
   when one could not run.
 - You cannot see the phone unless it is attached to this machine. Say "not verified on a device" for anything you
