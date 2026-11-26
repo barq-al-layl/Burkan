@@ -29,7 +29,7 @@ after each restart by connecting to the ADB daemon on the phone itself. One Grad
   what a person using the app sees (`feat` and `fix` reach the changelog, the rest do not), and fold fix-ups into
   their commit before the merge. A pull request's title is a plain sentence with no type, since the merge
   commit carries it and a `feat:` or `fix:` there would be counted twice.
-- Before finishing, run `:app:testDebugUnitTest :app:verifyRoborazziDebug :app:assembleDebug`, and say plainly
-  when one could not run.
+- Before finishing, run `:app:testDebugUnitTest :app:verifyRoborazziDebug :app:assembleDebug :app:lintDebug`, the
+  same tasks CI runs, and say plainly when one could not run.
 - You cannot see the phone unless it is attached to this machine. Say "not verified on a device" for anything you
   could not check there.

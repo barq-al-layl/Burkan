@@ -17,7 +17,7 @@ JDK 25 toolchain by itself.
 ./gradlew :app:lintDebug
 ```
 
-Run the tests, the screenshot comparison and a debug build before opening a pull request.
+Run the tests, the screenshot comparison, a debug build and lint before opening a pull request, as CI does.
 
 Screenshot baselines are recorded on macOS. Another platform anti-aliases a few edges differently, so compare and
 record on the same one.
@@ -520,7 +520,9 @@ Metro, one graph:
 - **Compile with `-Xreturn-value-checker=check`.** Consume a returned value — bind it, `fold` it — or say in a
   comment why it is dropped.
 - **Opt-ins go in `compilerOptions.optIn`** at module level, not as `@OptIn` scattered through the source.
-- **Context parameters are not used.**
+- **Context parameters are not used.** A class gets what it needs through its constructor, from the graph, and a
+  function through its arguments, so a call shows everything it depends on. A context parameter would be a second,
+  unseen way in.
 - **A release is a merged pull request.** After each push to `main`, release-please
   (`release-please-config.json`, run by `.github/workflows/release.yml`) keeps a pull request titled
   `chore: release <version>` open, with the version chosen from the titles merged since the last release, the
