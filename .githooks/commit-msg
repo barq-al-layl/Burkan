@@ -5,8 +5,8 @@
 #
 #   git config core.hooksPath .githooks
 #
-# .github/workflows/conventional-commits.yml runs the same check on pull requests: strictly on the title, which is
-# what lands on main, and as a warning on each commit, which a squash merge folds away.
+# .github/workflows/conventional-commits.yml runs the same check, strictly, on each commit of a pull request: they
+# land on main as they are, under a merge commit.
 #
 # Usage: commit-msg <file holding the message> [--strict]
 # With --strict, the subjects git writes itself (merges, reverts and fixups) are refused too.

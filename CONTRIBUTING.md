@@ -62,17 +62,24 @@ One UI cannot be tested without the device.
 - **Turn the hook on once in each clone**: `git config core.hooksPath .githooks`. `.githooks/commit-msg` then
   refuses a commit whose subject does not follow the rule; it lets through what git writes itself, a merge, a
   revert or a `fixup!`.
-- **A pull request's title follows the same rule, and it is the one that counts.** Pull requests are squash-merged,
-  so the title, with the description as its body, is the one commit that lands on `main`, and it is what
-  release-please reads: `feat` raises the minor version, `fix` and `perf` the patch, `!` or a `BREAKING CHANGE:`
-  line the major, and only those three types reach the changelog. A `Release-As: 1.4.0` line in the description
-  sets the next version by hand. `.github/workflows/conventional-commits.yml` fails a pull request whose title does
-  not follow the rule, and only warns about its commits, which the merge folds away.
-- **One pull request is one changelog entry**, from its title. When it does several things worth listing, end the
-  description with one more Conventional Commit line for each, as `fix(setup): Keep the pairing code when the
-  screen rotates`, each its own paragraph. To change what a merged pull request says, add the lines to its
-  description between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`, and release-please uses them in place of
-  its title from its next run.
+- **Every commit lands on `main` as it is.** Pull requests are merged with a merge commit, so the branch's commits
+  keep their authors and signatures, and release-please reads each one's subject: `feat` raises the minor version,
+  `fix` and `perf` the patch, `!` or a `BREAKING CHANGE:` line the major, and each `feat`, `fix` and `perf` commit
+  is a line of the changelog. The subject of the merge commit GitHub adds, "Merge pull request #…", is no
+  Conventional Commit; its body is the title, below. `.github/workflows/conventional-commits.yml` fails a pull
+  request with a commit that does not follow the rule, git's own `Revert "…"` and `fixup!` subjects included:
+  reword a revert as `revert: …`.
+- **Fold fix-ups into the commit they fix before merging** (`git rebase --autosquash`). A `fix:` for a bug that
+  never reached `main` would otherwise be a line of the changelog, and the check refuses a `fixup!` commit left
+  on the branch.
+- **A pull request's title is a plain sentence**, as in `Add the quick settings tile`. The merge commit's body is
+  the title, and release-please reads a Conventional Commit there as one more change, so a title that is a
+  `feat`, `fix` or `perf`, or marked breaking, would put its change in the changelog twice. The check refuses
+  one; other types pass, as Dependabot's `chore(deps)` titles do.
+- **A `Release-As: 1.4.0` line in a commit's body** sets the next version by hand. A changelog line that came out
+  wrong is corrected in `CHANGELOG.md` on the release pull request's branch, after the last merge to `main`, as
+  its store changelogs are. Never put release-please's `BEGIN_COMMIT_OVERRIDE` in a description: with merge
+  commits it would replace the message of every commit the pull request brought.
 - Keep a change scoped to one thing.
 - Never commit `local.properties`, `keystore.properties`, keystores or build output.
 
