@@ -2,6 +2,7 @@ import com.android.build.api.variant.FilterConfiguration
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.powerassert.gradle.PowerAssertCompilationFilter
@@ -112,6 +113,11 @@ android {
     lint {
         // MetroAppComponentFactory constructs activities, services and receivers, so they take constructor arguments.
         disable += "Instantiatable"
+        // The splits include x86_64, but from a list lint cannot read, so it reports the ABI as missing.
+        disable += "ChromeOsAbiSupport"
+        // Only inside bcpkix and libadb: ADB's TLS to the phone's own adbd has no certificate authority to check
+        // against, as adbd's certificate is its own. The app's own code has no trust manager.
+        disable += "TrustAllX509TrustManager"
     }
     testOptions {
         unitTests {
@@ -159,7 +165,9 @@ tasks.withType<KotlinCompile>().configureEach {
 // plugin needs; a new one gets the diagram once it is here.
 // PowerAssertTest fails if the plugin stops being applied.
 powerAssert {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilationFilter = PowerAssertCompilationFilter { it.name.endsWith("UnitTest") }
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     functions = listOf(
         "kotlin.assert",
         "kotlin.test.assertEquals",

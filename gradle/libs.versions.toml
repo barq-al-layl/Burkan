@@ -2,6 +2,7 @@
 aboutLibraries = "15.3.0"
 # 15.1.1 to 15.3.0 of the plugin no longer merge the artifacts of one project into one entry.
 # @pin
+#noinspection GradleDependency,NewerVersionAvailable
 aboutLibrariesPlugin = "15.1.0"
 activityCompose = "1.13.0"
 agp = "9.5.3"
@@ -10,6 +11,7 @@ arrow = "2.3.0.1"
 bouncycastle = "1.87"
 # 0.10.0 changed ComposablePreview.invoke, and Roborazzi's preview-scanner support (1.78.0) still calls the 0.9 one.
 # @pin
+#noinspection GradleDependency,NewerVersionAvailable
 composablePreviewScanner = "0.9.3"
 composeBom = "2026.11.01"
 conscrypt = "2.10.0"
