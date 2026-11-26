@@ -1,0 +1,3 @@
+# Every pull request asks the maintainer for a review, whatever it changes. GitHub does not ask the author of a
+# pull request to review their own, so this reaches the ones others open, Dependabot's included.
+* @barq-al-layl
