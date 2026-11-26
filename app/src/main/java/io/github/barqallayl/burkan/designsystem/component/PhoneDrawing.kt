@@ -1,6 +1,7 @@
 package io.github.barqallayl.burkan.designsystem.component
 
 import android.provider.Settings
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -47,6 +48,12 @@ data class PhoneLooks(
  * a time and would never see a drawing that keeps moving settle.
  */
 val LocalStillDrawings = staticCompositionLocalOf { false }
+
+/** How long the phone takes to redraw itself in its new colours: on Welcome, and at the end of a run on Home. */
+const val PHONE_REDRAW_MILLIS = 1500
+
+/** Fast at first and slow to settle: a redraw that starts at once and finishes gently. */
+val PhoneRedrawEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 /**
  * Whether the phone has Android's animations removed, or is drawn for a preview: a drawing then shows how it ends,

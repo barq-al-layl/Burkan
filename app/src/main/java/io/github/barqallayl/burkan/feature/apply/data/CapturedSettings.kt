@@ -2,8 +2,6 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import io.github.barqallayl.burkan.core.storage.editOrLog
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import co.touchlab.kermit.Logger
@@ -13,10 +11,10 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.storage.DataStoreDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.dataOrEmpty
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import java.io.IOException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -142,9 +140,7 @@ class DataStoreCapturedSettingsStorage(
             }
         }
 
-    private suspend fun preferences(): Preferences = dataStore.data
-        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
-        .first()
+    private suspend fun preferences(): Preferences = dataStore.dataOrEmpty.first()
 
     private fun key(setting: RestoredSetting) = stringPreferencesKey("captured_${setting.name}")
 

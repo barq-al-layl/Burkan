@@ -8,6 +8,7 @@ import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.shell.PackageName
+import io.github.barqallayl.burkan.core.ui.ownPackageInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,8 +36,7 @@ object AppBindings {
     /** The version name shown in Settings. */
     @Provides
     @Named(APP_VERSION)
-    fun provideAppVersion(application: Application): String =
-        application.packageManager.getPackageInfo(application.packageName, 0).versionName.orEmpty()
+    fun provideAppVersion(application: Application): String = application.ownPackageInfo().versionName.orEmpty()
 
     const val OWN_PACKAGE = "own_package"
     const val APP_VERSION = "app_version"

@@ -1,7 +1,6 @@
 package io.github.barqallayl.burkan.feature.status.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -13,9 +12,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.barqallayl.burkan.core.model.Renderer
+import io.github.barqallayl.burkan.designsystem.component.PHONE_REDRAW_MILLIS
 import io.github.barqallayl.burkan.designsystem.component.PartLook
 import io.github.barqallayl.burkan.designsystem.component.PhoneDrawing
 import io.github.barqallayl.burkan.designsystem.component.PhoneLooks
+import io.github.barqallayl.burkan.designsystem.component.PhoneRedrawEasing
 import io.github.barqallayl.burkan.designsystem.component.animationsRemoved
 import io.github.barqallayl.burkan.feature.apply.data.ApplyRunState
 import io.github.barqallayl.burkan.feature.status.model.Headline
@@ -84,7 +85,7 @@ fun HomePhone(state: HomeState, modifier: Modifier = Modifier) {
             from = to
             to = target
             sweep.snapTo(0f)
-            sweep.animateTo(1f, tween(REDRAW_MILLIS, easing = ExpoOut))
+            sweep.animateTo(1f, tween(PHONE_REDRAW_MILLIS, easing = PhoneRedrawEasing))
         } else {
             from = target
             to = target
@@ -99,9 +100,3 @@ val PHONE_HEIGHT = 112.dp
 
 /** One pass of the line while the phone is read or changed: slow, a sign of work, not a countdown. */
 private const val PASS_MILLIS = 1800
-
-/** The redraw at the end of a run, as long as Welcome's. */
-private const val REDRAW_MILLIS = 1500
-
-/** Fast at first and slow to settle, as Welcome's redraw. */
-private val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)

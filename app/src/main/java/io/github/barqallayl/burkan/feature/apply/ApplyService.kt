@@ -1,6 +1,5 @@
 package io.github.barqallayl.burkan.feature.apply
 
-import io.github.barqallayl.burkan.feature.apply.model.isUnattended
 import android.app.Application
 import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
@@ -22,6 +21,7 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.android.ServiceKey
 import io.github.barqallayl.burkan.R
 import io.github.barqallayl.burkan.core.model.AppError
+import io.github.barqallayl.burkan.core.model.enumOrNull
 import io.github.barqallayl.burkan.core.model.messageRes
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.feature.apply.data.ApplyController
@@ -30,11 +30,12 @@ import io.github.barqallayl.burkan.feature.apply.data.AutoApply
 import io.github.barqallayl.burkan.feature.apply.data.RunAlerts
 import io.github.barqallayl.burkan.feature.apply.data.RunOutcome
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
-import io.github.barqallayl.burkan.feature.log.ui.runningLabel
 import io.github.barqallayl.burkan.feature.apply.model.RestartScope
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
+import io.github.barqallayl.burkan.feature.apply.model.isUnattended
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
+import io.github.barqallayl.burkan.feature.log.ui.runningLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -78,7 +79,7 @@ class ApplyService(
         val kind = if (automatic) {
             ApplyKind.Light
         } else {
-            intent?.getStringExtra(EXTRA_KIND)?.let { name -> ApplyKind.entries.firstOrNull { it.name == name } }
+            enumOrNull<ApplyKind>(intent?.getStringExtra(EXTRA_KIND))
         }
         val waiting = intent?.action == ACTION_AWAIT_LOCK || (run?.isActive != true && lockWait?.isActive == true)
         startInForeground(
@@ -93,12 +94,9 @@ class ApplyService(
             intent?.action == ACTION_AWAIT_LOCK -> if (run?.isActive != true && lockWait?.isActive != true) awaitLock()
             run?.isActive == true || kind == null -> Unit
             else -> {
-                val scope = intent?.getStringExtra(EXTRA_SCOPE)
-                    ?.let { name -> RestartScope.entries.firstOrNull { it.name == name } }
-                    ?: RestartScope.All
+                val scope = enumOrNull<RestartScope>(intent?.getStringExtra(EXTRA_SCOPE)) ?: RestartScope.All
                 // Only the triggers a run can be started with from outside are taken from the intent.
-                val unattended = intent?.getStringExtra(EXTRA_TRIGGER)
-                    ?.let { name -> RunTrigger.entries.firstOrNull { it.name == name } }
+                val unattended = enumOrNull<RunTrigger>(intent?.getStringExtra(EXTRA_TRIGGER))
                     ?.takeIf { it.isUnattended }
                 val only = intent?.getStringArrayExtra(EXTRA_PACKAGES)
                     ?.mapNotNullTo(mutableSetOf(), PackageName::parse)

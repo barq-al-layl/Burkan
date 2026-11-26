@@ -2,9 +2,10 @@ package io.github.barqallayl.burkan.feature.crash
 
 import android.content.Context
 import android.os.Build
+import io.github.barqallayl.burkan.core.ui.ReportStamp
+import io.github.barqallayl.burkan.core.ui.ownPackageInfo
 import java.io.File
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
@@ -32,7 +33,7 @@ fun crashReportText(
 ): String = buildString {
     appendLine("Burkan ${source.appVersion} (${source.versionCode}) crash report")
     appendLine("Device: ${source.manufacturer} ${source.model}, Android ${source.androidRelease} (SDK ${source.sdk})")
-    appendLine("Time: ${STAMP.withZone(zone).format(at.toJavaInstant())}")
+    appendLine("Time: ${ReportStamp.withZone(zone).format(at.toJavaInstant())}")
     appendLine("Thread: $thread")
     appendLine()
     val trace = error.stackTraceToString().trimEnd()
@@ -67,7 +68,7 @@ class CrashReportFile(context: Context) {
 }
 
 fun Context.crashSource(): CrashSource {
-    val info = packageManager.getPackageInfo(packageName, 0)
+    val info = ownPackageInfo()
     return CrashSource(
         appVersion = info.versionName.orEmpty(),
         versionCode = info.longVersionCode,
@@ -81,6 +82,3 @@ fun Context.crashSource(): CrashSource {
 /** Shared as text, which has to fit in what one app may hand another. */
 private const val MAX_TRACE_CHARS = 40_000
 private const val CUT_MARK = "… (cut short)"
-
-/** Fixed, not the phone's own format: a report is read by whoever it is sent to. */
-private val STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")

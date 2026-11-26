@@ -3,7 +3,6 @@ package io.github.barqallayl.burkan.core.storage
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -11,10 +10,8 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import java.io.IOException
 
 /**
  * State that belongs to this phone and its pairing, kept apart from the settings because it must not be backed up:
@@ -68,9 +65,7 @@ class DataStoreDeviceStateStorage(
     @Named(DEVICE_STATE_STORE) private val dataStore: DataStore<Preferences>,
 ) : DeviceStateStorage {
 
-    private val preferences: Flow<Preferences> = dataStore.data.catch { error ->
-        if (error is IOException) emit(emptyPreferences()) else throw error
-    }
+    private val preferences: Flow<Preferences> = dataStore.dataOrEmpty
 
     override val isPaired: Flow<Boolean> = read(Keys.paired)
     override val setupStepsDone: Flow<Int> =

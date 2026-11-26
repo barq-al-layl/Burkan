@@ -1,7 +1,6 @@
 package io.github.barqallayl.burkan.feature.welcome.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,9 +12,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import io.github.barqallayl.burkan.designsystem.component.PHONE_REDRAW_MILLIS
 import io.github.barqallayl.burkan.designsystem.component.PartLook
 import io.github.barqallayl.burkan.designsystem.component.PhoneDrawing
 import io.github.barqallayl.burkan.designsystem.component.PhoneLooks
+import io.github.barqallayl.burkan.designsystem.component.PhoneRedrawEasing
 import io.github.barqallayl.burkan.designsystem.component.animationsRemoved
 
 /**
@@ -36,7 +37,10 @@ fun PhoneRedraw(description: String, modifier: Modifier = Modifier) {
     val progress = remember { Animatable(if (played) 1f else 0f) }
     LaunchedEffect(Unit) {
         if (!played) {
-            progress.animateTo(1f, tween(REDRAW_MILLIS, delayMillis = START_DELAY_MILLIS, easing = ExpoOut))
+            progress.animateTo(
+                1f,
+                tween(PHONE_REDRAW_MILLIS, delayMillis = START_DELAY_MILLIS, easing = PhoneRedrawEasing),
+            )
             played = true
         }
     }
@@ -48,10 +52,5 @@ fun PhoneRedraw(description: String, modifier: Modifier = Modifier) {
     )
 }
 
-private const val REDRAW_MILLIS = 1500
-
 /** Long enough for the screen's own transition to have settled first. */
 private const val START_DELAY_MILLIS = 350
-
-/** Fast at first and slow to settle, as a redraw that starts at once and finishes gently. */
-private val ExpoOut = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
