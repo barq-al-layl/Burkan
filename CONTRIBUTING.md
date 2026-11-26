@@ -108,10 +108,6 @@ again, and a new Gradle needs `distributionSha256Sum` to change with it; both ar
 
 Metro is a compiler plugin tied to the Kotlin version: move Kotlin first, then Metro.
 
-The Compose BOM 2026.09.00 selects material3 1.4.0, which keeps the Expressive components `internal`, so
-`androidx.compose.material3:material3` is pinned to a 1.5.0 pre-release (a beta at present), with a comment beside
-the pin. Drop the pin once the BOM selects a material3 that has them.
-
 ---
 
 ## Project shape
