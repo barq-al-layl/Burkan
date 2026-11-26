@@ -6,8 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalResources
 import io.github.barqallayl.burkan.R
-import java.time.Year
 import java.time.LocalDate
+import java.time.Year
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -43,6 +43,12 @@ fun formatTime(instant: Instant, zone: ZoneId): String =
 
 /** The day a moment falls on, in [zone]. */
 fun dayOf(instant: Instant, zone: ZoneId): LocalDate = instant.toJavaInstant().atZone(zone).toLocalDate()
+
+/**
+ * A moment as a crash report or an exported log writes it. Fixed, not the phone's own format: the text is read by
+ * whoever it is sent to, and a log is sorted by it.
+ */
+val ReportStamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")
 
 /**
  * A day as a list's heading: "Today", "Yesterday", or the date as this phone writes it, without the year when it is

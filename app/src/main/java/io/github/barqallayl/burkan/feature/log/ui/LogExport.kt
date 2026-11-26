@@ -7,7 +7,9 @@ import android.content.res.Resources
 import android.os.Build
 import androidx.core.content.FileProvider
 import io.github.barqallayl.burkan.R
+import io.github.barqallayl.burkan.core.ui.ReportStamp
 import io.github.barqallayl.burkan.core.ui.durationText
+import io.github.barqallayl.burkan.core.ui.ownPackageInfo
 import io.github.barqallayl.burkan.feature.apply.ui.label
 import io.github.barqallayl.burkan.feature.apply.ui.text
 import io.github.barqallayl.burkan.feature.log.model.RunLogEntry
@@ -32,13 +34,15 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
     buildString {
         appendLine(getString(R.string.log_file_title, source.appVersion))
         appendLine(getString(R.string.log_file_device, source.model, source.androidRelease))
-        appendLine(getString(R.string.log_file_exported, STAMP.withZone(zone).format(exportedAt.toJavaInstant())))
+        appendLine(
+            getString(R.string.log_file_exported, ReportStamp.withZone(zone).format(exportedAt.toJavaInstant())),
+        )
         appendLine(getString(R.string.log_file_runs, runs.size))
         runs.forEach { run ->
             appendLine()
             appendLine(
                 listOf(
-                    "[${STAMP.withZone(zone).format(run.startedAt.toJavaInstant())}]",
+                    "[${ReportStamp.withZone(zone).format(run.startedAt.toJavaInstant())}]",
                     getString(run.kind.label),
                     getString(run.trigger.label),
                     getString(run.resultLabel),
@@ -65,7 +69,7 @@ fun Resources.logFileText(runs: List<RunLogEntry>, source: LogSource, exportedAt
  */
 suspend fun Context.shareLogFile(runs: List<RunLogEntry>, zone: ZoneId, exportedAt: Instant) {
     val source = LogSource(
-        appVersion = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty(),
+        appVersion = ownPackageInfo().versionName.orEmpty(),
         model = Build.MODEL,
         androidRelease = Build.VERSION.RELEASE,
     )
@@ -97,6 +101,4 @@ private const val MARK_DONE = "[ ok ]"
 private const val MARK_FAILED = "[FAIL]"
 private const val MARK_NOTE = "[info]"
 
-/** Fixed, not the phone's own format: a log is read by whoever it is sent to, and sorted by its text. */
-private val STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")
 private val FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")

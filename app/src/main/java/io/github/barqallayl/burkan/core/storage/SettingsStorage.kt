@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.zacsweers.metro.AppScope
@@ -12,17 +11,15 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.model.ShellBackend
+import io.github.barqallayl.burkan.core.model.enumOrNull
 import io.github.barqallayl.burkan.core.shell.PackageName
 import io.github.barqallayl.burkan.designsystem.AppStyle
 import io.github.barqallayl.burkan.designsystem.PaletteStyles
 import io.github.barqallayl.burkan.designsystem.SeedColors
 import io.github.barqallayl.burkan.designsystem.ThemeMode
-import java.io.IOException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlin.enums.enumEntries
 
 /** The user's settings. A missing or unreadable value reads as its entry in [Defaults]. */
 interface SettingsStorage {
@@ -85,10 +82,7 @@ interface SettingsStorage {
 @ContributesBinding(AppScope::class)
 class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : SettingsStorage {
 
-    private val preferences: Flow<Preferences> = dataStore.data.catch { error ->
-        // A corrupt file reads as a fresh install rather than taking the app down with it.
-        if (error is IOException) emit(emptyPreferences()) else throw error
-    }
+    private val preferences: Flow<Preferences> = dataStore.dataOrEmpty
 
     override val appStyle: Flow<AppStyle> =
         read { it.enumValue(Keys.appStyle) ?: AppStyle.defaultFor(Build.MANUFACTURER) }
@@ -159,7 +153,7 @@ class DataStoreSettingsStorage(private val dataStore: DataStore<Preferences>) : 
     }
 
     private inline fun <reified E : Enum<E>> Preferences.enumValue(key: Preferences.Key<String>): E? =
-        this[key]?.let { name -> enumEntries<E>().firstOrNull { it.name == name } }
+        enumOrNull<E>(this[key])
 
     private object Keys {
         val appStyle = stringPreferencesKey("app_style")

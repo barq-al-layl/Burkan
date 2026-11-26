@@ -2,8 +2,6 @@ package io.github.barqallayl.burkan.feature.apply.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import io.github.barqallayl.burkan.core.storage.editOrLog
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -11,11 +9,11 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.storage.DataStoreDeviceStateStorage
-import kotlinx.coroutines.flow.catch
+import io.github.barqallayl.burkan.core.storage.dataOrEmpty
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -35,8 +33,7 @@ class DataStoreSystemUiRestarts(
     @Named(DataStoreDeviceStateStorage.DEVICE_STATE_STORE) private val dataStore: DataStore<Preferences>,
 ) : SystemUiRestarts {
 
-    override suspend fun last(): Instant? = dataStore.data
-        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+    override suspend fun last(): Instant? = dataStore.dataOrEmpty
         .first()[LAST_RESTART]
         ?.let(Instant::fromEpochMilliseconds)
 

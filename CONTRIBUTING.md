@@ -120,12 +120,12 @@ One module, `:app`. Under the package root `io.github.barqallayl.burkan`:
 ├── designsystem/    BurkanTheme, theme options, component/, preview/
 ├── core/
 │   ├── di/          AppGraph; the bindings no class can make for itself
-│   ├── model/       Types more than one feature needs: AppError, AppErrorType
+│   ├── model/       Types more than one feature needs: AppError, AppErrorType, enumOrNull
 │   ├── navigation/  Routes, Navigator, navigation entries
 │   ├── shell/       ShellExecutor and its ADB implementation
 │   ├── storage/     DataStore- and KSafe-backed storage
 │   ├── store/       The app-scoped stores the screens open on
-│   └── ui/          Composables more than one feature uses
+│   └── ui/          Composables and Android helpers more than one feature uses
 └── feature/<feature>/
     ├── data/        Repositories, parsers, anything that touches the shell or the system
     ├── model/       Domain types and the feature's errors
@@ -299,7 +299,10 @@ Metro, one graph:
 
 - **DataStore holds settings**: apply on boot, the user's exclusions, the appearance preferences, the run log.
   A file is opened with `preferencesStore` (`core/storage/`), which replaces one that can no longer be read with an
-  empty one: left as it was, it would fail every write as well as every read.
+  empty one: left as it was, it would fail every write as well as every read. It is read through `dataOrEmpty`,
+  which reads as empty when the file cannot be read, and written through `editOrLog`, which logs a failed write
+  and goes on. An enum is stored by its name and read back with `enumOrNull`, as a name from another version of
+  the app may not be one of this version's.
 - **KSafe holds secrets**: the ADB private key and certificate. Encrypted, excluded from backup.
 - **Reads that touch disk are flows**, collected by a store or a ViewModel. Never a blocking read in a composition or in a
   ViewModel constructor.
@@ -536,9 +539,14 @@ Metro, one graph:
   the repository's `release` environment: `RELEASE_KEYSTORE` (the keystore file in base64),
   `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Started by hand from the Actions
   tab, the workflow builds the signed APKs of `main` and keeps them as an artifact, publishing nothing.
+- **The release tasks**, `checkRelease` and `githubRelease`, are in `app/release.gradle.kts`, which the app's
+  build script applies after handing it the version, whether there is a signing key, and the NDK.
 - **Every push to `main` and every pull request is checked** by `.github/workflows/check.yml`: the unit tests,
   the screenshots, a debug build and lint. When it fails, the run keeps the reports and the screenshot
   comparisons.
+- **Lint warns only about what can be wrong.** A check that cannot apply to this app is turned off in the
+  `lint {}` block with the reason beside it, and a version held back in `gradle/libs.versions.toml` carries
+  `# @pin`, its reason and a `#noinspection` line for the newer-version checks.
 - **A release is built with the NDK named in `app/build.gradle.kts`.** The app compiles nothing with it, but the
   build strips its dependencies' native libraries with it, and F-Droid ships a release only if its own build
   comes out identical. Install that version from Android Studio's SDK Manager; `checkRelease` says when it is

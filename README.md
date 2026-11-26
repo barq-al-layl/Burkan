@@ -126,56 +126,18 @@ Setup takes under two minutes and is done once.
 
 ## For developers
 
-The code is laid out like this:
-
-```
-io.github.barqallayl.burkan
-├── core/
-│   ├── di/          Metro dependency injection graph (@DependencyGraph)
-│   ├── model/       Domain models and typed AppError hierarchy
-│   ├── navigation/  Navigation 3 type-safe routes & transitions
-│   ├── shell/       Shell commands, executors & renderer parsing
-│   └── storage/     DataStore Preferences for settings & device state
-├── designsystem/    BurkanTheme, MaterialKolor seeds, M3 Expressive components
-└── feature/
-    ├── connection/  On-device ADB client (libadb-android, Conscrypt, SPAKE2) & KSafe key storage
-    └── …            MVI features (setup, status, apply, settings, log)
-```
-
-### Stack
-- UI: Jetpack Compose with Material 3 Expressive components and custom segmented layouts.
-- Dependency injection: the [Metro](https://github.com/ZacSweers/metro) compiler plugin, which checks the graph at build time.
-- State: [Orbit MVI](https://github.com/orbit-mvi/orbit-mvi) container hosts.
-- Navigation: [Navigation 3](https://developer.android.com/guide/navigation) with serializable type-safe keys.
-- Errors: [Arrow](https://arrow-kt.io/) `Either<AppError, T>` throughout.
-- Screenshot tests: every Compose preview is also a [Roborazzi](https://github.com/takahirom/roborazzi) screenshot test, run on Robolectric.
-
-### Building and checking
-
-Requires JDK 25 and Android SDK Platform 37.
+Burkan is one Gradle module, `:app`, in Kotlin with Jetpack Compose and Material 3 Expressive. Building it needs the
+Android SDK with platform 37; Gradle fetches the JDK 25 toolchain by itself.
 
 ```bash
-# Compile debug APK
 ./gradlew :app:assembleDebug
-
-# Run unit tests and Orbit container tests
-./gradlew :app:testDebugUnitTest
-
-# Verify UI screenshot baselines with Roborazzi
-./gradlew :app:verifyRoborazziDebug
-
-# Run Android lint, as CI does
-./gradlew :app:lintDebug
-
-# Assemble the release APKs, one for each processor and a universal one
-./gradlew :app:assembleRelease
 ```
 
-More detail is in:
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): the checks to run before a pull request, the stack, how the code is laid
+  out, and the rules that protect the phone.
 - [`docs/architecture.md`](docs/architecture.md): how the app is put together, its state flows and its services.
 - [`docs/device-notes.md`](docs/device-notes.md): the exact shell commands, and timings measured on a real S23.
 - [`docs/testing.md`](docs/testing.md): what has been tested on a phone and what has not.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md): code style, pull request rules and testing.
 
 ## FAQ
 

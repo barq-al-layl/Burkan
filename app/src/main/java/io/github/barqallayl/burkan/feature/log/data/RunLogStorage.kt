@@ -2,7 +2,6 @@ package io.github.barqallayl.burkan.feature.log.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import io.github.barqallayl.burkan.core.storage.editOrLog
 import androidx.datastore.preferences.core.stringPreferencesKey
 import co.touchlab.kermit.Logger
 import dev.zacsweers.metro.AppScope
@@ -12,6 +11,8 @@ import dev.zacsweers.metro.SingleIn
 import io.github.barqallayl.burkan.core.model.AppErrorType
 import io.github.barqallayl.burkan.core.model.Renderer
 import io.github.barqallayl.burkan.core.model.RendererStatus
+import io.github.barqallayl.burkan.core.model.enumOrNull
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import io.github.barqallayl.burkan.feature.apply.model.ApplyKind
 import io.github.barqallayl.burkan.feature.apply.model.RestoredSetting
 import io.github.barqallayl.burkan.feature.apply.model.RunTrigger
@@ -204,5 +205,3 @@ private fun StoredStep.toKind(): StepKind? = when (kind) {
 
 /** An error this version no longer has a message for still reads as a failure. */
 private fun errorType(name: String): AppErrorType = enumOrNull<AppErrorType>(name) ?: AppErrorType.Unexpected
-
-private inline fun <reified E : Enum<E>> enumOrNull(name: String): E? = enumValues<E>().firstOrNull { it.name == name }

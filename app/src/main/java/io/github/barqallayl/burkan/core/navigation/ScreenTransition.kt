@@ -1,7 +1,6 @@
 package io.github.barqallayl.burkan.core.navigation
 
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,6 +9,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.IntOffset
 import io.github.barqallayl.burkan.designsystem.BurkanMotion
+import io.github.barqallayl.burkan.designsystem.OneUiEasing
 
 /**
  * A change of screen in the Material style, as Material has it on Android for going forward and back: the two
@@ -54,7 +54,4 @@ fun oneUiTransition(forward: Boolean, rtl: Boolean = false): ContentTransform {
 /** How far the screen underneath moves, as a share of the screen's width. */
 private const val ONE_UI_GIVE = 0.25f
 private const val ONE_UI_MILLIS = 400
-
-/** Quick off the mark and long in settling, like One UI's own. */
-private val OneUiEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
 private val oneUiSlide = tween<IntOffset>(ONE_UI_MILLIS, easing = OneUiEasing)

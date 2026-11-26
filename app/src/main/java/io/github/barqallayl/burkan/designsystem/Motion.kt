@@ -79,11 +79,11 @@ class BurkanMotion internal constructor(private val scheme: MotionScheme?) {
         /** Material's own split of a change of content: the first three tenths to go, the rest to arrive. */
         const val MATERIAL_FADE_OUT_MILLIS = 90
         const val MATERIAL_FADE_IN_MILLIS = 210
-
-        /** Quick off the mark and long in settling, like One UI's own. */
-        val OneUiEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
     }
 }
+
+/** Quick off the mark and long in settling, like One UI's own: its motion, and its screens sliding in and out. */
+val OneUiEasing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
 
 val burkanMotion: BurkanMotion
     @Composable

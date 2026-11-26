@@ -3,8 +3,6 @@ package io.github.barqallayl.burkan.feature.apply.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import io.github.barqallayl.burkan.core.storage.editOrLog
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -13,15 +11,16 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Named
 import dev.zacsweers.metro.SingleIn
+import io.github.barqallayl.burkan.core.model.enumOrNull
 import io.github.barqallayl.burkan.core.storage.DataStoreDeviceStateStorage
+import io.github.barqallayl.burkan.core.storage.dataOrEmpty
+import io.github.barqallayl.burkan.core.storage.editOrLog
 import io.github.barqallayl.burkan.feature.apply.model.AutoApplyState
 import io.github.barqallayl.burkan.feature.apply.model.WaitReason
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import java.io.IOException
 
 /**
  * Where the automatic apply stands. Kept with the device state, which is not backed up: it is about this phone's
@@ -45,12 +44,10 @@ class DataStoreAutoApplyStorage(
     @Named(DataStoreDeviceStateStorage.DEVICE_STATE_STORE) private val dataStore: DataStore<Preferences>,
 ) : AutoApplyStorage {
 
-    override val state: Flow<AutoApplyState> = dataStore.data
-        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+    override val state: Flow<AutoApplyState> = dataStore.dataOrEmpty
         .map { preferences ->
-            val waitingFor = preferences[Keys.waitingFor]
             AutoApplyState(
-                waitingFor = WaitReason.entries.firstOrNull { it.name == waitingFor },
+                waitingFor = enumOrNull<WaitReason>(preferences[Keys.waitingFor]),
                 triedNetwork = preferences[Keys.triedNetwork],
                 systemUiAtNextLock = preferences[Keys.systemUiAtNextLock] ?: false,
                 lockRetries = preferences[Keys.lockRetries] ?: 0,
@@ -69,9 +66,7 @@ class DataStoreAutoApplyStorage(
         }
     }
 
-    override suspend fun lastBoot(): Int? = dataStore.data
-        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
-        .first()[Keys.lastBoot]
+    override suspend fun lastBoot(): Int? = dataStore.dataOrEmpty.first()[Keys.lastBoot]
 
     override suspend fun setLastBoot(count: Int) {
         dataStore.editOrLog { it[Keys.lastBoot] = count }

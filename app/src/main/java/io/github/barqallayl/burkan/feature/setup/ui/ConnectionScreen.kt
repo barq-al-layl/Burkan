@@ -163,13 +163,13 @@ private fun ConnectionContent(
  */
 @Composable
 private fun RecommendedLabel(modifier: Modifier = Modifier) {
-    val colour = LocalContentColor.current
+    val color = LocalContentColor.current
     Text(
         stringResource(R.string.connection_recommended),
         style = MaterialTheme.typography.labelMedium,
-        color = colour,
+        color = color,
         modifier = modifier
-            .border(1.dp, colour.copy(alpha = 0.6f), CircleShape)
+            .border(1.dp, color.copy(alpha = 0.6f), CircleShape)
             .padding(horizontal = 10.dp, vertical = 3.dp),
     )
 }

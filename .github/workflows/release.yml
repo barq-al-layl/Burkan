@@ -108,7 +108,7 @@ jobs:
       # To publish the release.
       contents: write
     env:
-      # Who made the tag and the GitHub release; see ReleaseSource in app/build.gradle.kts.
+      # Who made the tag and the GitHub release; see ReleaseSource in app/release.gradle.kts.
       RELEASE_SOURCE: ${{ needs.release-please.outputs.release_created == 'true' && 'release-please' || 'tag' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

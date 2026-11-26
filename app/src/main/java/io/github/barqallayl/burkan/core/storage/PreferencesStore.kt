@@ -11,8 +11,17 @@ import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import java.io.File
 import java.io.IOException
+
+/**
+ * What the store holds, or no preferences at all when the file cannot be read: the app goes on as after a fresh
+ * install rather than going down with it.
+ */
+val DataStore<Preferences>.dataOrEmpty: Flow<Preferences>
+    get() = data.catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
 
 /**
  * Writes to the store, and when the phone cannot write, storage being full for one, says so in the log and goes on.
