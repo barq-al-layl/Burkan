@@ -49,11 +49,11 @@ fun BurkanLoadingIndicator(modifier: Modifier = Modifier, tinted: Boolean = fals
  * Share's "Preparing…" on a Galaxy phone; [dotsPoseAt] holds the timings.
  *
  * Spread out, the dots reach the edges of the indicator, so one 24 dp across is as wide as the icons beside it. They
- * are drawn in [colours], clockwise from the first. With animations removed, and in previews, they hold still,
+ * are drawn in [colors], clockwise from the first. With animations removed, and in previews, they hold still,
  * spread out.
  */
 @Composable
-fun OneUiLoadingIndicator(modifier: Modifier = Modifier, colours: List<Color> = SamsungDots) {
+fun OneUiLoadingIndicator(modifier: Modifier = Modifier, colors: List<Color> = SamsungDots) {
     val still = animationsRemoved()
     val time = if (still) {
         null
@@ -78,7 +78,7 @@ fun OneUiLoadingIndicator(modifier: Modifier = Modifier, colours: List<Color> = 
         for (index in DRAW_ORDER) {
             val angle = Math.toRadians((turn + index * 90f).toDouble())
             val offset = Offset(cos(angle).toFloat(), sin(angle).toFloat()) * (pose.orbit * extent)
-            drawCircle(colours[index], radius = pose.dot * extent, center = center + offset)
+            drawCircle(colors[index], radius = pose.dot * extent, center = center + offset)
         }
     }
 }
@@ -133,10 +133,10 @@ val SamsungDots = listOf(
     Color(0xCC3E89D8),
 )
 
-/** The dots in one [colour], the second pair fainter, for an indicator drawn on a filled surface. */
-fun tintedDots(colour: Color): List<Color> {
-    val faint = colour.copy(alpha = colour.alpha * 0.6f)
-    return listOf(colour, colour, faint, faint)
+/** The dots in one [color], the second pair fainter, for an indicator drawn on a filled surface. */
+fun tintedDots(color: Color): List<Color> {
+    val faint = color.copy(alpha = color.alpha * 0.6f)
+    return listOf(color, color, faint, faint)
 }
 
 /** The bright blue first, as it is the one that is not see-through; the green last, on top. */

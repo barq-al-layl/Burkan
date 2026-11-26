@@ -77,7 +77,7 @@ fun animationsRemoved(): Boolean {
 @Composable
 fun PhoneDrawing(from: PhoneLooks, to: PhoneLooks, sweep: Float, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
-    val colours = PhoneColours(
+    val colors = PhoneColors(
         body = scheme.surfaceContainerHigh,
         frame = scheme.outline,
         screen = scheme.surfaceContainerLowest,
@@ -88,11 +88,11 @@ fun PhoneDrawing(from: PhoneLooks, to: PhoneLooks, sweep: Float, modifier: Modif
         sweep = scheme.primary,
         lock = scheme.onSurfaceVariant,
     )
-    Canvas(modifier = modifier) { drawPhone(from, to, sweep, colours) }
+    Canvas(modifier = modifier) { drawPhone(from, to, sweep, colors) }
 }
 
 /** The colours the phone is drawn in. */
-private class PhoneColours(
+private class PhoneColors(
     val body: Color,
     val frame: Color,
     val screen: Color,
@@ -107,14 +107,14 @@ private class PhoneColours(
 /** A part's fill and the line round it, which an outline has and a filled part does not. */
 private class Paint(val fill: Color, val stroke: Color)
 
-private fun PhoneColours.paint(look: PartLook): Paint = when (look) {
+private fun PhoneColors.paint(look: PartLook): Paint = when (look) {
     PartLook.Vulkan -> Paint(vulkan, Color.Transparent)
     PartLook.OpenGL -> Paint(openGl, Color.Transparent)
     PartLook.Outline -> Paint(Color.Transparent, outline)
 }
 
 /** The keyboard's panel, set behind its keys in a lighter tone of the part's colour. */
-private fun PhoneColours.panelPaint(look: PartLook): Paint = when (look) {
+private fun PhoneColors.panelPaint(look: PartLook): Paint = when (look) {
     PartLook.Vulkan -> Paint(panelVulkan, Color.Transparent)
     PartLook.OpenGL -> Paint(openGl, Color.Transparent)
     PartLook.Outline -> Paint(Color.Transparent, outline)
@@ -124,7 +124,7 @@ private fun blend(from: Paint, to: Paint, amount: Float) =
     Paint(lerp(from.fill, to.fill, amount), lerp(from.stroke, to.stroke, amount))
 
 /** The phone, fitted and centred in the canvas. */
-private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, colours: PhoneColours) {
+private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, colors: PhoneColors) {
     // A phone's proportions, as large as the room allows.
     val height = minOf(size.height, size.width / PHONE_ASPECT)
     val width = height * PHONE_ASPECT
@@ -133,13 +133,13 @@ private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, 
     val frame = 2.dp.toPx()
 
     drawRoundRect(
-        colours.body,
+        colors.body,
         topLeft = Offset(left, top),
         size = Size(width, height),
         cornerRadius = CornerRadius(width * 0.16f),
     )
     drawRoundRect(
-        colours.frame,
+        colors.frame,
         topLeft = Offset(left + frame / 2, top + frame / 2),
         size = Size(width - frame, height - frame),
         cornerRadius = CornerRadius(width * 0.16f),
@@ -148,7 +148,7 @@ private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, 
     val inset = width * 0.055f
     val screen = Area(left + inset, top + inset, width - inset * 2, height - inset * 2)
     drawRoundRect(
-        colours.screen,
+        colors.screen,
         topLeft = Offset(screen.left, screen.top),
         size = Size(screen.width, screen.height),
         cornerRadius = CornerRadius(width * 0.11f),
@@ -161,22 +161,22 @@ private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, 
     val redrawn = { y: Float -> ((sweepY - y) / fade).coerceIn(0f, 1f) }
     val stroke = 1.dp.toPx()
 
-    drawStatusBar(screen, stroke) { y -> blend(colours.paint(from.statusBar), colours.paint(to.statusBar), redrawn(y)) }
+    drawStatusBar(screen, stroke) { y -> blend(colors.paint(from.statusBar), colors.paint(to.statusBar), redrawn(y)) }
     if (to.statusBarLocked || from.statusBarLocked) {
         val shown = if (to.statusBarLocked == from.statusBarLocked) 1f else {
             val amount = redrawn(screen.top)
             if (to.statusBarLocked) amount else 1f - amount
         }
-        drawPadlock(screen, colours.lock.copy(alpha = colours.lock.alpha * shown))
+        drawPadlock(screen, colors.lock.copy(alpha = colors.lock.alpha * shown))
     }
     drawHomeScreen(screen, stroke) { y ->
-        blend(colours.paint(from.homeScreen), colours.paint(to.homeScreen), redrawn(y))
+        blend(colors.paint(from.homeScreen), colors.paint(to.homeScreen), redrawn(y))
     }
     drawKeyboard(
         screen,
         stroke,
-        panelAt = { y -> blend(colours.panelPaint(from.keyboard), colours.panelPaint(to.keyboard), redrawn(y)) },
-        keyAt = { y -> blend(colours.paint(from.keyboard), colours.paint(to.keyboard), redrawn(y)) },
+        panelAt = { y -> blend(colors.panelPaint(from.keyboard), colors.panelPaint(to.keyboard), redrawn(y)) },
+        keyAt = { y -> blend(colors.paint(from.keyboard), colors.paint(to.keyboard), redrawn(y)) },
     )
 
     // The line itself, soft above and sharp at its edge, gone once the whole screen is redrawn.
@@ -187,8 +187,8 @@ private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, 
         if (bandBottom > bandTop) {
             drawRect(
                 Brush.verticalGradient(
-                    0f to colours.sweep.copy(alpha = 0f),
-                    1f to colours.sweep.copy(alpha = 0.28f),
+                    0f to colors.sweep.copy(alpha = 0f),
+                    1f to colors.sweep.copy(alpha = 0.28f),
                     startY = sweepY - band,
                     endY = sweepY,
                 ),
@@ -198,7 +198,7 @@ private fun DrawScope.drawPhone(from: PhoneLooks, to: PhoneLooks, sweep: Float, 
         }
         if (sweepY in screen.top..(screen.top + screen.height)) {
             drawLine(
-                colours.sweep.copy(alpha = 0.8f),
+                colors.sweep.copy(alpha = 0.8f),
                 start = Offset(screen.left + screen.width * 0.04f, sweepY),
                 end = Offset(screen.left + screen.width * 0.96f, sweepY),
                 strokeWidth = 1.5.dp.toPx(),
@@ -239,22 +239,22 @@ private fun DrawScope.drawStatusBar(screen: Area, stroke: Float, paintAt: (Float
  * A padlock in the middle of the status bar: System UI waits for the next lock. It stands taller than the bar, so
  * that it can still be made out on a phone drawn small.
  */
-private fun DrawScope.drawPadlock(screen: Area, colour: Color) {
-    if (colour.alpha == 0f) return
+private fun DrawScope.drawPadlock(screen: Area, color: Color) {
+    if (color.alpha == 0f) return
     val barMiddle = screen.top + screen.height * 0.05f
     val bodyHeight = screen.height * 0.05f
     val bodyWidth = bodyHeight * 1.2f
     val centreX = screen.left + screen.width / 2
     val bodyTop = barMiddle - bodyHeight * 0.2f
     drawRoundRect(
-        colour,
+        color,
         topLeft = Offset(centreX - bodyWidth / 2, bodyTop),
         size = Size(bodyWidth, bodyHeight),
         cornerRadius = CornerRadius(bodyHeight * 0.2f),
     )
     val shackleWidth = bodyWidth * 0.62f
     drawArc(
-        colour,
+        color,
         startAngle = 180f,
         sweepAngle = 180f,
         useCenter = false,

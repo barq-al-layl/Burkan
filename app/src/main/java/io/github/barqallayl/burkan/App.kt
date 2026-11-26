@@ -54,13 +54,13 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
         LaunchedEffect(isDarkTheme) { onThemeChange(isDarkTheme) }
         // The colours and the style change in a circle spreading from the tap.
         ThemeReveal(
-            ThemeColours(isDarkTheme, appearance.seedColor, appearance.paletteStyle, appearance.appStyle),
-        ) { colours ->
+            ThemeColors(isDarkTheme, appearance.seedColor, appearance.paletteStyle, appearance.appStyle),
+        ) { colors ->
             BurkanTheme(
-                isDarkTheme = colours.isDark,
-                seedColor = colours.seedColor.resolved(),
-                paletteStyle = colours.paletteStyle.style,
-                appStyle = colours.appStyle,
+                isDarkTheme = colors.isDark,
+                seedColor = colors.seedColor.resolved(),
+                paletteStyle = colors.paletteStyle.style,
+                appStyle = colors.appStyle,
             ) {
                 // A sheet or a dialog frosts the screens behind it for as long as it is open.
                 val backdrop = remember { GlassBackdrop() }
@@ -79,7 +79,7 @@ fun App(viewModelFactory: MetroViewModelFactory, onThemeChange: (isDark: Boolean
 }
 
 /** What the colour scheme is generated from. */
-private data class ThemeColours(
+private data class ThemeColors(
     val isDark: Boolean,
     val seedColor: SeedColors,
     val paletteStyle: PaletteStyles,
